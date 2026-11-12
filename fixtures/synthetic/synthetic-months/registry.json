@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "method": "synthetic-months@1",
+  "calendars": [
+    { "calendar": "us_trading", "closures": [], "openings": [] },
+    { "calendar": "us_government_securities", "closures": [], "openings": [] }
+  ],
+  "curve": {
+    "overnight": "example-rates:ref:OVERNIGHT",
+    "sets": [
+      {
+        "type": "swap_prints",
+        "name": "example overnight-index swaps",
+        "venue": "example-swaps",
+        "underlier": "EXAMPLE-OIS",
+        "window_hours": 72
+      },
+      {
+        "type": "series",
+        "name": "example government curve",
+        "series": ["example-rates:ref:BILLS", "example-rates:ref:PAR"]
+      }
+    ],
+    "max_age_business_days": 3
+  },
+  "exposures": [
+    {
+      "id": "us-large-cap-index",
+      "name": "US large-cap index months",
+      "tracks": "Tracks the exposure of the quarterly US large-cap equity index futures months. Synthetic example entry: the spot sources are invented markets.",
+      "family": "equity_index",
+      "calendar": "us_trading",
+      "cycle": [3, 6, 9, 12],
+      "months_listed": 2,
+      "expiry": { "rule": "nth_weekday", "n": 3, "weekday": "fri", "month_offset": 0, "business_days_before": 0 },
+      "settlement_time": "09:30",
+      "roll": { "business_days_before": 8, "reference": "last_trade" },
+      "price_scale": 2,
+      "spot": {
+        "tracks": "cash",
+        "sources": [
+          { "instrument": "example-a:perp:IDX" },
+          { "instrument": "example-b:perp:IDX" },
+          { "instrument": "example-c:perp:IDX" }
+        ],
+        "max_age_secs": 10800,
+        "hard_max_age_secs": 86400,
+        "max_dispersion_bps": 100
+      },
+      "carry": { "estimate": "1.30", "note": "Synthetic example dividend-yield estimate." }
+    },
+    {
+      "id": "wti-crude",
+      "name": "WTI crude oil months",
+      "tracks": "Tracks the exposure of the monthly WTI crude oil futures months. Synthetic example entry: the spot sources and swap underlier are invented.",
+      "family": "energy",
+      "calendar": "us_trading",
+      "cycle": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "months_listed": 3,
+      "expiry": { "rule": "before_day", "day": 25, "month_offset": -1, "business_days_before": 3 },
+      "settlement_time": "14:30",
+      "roll": { "business_days_before": 3, "reference": "last_trade" },
+      "price_scale": 2,
+      "spot": {
+        "tracks": "front_month",
+        "sources": [
+          { "instrument": "example-a:perp:OIL" },
+          { "instrument": "example-b:perp:OIL" }
+        ],
+        "max_age_secs": 10800,
+        "hard_max_age_secs": 86400,
+        "max_dispersion_bps": 100
+      },
+      "anchors": {
+        "venue": "example-swaps",
+        "underlier": "EXAMPLE-CRUDE",
+        "window_hours": 120,
+        "max_age_hours": 48
+      }
+    },
+    {
+      "id": "us-natural-gas",
+      "name": "US natural gas months",
+      "tracks": "Tracks the exposure of the monthly US natural gas futures months. Synthetic example entry: the spot source is an invented market.",
+      "family": "energy",
+      "calendar": "us_trading",
+      "cycle": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "months_listed": 2,
+      "expiry": { "rule": "nth_last_business_day", "n": 3, "month_offset": -1 },
+      "settlement_time": "14:30",
+      "roll": { "business_days_before": 3, "reference": "last_trade" },
+      "price_scale": 3,
+      "spot": {
+        "tracks": "front_month",
+        "sources": [{ "instrument": "example-a:perp:GAS" }],
+        "max_age_secs": 10800,
+        "hard_max_age_secs": 86400,
+        "max_dispersion_bps": 100
+      }
+    },
+    {
+      "id": "gold",
+      "name": "Gold months",
+      "tracks": "Tracks the exposure of the active gold futures months. Synthetic example entry: the spot sources are invented markets.",
+      "family": "metal",
+      "calendar": "us_trading",
+      "cycle": [2, 4, 6, 8, 10, 12],
+      "months_listed": 2,
+      "expiry": { "rule": "nth_last_business_day", "n": 3, "month_offset": 0 },
+      "settlement_time": "13:30",
+      "roll": { "business_days_before": 2, "reference": "month_start" },
+      "price_scale": 1,
+      "spot": {
+        "tracks": "cash",
+        "sources": [
+          { "instrument": "example-a:perp:GOLD" },
+          { "instrument": "example-b:perp:GOLD" }
+        ],
+        "max_age_secs": 10800,
+        "hard_max_age_secs": 86400,
+        "max_dispersion_bps": 100
+      },
+      "carry": { "estimate": "0.25", "note": "Synthetic example lease-rate estimate." }
+    },
+    {
+      "id": "silver",
+      "name": "Silver months",
+      "tracks": "Tracks the exposure of the active silver futures months. Synthetic example entry: the spot source is an invented market.",
+      "family": "metal",
+      "calendar": "us_trading",
+      "cycle": [3, 5, 7, 9, 12],
+      "months_listed": 2,
+      "expiry": { "rule": "nth_last_business_day", "n": 3, "month_offset": 0 },
+      "settlement_time": "13:25",
+      "roll": { "business_days_before": 2, "reference": "month_start" },
+      "price_scale": 3,
+      "spot": {
+        "tracks": "cash",
+        "sources": [{ "instrument": "example-a:perp:SILVER" }],
+        "max_age_secs": 10800,
+        "hard_max_age_secs": 86400,
+        "max_dispersion_bps": 100
+      }
+    },
+    {
+      "id": "sofr-compounded-quarter",
+      "name": "SOFR compounded quarterly months",
+      "tracks": "Tracks the exposure of the quarterly three-month SOFR futures months. Synthetic example entry: the rate inputs are invented.",
+      "family": "short_rate",
+      "calendar": "us_government_securities",
+      "cycle": [3, 6, 9, 12],
+      "months_listed": 3,
+      "expiry": { "rule": "nth_weekday", "n": 3, "weekday": "wed", "month_offset": 3, "business_days_before": 1 },
+      "settlement_time": "17:00",
+      "roll": { "business_days_before": 0, "reference": "last_trade" },
+      "price_scale": 4,
+      "short_rate": "compounded_quarter"
+    },
+    {
+      "id": "sofr-average-month",
+      "name": "SOFR average monthly months",
+      "tracks": "Tracks the exposure of the monthly one-month SOFR futures months. Synthetic example entry: the rate inputs are invented.",
+      "family": "short_rate",
+      "calendar": "us_government_securities",
+      "cycle": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "months_listed": 3,
+      "expiry": { "rule": "nth_last_business_day", "n": 1, "month_offset": 0 },
+      "settlement_time": "17:00",
+      "roll": { "business_days_before": 0, "reference": "last_trade" },
+      "price_scale": 4,
+      "short_rate": "average_month"
+    }
+  ]
+}
