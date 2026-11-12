@@ -13,8 +13,7 @@ anyhow.workspace = true
 axum.workspace = true
 clap = { workspace = true, features = ["env"] }
 mesh-types.workspace = true
-# Not yet in [workspace.dependencies]; pinned here until a second crate needs it.
-notify = "8.2.2"
+notify.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -23,9 +22,9 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
-hl-synth = { path = "../../tools/hl-synth" }
-proptest = { version = "1.12.0", default-features = false, features = ["std"] }
-tempfile = "3.27.0"
+hl-synth.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

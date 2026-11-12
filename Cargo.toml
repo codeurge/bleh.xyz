@@ -24,12 +24,22 @@ license = "Apache-2.0"
 repository = "https://github.com/codeurge/bleh.xyz"
 publish = false
 
-# Shared dependency versions. A crate opts in with `name.workspace = true`.
-# Entries that no member uses are never resolved or downloaded, so versions
-# for the lanes' expected needs are declared here up front. A lane that needs
-# something not listed adds it to its own Cargo.toml and asks the integrator
-# to lift it here once a second crate needs it.
+# Shared dependency versions. A crate opts in with `name.workspace = true`
+# (adding `features = [...]` as needed). Entries that no member uses are
+# never resolved or downloaded. A lane that needs something not listed adds
+# it to its own Cargo.toml and asks the integrator to lift it here once a
+# second crate needs it. Entries with `default-features = false` cannot be
+# re-enabled by members: they name the features they use.
 [workspace.dependencies]
+# Workspace members.
+archive = { path = "crates/archive" }
+book = { path = "crates/book" }
+bus = { path = "crates/bus" }
+gateway = { path = "crates/gateway" }
+history-api = { path = "crates/history-api" }
+hl-node-reader = { path = "crates/hl-node-reader" }
+hl-synth = { path = "tools/hl-synth" }
+mesh-client = { path = "tools/mesh-client" }
 mesh-types = { path = "crates/mesh-types" }
 
 # Foundation (used by mesh-types and the tools).
@@ -48,7 +58,6 @@ async-nats = "0.52"
 axum = "0.8"
 bytes = "1"
 clap = { version = "4.6", features = ["derive"] }
-duckdb = "1.20000"
 futures = "0.3"
 object_store = "0.14"
 parquet = { version = "60", default-features = false, features = ["arrow", "zstd"] }
@@ -56,6 +65,28 @@ tokio = { version = "1.54", features = ["fs", "io-util", "macros", "net", "rt-mu
 tokio-tungstenite = "0.30"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Lifted from the lanes (used by two or more crates, or pinned centrally).
+arrow-buffer = "60"
+ciborium = "0.2.2"
+criterion = { version = "0.8", default-features = false }
+dbn = { version = "0.73", default-features = false }
+# DuckDB's default features enable `download-lib` (ureq, webpki-roots),
+# which deny.toml rejects; members name the features they use.
+duckdb = { version = "1.20000", default-features = false }
+hyper = "1"
+hyper-util = "0.1"
+libduckdb-sys = { version = "1.20000", default-features = false }
+notify = "8.2.2"
+proptest = { version = "1.12", default-features = false, features = ["std"] }
+reqwest = { version = "0.13", default-features = false }
+rmcp = { version = "3.9", default-features = false }
+rustls = { version = "0.23", default-features = false }
+tempfile = "3.27"
+tower = { version = "0.5", default-features = false }
+tower-http = { version = "0.6", default-features = false }
+zeroize = "1.8"
+zstd = "0.14"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

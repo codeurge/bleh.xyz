@@ -14,9 +14,9 @@ serde.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
-hl-synth = { path = "../../tools/hl-synth" }
-proptest = { version = "1.12", default-features = false, features = ["std"] }
+criterion = { workspace = true, features = ["cargo_bench_support"] }
+hl-synth.workspace = true
+proptest.workspace = true
 serde_json.workspace = true
 
 [[bench]]
