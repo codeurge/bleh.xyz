@@ -1,5 +1,18 @@
 //! Historical query API for the bleh.xyz mesh.
-//!
-//! Skeleton. Thin HTTP service over the normalized Parquet partitions: trades, bars, book at time T and book-event ranges, with pagination, size limits and per-client rate limits.
-//!
-//! Owned by one build lane; see `docs/decisions/0007-code-layout.md`.
+
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![warn(missing_docs)]
+
+pub mod book;
+pub mod config;
+pub mod engine;
+pub mod error;
+pub mod http;
+pub mod mcp;
+pub mod metrics;
+pub mod params;
+pub mod rows;
+pub mod service;
+pub mod source;
+pub mod store;
+pub mod synth;
