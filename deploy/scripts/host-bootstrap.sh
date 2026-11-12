@@ -228,6 +228,14 @@ if ((firewall)); then
   } > /etc/nftables.d-bleh.nft
   install -m 0644 /etc/nftables.d-bleh.nft /etc/bleh/firewall.nft && rm -f /etc/nftables.d-bleh.nft
   nft -c -f /etc/bleh/firewall.nft
+  # Oracle Cloud's Ubuntu images ship iptables rules that reject everything
+  # but SSH; they would override this policy. Replace them with an empty
+  # INPUT chain (the bleh_filter table now enforces the policy).
+  if [[ -f /etc/iptables/rules.v4 ]] && grep -q 'icmp-host-prohibited' /etc/iptables/rules.v4; then
+    cp /etc/iptables/rules.v4 /etc/iptables/rules.v4.bleh-backup
+    iptables -P INPUT ACCEPT && iptables -F INPUT
+    printf '*filter\n:INPUT ACCEPT [0:0]\n:FORWARD ACCEPT [0:0]\n:OUTPUT ACCEPT [0:0]\nCOMMIT\n' > /etc/iptables/rules.v4
+  fi
   nft -f /etc/bleh/firewall.nft
   grep -q 'include "/etc/bleh/firewall.nft"' /etc/nftables.conf || echo 'include "/etc/bleh/firewall.nft"' >> /etc/nftables.conf
   systemctl enable nftables

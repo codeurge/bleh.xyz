@@ -20,8 +20,8 @@ terraform/**/crash.log
 terraform/**/*.tfvars
 terraform/**/*.tfvars.json
 terraform/**/backend.hcl
-terraform/envs/*.tfvars.hcl
-!terraform/envs/*.example.tfvars.hcl
+terraform/**/*.tfvars.hcl
+!terraform/**/*.example.tfvars.hcl
 
 # Build output from deploy/docker/build.sh.
 docker/.build/

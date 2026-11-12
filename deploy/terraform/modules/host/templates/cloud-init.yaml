@@ -1,0 +1,31 @@
+#cloud-config
+# Rendered by deploy/terraform/modules/host. Deliberately small: everything
+# else is deploy/scripts/host-bootstrap.sh from a pinned commit, the same
+# script used by hand on self-hosted and manually ordered machines.
+users:
+  - default
+  - name: ${admin_user}
+    groups: [sudo, adm]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: true
+    ssh_authorized_keys: ${ssh_authorized_keys}
+ssh_pwauth: false
+disable_root: true
+package_update: true
+package_upgrade: true
+packages: [git, ca-certificates]
+write_files:
+  - path: /etc/ssh/sshd_config.d/90-bleh.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+runcmd:
+  - [systemctl, reload, ssh]
+  - [git, clone, --filter=blob:none, "${repo_url}", /opt/bleh/src]
+  - [git, -C, /opt/bleh/src, checkout, --detach, "${repo_ref}"]
+  - /opt/bleh/src/deploy/scripts/host-bootstrap.sh ${bootstrap_args}
+  - [usermod, -aG, docker, "${admin_user}"]
+final_message: "bleh host bootstrap finished after $UPTIME seconds"
