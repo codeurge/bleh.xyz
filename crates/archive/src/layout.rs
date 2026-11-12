@@ -37,6 +37,9 @@ pub const L2_TX_FILE: &str = "manifest.l2-tx.json";
 pub const MANIFEST_INDEX_FILE: &str = "_manifests/index.json";
 /// Magnet list of every published day.
 pub const MAGNETS_FILE: &str = "_manifests/magnets.txt";
+/// Pointer to the newest signed manifest of an archive (mutable, short
+/// cache; probed by monitoring).
+pub const LATEST_FILE: &str = "_manifests/latest.json";
 /// Directory of Iceberg metadata under the normalized archive.
 pub const ICEBERG_DIR: &str = "_iceberg";
 /// Directory of zstd dictionaries under the private raw archive.

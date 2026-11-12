@@ -10,6 +10,7 @@
 //! | Module | Contents |
 //! |---|---|
 //! | [`capture`] | Private and filtered raw tiers, hourly rotation, zstd, dictionaries |
+//! | [`follow`] | Live capture: following node files, sealing, upload, the `.captured-through` watermark |
 //! | [`store`] | S3-compatible and local object storage with write-once uploads |
 //! | [`partition`] | Deterministic Parquet partitions, records to Arrow and back, Iceberg metadata |
 //! | [`replay`] | Filtered raw to partitions through the injected parser |
@@ -43,6 +44,7 @@ pub mod capture;
 pub mod cli;
 pub mod digest;
 pub mod error;
+pub mod follow;
 pub mod hex;
 pub mod http;
 pub mod ipfs;

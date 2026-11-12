@@ -19,6 +19,7 @@ use mesh_types::{EthAddress, Record, Sha256Digest, UnixNanos};
 use crate::anchor::{self, evm, ots};
 use crate::capture::{self, Capture, Compression, Dictionary, FilterSet, HourWriter, TierConfig};
 use crate::error::{Error, IoContext, Result};
+use crate::follow::{self, FollowConfig, Follower, UploadTargets};
 use crate::http::{HttpClient, ReqwestClient};
 use crate::layout::{self, Day};
 use crate::manifest;
@@ -133,6 +134,22 @@ struct CaptureRunArgs {
     /// Keep uploaded files under `uploaded/`.
     #[arg(long)]
     keep_local: bool,
+    /// Keep running: follow the node files as they are written, seal each
+    /// hour once the node moved past it, upload (with --upload) and keep
+    /// `<staging>/.captured-through` current. Without it, complete files
+    /// are captured once and every hour is sealed.
+    #[arg(long)]
+    follow: bool,
+    /// With --follow: milliseconds between polls.
+    #[arg(long, default_value_t = 1_000)]
+    poll_ms: u64,
+    /// With --follow: seal an hour this many seconds after it ended even if
+    /// a stream wrote no later file.
+    #[arg(long, default_value_t = 600)]
+    seal_grace_secs: u64,
+    /// With --follow: rewrite --metrics-out this often (seconds).
+    #[arg(long, default_value_t = 60)]
+    metrics_every_secs: u64,
 }
 
 #[derive(Debug, Args)]
@@ -494,7 +511,11 @@ where
             return ExitCode::FAILURE;
         }
     };
-    let result = rt.block_on(dispatch(cli.command, &hooks));
+    let result = rt.block_on(dispatch_with(
+        cli.command,
+        &hooks,
+        cli.metrics_out.as_deref(),
+    ));
     if let Some(p) = &cli.metrics_out
         && let Err(e) = crate::metrics::global().write_textfile(p)
     {
@@ -512,6 +533,97 @@ where
 
 fn now() -> UnixNanos {
     UnixNanos::now()
+}
+
+/// The upload targets from `BLEH_ARCHIVE_{PRIVATE,PUBLIC}_*`, for the tiers
+/// that are captured.
+fn upload_targets(private: bool, filtered: bool, keep_local: bool) -> Result<UploadTargets> {
+    let mut stores = Vec::new();
+    for (on, tier, archive) in [
+        (private, "PRIVATE", layout::PRIVATE_RAW_ARCHIVE),
+        (filtered, "PUBLIC", layout::RAW_ARCHIVE),
+    ] {
+        if !on {
+            continue;
+        }
+        let cfg = StoreConfig::from_env(tier)
+            .ok_or_else(|| Error::invalid(format!("BLEH_ARCHIVE_{tier}_URL is not set")))?;
+        stores.push((archive.to_owned(), cfg.open()?));
+    }
+    Ok(UploadTargets { stores, keep_local })
+}
+
+async fn dispatch_with(
+    cmd: Command,
+    hooks: &Hooks,
+    metrics_out: Option<&Path>,
+) -> Result<ExitCode> {
+    match cmd {
+        Command::Capture(CaptureCmd::Run(a)) if a.follow => follow_cmd(a, hooks, metrics_out).await,
+        other => dispatch(other, hooks).await,
+    }
+}
+
+async fn follow_cmd(
+    a: CaptureRunArgs,
+    hooks: &Hooks,
+    metrics_out: Option<&Path>,
+) -> Result<ExitCode> {
+    let cap = build_capture(&a, hooks)?;
+    let streams: Vec<(String, PathBuf)> = a
+        .streams
+        .iter()
+        .map(|(s, d)| (s.clone(), PathBuf::from(d)))
+        .collect();
+    let mut cfg = FollowConfig::new(streams, a.staging.clone());
+    cfg.poll_interval = Duration::from_millis(a.poll_ms.max(10));
+    cfg.seal_grace = Duration::from_secs(a.seal_grace_secs);
+    cfg.metrics_out = metrics_out.map(|p| {
+        (
+            p.to_path_buf(),
+            Duration::from_secs(a.metrics_every_secs.max(1)),
+        )
+    });
+    let targets = if a.upload {
+        Some(upload_targets(!a.no_private, !a.no_filtered, a.keep_local)?)
+    } else {
+        None
+    };
+    let follower = Follower::new(cfg, cap)?;
+    let (tx, rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(async move {
+        let _ = tokio::signal::ctrl_c().await;
+        tracing::info!("stopping capture");
+        let _ = tx.send(true);
+    });
+    follow::run(follower, targets, rx).await?;
+    Ok(ExitCode::SUCCESS)
+}
+
+fn build_capture(a: &CaptureRunArgs, hooks: &Hooks) -> Result<Capture> {
+    let private = if a.no_private {
+        None
+    } else {
+        let mut cfg = TierConfig::private(&a.staging);
+        cfg.compression = Compression {
+            level: a.private_level,
+            long_window_log: (a.long_window_log > 0).then_some(a.long_window_log),
+            dictionaries: Default::default(),
+        };
+        for (stream, file) in &a.dicts {
+            let bytes = std::fs::read(file).at(file)?;
+            cfg.compression
+                .dictionaries
+                .insert(stream.clone(), Arc::new(Dictionary::from_bytes(bytes)?));
+        }
+        Some(HourWriter::open(cfg)?)
+    };
+    let filtered = if a.no_filtered {
+        None
+    } else {
+        Some(HourWriter::open(TierConfig::filtered(&a.staging))?)
+    };
+    Capture::new(private, filtered, hooks.filters.clone())
 }
 
 async fn dispatch(cmd: Command, hooks: &Hooks) -> Result<ExitCode> {
@@ -540,29 +652,7 @@ async fn dispatch(cmd: Command, hooks: &Hooks) -> Result<ExitCode> {
 async fn capture_cmd(c: CaptureCmd, hooks: &Hooks) -> Result<ExitCode> {
     match c {
         CaptureCmd::Run(a) => {
-            let private = if a.no_private {
-                None
-            } else {
-                let mut cfg = TierConfig::private(&a.staging);
-                cfg.compression = Compression {
-                    level: a.private_level,
-                    long_window_log: (a.long_window_log > 0).then_some(a.long_window_log),
-                    dictionaries: Default::default(),
-                };
-                for (stream, file) in &a.dicts {
-                    let bytes = std::fs::read(file).at(file)?;
-                    cfg.compression
-                        .dictionaries
-                        .insert(stream.clone(), Arc::new(Dictionary::from_bytes(bytes)?));
-                }
-                Some(HourWriter::open(cfg)?)
-            };
-            let filtered = if a.no_filtered {
-                None
-            } else {
-                Some(HourWriter::open(TierConfig::filtered(&a.staging))?)
-            };
-            let mut cap = Capture::new(private, filtered, hooks.filters.clone())?;
+            let mut cap = build_capture(&a, hooks)?;
             let streams: Vec<(String, PathBuf)> = a
                 .streams
                 .iter()

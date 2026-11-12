@@ -321,6 +321,29 @@ pub struct ManifestIndex {
 /// Format tag of [`ManifestIndex`].
 pub const INDEX_FORMAT: &str = "bleh-manifest-index-v0";
 
+/// `_manifests/latest.json`: the newest signed manifest of an archive. Like
+/// the index it is a hint, not trusted: readers verify the manifest it
+/// names by hash and signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LatestPointer {
+    /// Always `bleh-manifest-latest-v0`.
+    pub format: String,
+    /// Archive name.
+    pub archive: String,
+    /// Day of the newest manifest.
+    pub date: Day,
+    /// Its chain position.
+    pub sequence: u64,
+    /// Its path relative to the archive root.
+    pub manifest: String,
+    /// SHA-256 of `manifest.json`.
+    pub sha256: Sha256Digest,
+}
+
+/// Format tag of [`LatestPointer`].
+pub const LATEST_FORMAT: &str = "bleh-manifest-latest-v0";
+
 impl ManifestIndex {
     /// An empty index.
     #[must_use]
@@ -429,6 +452,19 @@ pub fn refresh_indexes(root: &Path, archive: &str) -> Result<()> {
     let mut bytes = serde_json::to_vec_pretty(&idx)?;
     bytes.push(b'\n');
     partition::write_atomic(&local(root, layout::MANIFEST_INDEX_FILE), &bytes)?;
+    if let Some(last) = idx.manifests.iter().max_by_key(|e| e.sequence) {
+        let latest = LatestPointer {
+            format: LATEST_FORMAT.to_owned(),
+            archive: archive.to_owned(),
+            date: last.date,
+            sequence: last.sequence,
+            manifest: layout::manifest_file(last.date, layout::MANIFEST_FILE),
+            sha256: last.sha256,
+        };
+        let mut bytes = serde_json::to_vec_pretty(&latest)?;
+        bytes.push(b'\n');
+        partition::write_atomic(&local(root, layout::LATEST_FILE), &bytes)?;
+    }
     let mut magnets = String::new();
     for e in &idx.manifests {
         if let Some(m) = read_signed(root, e.date)? {
@@ -542,6 +578,7 @@ mod tests {
         let m = &built.manifest;
         assert_eq!(m.sequence, 0);
         assert_eq!(m.files.len(), written.len());
+        assert!(!root.join(layout::LATEST_FILE).exists());
         for f in &m.files {
             assert!(f.content_hash.is_some() && f.record_count.is_some());
             assert_eq!(f.ipfs.codec, IpfsCodec::Raw);
@@ -618,6 +655,14 @@ mod tests {
         assert_eq!(idx.at(1).unwrap().sha256, signed2.sha256().unwrap());
         let magnets = std::fs::read_to_string(root.join(layout::MAGNETS_FILE)).unwrap();
         assert_eq!(magnets.lines().count(), 2);
+        let latest: LatestPointer =
+            serde_json::from_slice(&std::fs::read(root.join(layout::LATEST_FILE)).unwrap())
+                .unwrap();
+        assert_eq!(latest.format, LATEST_FORMAT);
+        assert_eq!(latest.sequence, 1);
+        assert_eq!(latest.date.to_string(), "2026-01-02");
+        assert_eq!(latest.manifest, "_manifests/2026-01-02/manifest.json");
+        assert_eq!(latest.sha256, signed2.sha256().unwrap());
         // Building day 1 again with day 2 as "previous" is refused.
         assert!(build(root, &opts("2026-01-01", &k, Some(signed2))).is_err());
     }

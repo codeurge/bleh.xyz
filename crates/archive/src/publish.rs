@@ -207,6 +207,7 @@ pub async fn publish_day(
             layout::manifest_file(day, layout::OTS_FILE),
             layout::MANIFEST_INDEX_FILE.to_owned(),
             layout::MAGNETS_FILE.to_owned(),
+            layout::LATEST_FILE.to_owned(),
         ] {
             let p = local(root, &rel);
             if p.exists() {
