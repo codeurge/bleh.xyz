@@ -1,0 +1,352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bleh.xyz/specs/observation-v0.schema.json",
+  "title": "Observation record, v0",
+  "description": "One mesh record. See observation-v0.md. Implemented by crates/mesh-types.",
+  "oneOf": [
+    { "$ref": "#/$defs/trade" },
+    { "$ref": "#/$defs/book_event" },
+    { "$ref": "#/$defs/book_snapshot" },
+    { "$ref": "#/$defs/bar" },
+    { "$ref": "#/$defs/footprint" },
+    { "$ref": "#/$defs/volume_profile" },
+    { "$ref": "#/$defs/swap_print" }
+  ],
+  "$defs": {
+    "decimal": {
+      "description": "Fixed-point decimal: scale = number of fractional digits.",
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]{1,18})?$"
+    },
+    "nonneg_decimal": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]{1,18})?$"
+    },
+    "ms": { "description": "Unix milliseconds, UTC.", "type": "integer" },
+    "ns": {
+      "description": "Unix nanoseconds, UTC, as a canonical integer string.",
+      "type": "string",
+      "pattern": "^(0|-?[1-9][0-9]{0,18})$"
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "u32": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+    "u64": { "type": "integer", "minimum": 0 },
+    "venue_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
+    "instrument_id": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,31}:[a-z0-9][a-z0-9-]{0,15}:[A-Za-z0-9_.@#+-]+(:[A-Za-z0-9_.@#+-]+)*$"
+    },
+    "admission_id": { "type": "string", "pattern": "^ADM-[0-9]{4,9}$" },
+    "method_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,47}@[1-9][0-9]{0,5}$"
+    },
+    "flags": {
+      "description": "Flag names in bit order, no duplicates.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "oracle_anchored_venue",
+          "backfill",
+          "gap_before",
+          "low_resolution",
+          "size_capped",
+          "block_trade_delayed"
+        ]
+      }
+    },
+    "seq": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_number", "event_index"],
+      "properties": {
+        "block_number": { "$ref": "#/$defs/u64" },
+        "event_index": { "$ref": "#/$defs/u32" }
+      }
+    },
+    "prov": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "instrument",
+        "venue",
+        "ts_source_ms",
+        "ts_ingest_ns",
+        "seq",
+        "admission",
+        "flags"
+      ],
+      "properties": {
+        "instrument": { "$ref": "#/$defs/instrument_id" },
+        "venue": { "$ref": "#/$defs/venue_id" },
+        "ts_source_ms": { "$ref": "#/$defs/ms" },
+        "ts_ingest_ns": { "$ref": "#/$defs/ns" },
+        "ts_publish_ns": { "$ref": "#/$defs/ns" },
+        "seq": { "$ref": "#/$defs/seq" },
+        "admission": { "$ref": "#/$defs/admission_id" },
+        "flags": { "$ref": "#/$defs/flags" }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "inputs_hash", "input_count"],
+      "properties": {
+        "method": { "$ref": "#/$defs/method_id" },
+        "inputs_hash": { "$ref": "#/$defs/sha256" },
+        "input_count": { "$ref": "#/$defs/u64" }
+      }
+    },
+    "interval": { "enum": ["1s", "1m", "5m", "15m", "1h", "1d"] },
+    "trade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "price", "size", "aggressor", "trade_id"],
+      "properties": {
+        "kind": { "const": "trade" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "price": { "$ref": "#/$defs/decimal" },
+        "size": { "$ref": "#/$defs/nonneg_decimal" },
+        "aggressor": { "enum": ["buy", "sell", "unknown"] },
+        "trade_id": { "$ref": "#/$defs/u64" }
+      }
+    },
+    "book_action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "size"],
+          "properties": {
+            "type": { "const": "add" },
+            "size": { "$ref": "#/$defs/nonneg_decimal" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "new_size"],
+          "properties": {
+            "type": { "enum": ["modify", "fill"] },
+            "orig_size": { "$ref": "#/$defs/nonneg_decimal" },
+            "new_size": { "$ref": "#/$defs/nonneg_decimal" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": { "type": { "const": "cancel" } }
+        }
+      ]
+    },
+    "book_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "order_id", "side", "price", "action"],
+      "properties": {
+        "kind": { "const": "book_event" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "order_id": { "$ref": "#/$defs/u64" },
+        "side": { "enum": ["bid", "ask"] },
+        "price": { "$ref": "#/$defs/decimal" },
+        "action": { "$ref": "#/$defs/book_action" }
+      }
+    },
+    "resting_order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order_id", "price", "size", "ts_order_ms"],
+      "properties": {
+        "order_id": { "$ref": "#/$defs/u64" },
+        "price": { "$ref": "#/$defs/decimal" },
+        "size": { "$ref": "#/$defs/nonneg_decimal" },
+        "ts_order_ms": { "$ref": "#/$defs/ms" }
+      }
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["price", "size", "order_count"],
+      "properties": {
+        "price": { "$ref": "#/$defs/decimal" },
+        "size": { "$ref": "#/$defs/nonneg_decimal" },
+        "order_count": { "$ref": "#/$defs/u32" }
+      }
+    },
+    "book_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "depth"],
+      "properties": {
+        "kind": { "const": "book_snapshot" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "depth": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "bids", "asks"],
+              "properties": {
+                "type": { "const": "l4" },
+                "bids": { "type": "array", "items": { "$ref": "#/$defs/resting_order" } },
+                "asks": { "type": "array", "items": { "$ref": "#/$defs/resting_order" } }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "bids", "asks"],
+              "properties": {
+                "type": { "const": "l2" },
+                "bids": { "type": "array", "items": { "$ref": "#/$defs/level" } },
+                "asks": { "type": "array", "items": { "$ref": "#/$defs/level" } }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "prov",
+        "derived",
+        "interval",
+        "start_ms",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "buy_volume",
+        "sell_volume",
+        "trade_count"
+      ],
+      "properties": {
+        "kind": { "const": "bar" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "interval": { "$ref": "#/$defs/interval" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "open": { "$ref": "#/$defs/decimal" },
+        "high": { "$ref": "#/$defs/decimal" },
+        "low": { "$ref": "#/$defs/decimal" },
+        "close": { "$ref": "#/$defs/decimal" },
+        "volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "buy_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "sell_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "trade_count": { "type": "integer", "minimum": 1, "maximum": 4294967295 }
+      }
+    },
+    "footprint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "derived", "interval", "start_ms", "levels"],
+      "properties": {
+        "kind": { "const": "footprint" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "interval": { "$ref": "#/$defs/interval" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "levels": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["price", "bid_volume", "ask_volume", "trade_count"],
+            "properties": {
+              "price": { "$ref": "#/$defs/decimal" },
+              "bid_volume": { "$ref": "#/$defs/nonneg_decimal" },
+              "ask_volume": { "$ref": "#/$defs/nonneg_decimal" },
+              "trade_count": { "$ref": "#/$defs/u32" }
+            }
+          }
+        }
+      }
+    },
+    "volume_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "derived", "start_ms", "end_ms", "bucket", "levels"],
+      "properties": {
+        "kind": { "const": "volume_profile" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "end_ms": { "$ref": "#/$defs/ms" },
+        "bucket": { "$ref": "#/$defs/decimal" },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["price", "volume", "buy_volume", "sell_volume"],
+            "properties": {
+              "price": { "$ref": "#/$defs/decimal" },
+              "volume": { "$ref": "#/$defs/nonneg_decimal" },
+              "buy_volume": { "$ref": "#/$defs/nonneg_decimal" },
+              "sell_volume": { "$ref": "#/$defs/nonneg_decimal" }
+            }
+          }
+        }
+      }
+    },
+    "swap_text": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "swap_print": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "prov",
+        "repository",
+        "dissemination_id",
+        "action",
+        "asset_class",
+        "ts_execution_ms",
+        "ts_dissemination_ms"
+      ],
+      "properties": {
+        "kind": { "const": "swap_print" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "repository": { "$ref": "#/$defs/venue_id" },
+        "dissemination_id": { "$ref": "#/$defs/swap_text" },
+        "original_dissemination_id": { "$ref": "#/$defs/swap_text" },
+        "action": { "enum": ["new", "cancel", "correct"] },
+        "asset_class": {
+          "enum": ["interest_rate", "credit", "equity", "foreign_exchange", "commodity"]
+        },
+        "upi": { "$ref": "#/$defs/swap_text" },
+        "product": { "$ref": "#/$defs/swap_text" },
+        "underlier": { "$ref": "#/$defs/swap_text" },
+        "tenor": { "$ref": "#/$defs/swap_text" },
+        "expiry": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "price": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "enum": ["price", "spread", "rate"] },
+            "value": { "$ref": "#/$defs/decimal" }
+          }
+        },
+        "notional": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount", "currency"],
+          "properties": {
+            "amount": { "$ref": "#/$defs/nonneg_decimal" },
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+          }
+        },
+        "ts_execution_ms": { "$ref": "#/$defs/ms" },
+        "ts_dissemination_ms": { "$ref": "#/$defs/ms" }
+      }
+    }
+  }
+}
