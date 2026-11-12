@@ -186,11 +186,13 @@ and rejects bars and trades that disagree.
 
 ### 4.2 Delta and CVD: `delta@1`
 
-- Output: `book::orderflow::DeltaBar`, default interval `1m`, anchor `1d`.
-- `delta = buy_volume - sell_volume` per interval (signed fixed point,
-  `SignedSize`).
-- `cvd` = sum of `delta` from the anchor period start (UTC midnight by
-  default) through the interval. It restarts at each anchor boundary.
+- Output: `delta_bar` (`mesh_types::DeltaBar`), default interval `1m`,
+  anchor `1d`.
+- `volume_delta = buy_volume - sell_volume` per interval (signed fixed
+  point, `mesh_types::SignedSize`). The field is not called `delta`
+  because that is an excluded venue field name in the allowlist.
+- `cvd` = sum of `volume_delta` from the anchor period start (UTC midnight
+  by default) through the interval. It restarts at each anchor boundary.
 - Inputs: **every trade from the anchor start through the end of the
   interval**, in `seq` order, because `cvd` depends on all of them.
 
@@ -339,10 +341,10 @@ One `book::Processor` per instrument:
 3. Feed node snapshots with `process_snapshot` after their block.
 4. Call `advance_to(block_time)` on every block heartbeat, so quiet markets
    close their bars and tiles.
-5. Publish every returned `Output`. `Output::record()` gives an observation
-   `Record` for bars, footprints, volume profiles and checkpoints; the other
-   outputs serialize with serde (canonical JSON via
-   `mesh_types::canonical_json`).
+5. Publish every returned `Output`. `Output::record()` (or
+   `into_record()`) gives an observation `Record` for every derived output
+   and checkpoint; reconciliation reports, desyncs and stale-snapshot
+   notices are operational and have no record kind.
 
 Trade analytics run whatever the book state. Builder errors (out-of-order
 trades, mixed scales, overflow) are returned as `ProcessError` and mean the
@@ -392,14 +394,16 @@ on the target host before relying on them):
 | Reconcile against a clean snapshot | ~55 ms |
 | Full processor replay, every analytic on | ~260,000 records/s |
 
-## 8. Data-model gaps
+## 8. Record kinds
 
-These outputs have no observation kind yet, so they travel as serde JSON
-with a derived header rather than as `Record`s: `ActivityBar`, `DeltaBar`,
-`ProfileSummary` (POC and value area, which `volume_profile` has no fields
-for), `OrderActivity`, `QueuePositions`, `Sweep`, `HeatmapTile`,
-`LiquidityGrade`. Adding them is an integrator change to `mesh-types` and
-the observation spec; until then the shapes above are the contract.
+Every output above is an observation record (observation-v0 §§ 2.5–2.10):
+`bar`, `activity_bar`, `footprint`, `delta_bar`, `volume_profile`,
+`profile_summary` (POC and value area), `book_snapshot` (checkpoints),
+`order_activity`, `queue_positions`, `sweep`, `heatmap_tile` and
+`liquidity_grade`. The types live in `mesh_types` (`book` re-exports
+them), so the gateway, the archive and clients share one definition,
+allowlist entry and Arrow schema. The origin service publishes all of them
+on the bus and signs them per block like any other stream.
 
 ## 9. Method versions
 

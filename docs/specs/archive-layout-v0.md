@@ -55,9 +55,16 @@ hyperliquid-normalized/kind=<kind>/venue=<venue>/instrument=<id>/date=<YYYY-MM-D
 - `kind` is the record kind (`trade`, `book_event`, `book_snapshot`, `bar`,
   ...).
 - `instrument` is `InstrumentId::path_segment()`: the ID with `:` written as
-  `~` (`hyperliquid~perp~xyz~CL`). The `instrument` column inside the file
-  keeps the real ID.
-- `date` is the UTC day of `ts_source_ms` (bars: of `start_ms`).
+  `~` and `#` written as `%23` (`hyperliquid~perp~xyz~CL`,
+  `hyperliquid~outcome~%239001`). Readers reverse both; a raw `#` is also
+  accepted. The object key holds the literal `%23`, so an HTTPS URL for
+  it escapes the `%` (`%2523`). The `instrument` column inside the file
+  keeps the real ID. Venue-wide records (`coverage`) use
+  `hyperliquid~venue~all`.
+- `date` is the UTC day of `ts_source_ms`; for interval records, of the
+  interval start (`start_ms` of bars, footprints, volume profiles, delta
+  bars, value areas, order activity and coverage; `time_start_ms` of
+  heatmap tiles; `first_ms` of activity bars).
 - `part-<NNNNN>` is numbered from `00000`. A new part starts after
   16,777,216 rows (2^24), so part boundaries depend only on row count.
 

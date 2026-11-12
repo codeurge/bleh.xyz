@@ -48,7 +48,8 @@ pub fn select_list(kind: RecordKind) -> String {
             "method, inputs_hash, input_count, epoch_ms(start_ms), epoch_ms(end_ms), bucket, \
              to_json(levels)::VARCHAR, price_scale, size_scale"
         }
-        RecordKind::SwapPrint => "repository",
+        // Not served by the row mappers; listed for exhaustiveness.
+        _ => "repository",
     };
     format!("{PROV_COLS}, {rest}")
 }

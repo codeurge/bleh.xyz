@@ -38,9 +38,12 @@
 //! The inputs hash covers the trades and book events since the previous
 //! grade, in block-major order.
 
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::{Grade, LiquidityGrade, LiquidityLabel};
+
 use std::collections::VecDeque;
 
-use mesh_types::{BookSide, ContentHasher, DerivedHeader, Provenance, Size, UnixMillis};
+use mesh_types::{BookSide, ContentHasher, Provenance, UnixMillis};
 use serde::{Deserialize, Serialize};
 
 use crate::book::OrderBook;
@@ -48,29 +51,6 @@ use crate::error::InputError;
 use crate::fixed::{size, spread_centi_bps};
 use crate::inputs::header;
 use crate::methods;
-
-/// A liquidity grade, best first.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum Grade {
-    /// Deep, tight and active.
-    A,
-    /// Usable as a benchmark.
-    B,
-    /// Thin.
-    C,
-    /// Below every threshold.
-    D,
-}
-
-/// Whether a market may serve as a price reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum LiquidityLabel {
-    /// Liquid enough to serve as a reference price.
-    Benchmark,
-    /// A record of trades only; not a reference price.
-    Tape,
-}
 
 /// Thresholds a market must meet for one grade.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -137,39 +117,6 @@ impl Default for LiquidityConfig {
             benchmark_min: Grade::B,
         }
     }
-}
-
-/// A market's liquidity grade at one time.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct LiquidityGrade {
-    /// End of the last block before `as_of_ms`.
-    pub prov: Provenance,
-    /// `liquidity-grade@1`; inputs are the trades and book events since
-    /// the previous grade.
-    pub derived: DerivedHeader,
-    /// The grading time (a multiple of `emit_ms`).
-    pub as_of_ms: UnixMillis,
-    /// Window length used, ms.
-    pub window_ms: i64,
-    /// Book samples in the window.
-    pub samples: u32,
-    /// Median spread, basis points with two decimals.
-    pub spread_bps: Option<Size>,
-    /// Depth band, basis points.
-    pub depth_bps: u32,
-    /// Median bid depth, quote units.
-    pub depth_bid: Size,
-    /// Median ask depth, quote units.
-    pub depth_ask: Size,
-    /// Trades in the window.
-    pub trades: u64,
-    /// Trades per minute, two decimals.
-    pub trades_per_minute: Size,
-    /// The grade.
-    pub grade: Grade,
-    /// Benchmark or tape.
-    pub label: LiquidityLabel,
 }
 
 #[derive(Debug, Clone, Copy)]

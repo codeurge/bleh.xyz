@@ -760,6 +760,13 @@ fn map_row(
         expiry,
         price,
         notional,
+        quantity: None,
+        event_type: None,
+        strike: None,
+        option_premium: None,
+        option_type: None,
+        option_style: None,
+        first_exercise_date: None,
         ts_execution_ms: ts_execution,
         ts_dissemination_ms: ts_dissemination,
     };

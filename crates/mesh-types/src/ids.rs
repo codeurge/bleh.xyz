@@ -191,6 +191,11 @@ fn validate_instrument(s: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Class part of venue-wide pseudo-instruments.
+pub const VENUE_WIDE_CLASS: &str = "venue";
+/// Symbol part of venue-wide pseudo-instruments.
+pub const VENUE_WIDE_SYMBOL: &str = "all";
+
 impl InstrumentId {
     /// Builds an ID from its parts.
     ///
@@ -199,6 +204,22 @@ impl InstrumentId {
     /// Fails if a part does not match the grammar.
     pub fn from_parts(venue: &VenueId, class: &str, symbol: &str) -> Result<Self, IdError> {
         Self::new(format!("{venue}:{class}:{symbol}"))
+    }
+
+    /// The venue-wide pseudo-instrument `<venue>:venue:all`, used by
+    /// records about a whole venue rather than one market (the
+    /// [`Coverage`](crate::Coverage) signal).
+    #[must_use]
+    pub fn venue_wide(venue: &VenueId) -> Self {
+        // A valid venue ID plus fixed valid parts is always a valid ID.
+        Self(format!("{venue}:{VENUE_WIDE_CLASS}:{VENUE_WIDE_SYMBOL}"))
+    }
+
+    /// True for [`InstrumentId::venue_wide`] IDs.
+    #[must_use]
+    pub fn is_venue_wide(&self) -> bool {
+        let (_, class, symbol) = self.parts();
+        class == VENUE_WIDE_CLASS && symbol == VENUE_WIDE_SYMBOL
     }
 
     fn parts(&self) -> (&str, &str, &str) {
@@ -228,20 +249,31 @@ impl InstrumentId {
         self.parts().2
     }
 
-    /// Path-safe form for Hive-style partition directories: `:` becomes
-    /// `~`. Reversible with [`InstrumentId::from_path_segment`].
+    /// Path-safe form for Hive-style partition directories and URLs: `:`
+    /// becomes `~` and `#` becomes `%23` (a raw `#` would start a URL
+    /// fragment). `%` never occurs in an ID, so the encoding is
+    /// unambiguous. Reversible with [`InstrumentId::from_path_segment`].
     #[must_use]
     pub fn path_segment(&self) -> String {
-        self.0.replace(':', "~")
+        let mut out = String::with_capacity(self.0.len() + 8);
+        for c in self.0.chars() {
+            match c {
+                ':' => out.push('~'),
+                '#' => out.push_str("%23"),
+                c => out.push(c),
+            }
+        }
+        out
     }
 
-    /// Parses the output of [`InstrumentId::path_segment`].
+    /// Parses the output of [`InstrumentId::path_segment`]. A raw `#` (as
+    /// written before `%23` was introduced) is accepted too.
     ///
     /// # Errors
     ///
     /// Fails if the result is not a valid instrument ID.
     pub fn from_path_segment(segment: &str) -> Result<Self, IdError> {
-        Self::new(segment.replace('~', ":"))
+        Self::new(segment.replace("%23", "#").replace('~', ":"))
     }
 }
 
@@ -278,7 +310,19 @@ mod tests {
                 id
             );
             assert!(!id.path_segment().contains(':'));
+            assert!(!id.path_segment().contains('#'));
         }
+        let venue = VenueId::new("hyperliquid").unwrap();
+        let all = InstrumentId::venue_wide(&venue);
+        assert_eq!(InstrumentId::new(all.as_str()).unwrap(), all);
+        assert!(all.is_venue_wide());
+        assert_eq!(all.as_str(), "hyperliquid:venue:all");
+        let outcome = InstrumentId::new("hyperliquid:outcome:#9001").unwrap();
+        assert_eq!(outcome.path_segment(), "hyperliquid~outcome~%239001");
+        assert_eq!(
+            InstrumentId::from_path_segment("hyperliquid~outcome~#9001").unwrap(),
+            outcome
+        );
         let id = InstrumentId::new("hyperliquid:perp:xyz:CL").unwrap();
         assert_eq!(id.venue_part(), "hyperliquid");
         assert_eq!(id.class_part(), "perp");

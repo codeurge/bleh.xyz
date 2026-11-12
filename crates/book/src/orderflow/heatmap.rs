@@ -29,10 +29,13 @@
 //! depends on the book at the tile start, which the archive fixes
 //! (nearest checkpoint plus events).
 
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::{HeatCell, HeatmapTile};
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use mesh_types::{BookSide, ContentHasher, DerivedHeader, Price, Provenance, Size, UnixMillis};
+use mesh_types::{BookSide, ContentHasher, Price, Provenance, UnixMillis};
 use serde::{Deserialize, Serialize};
 
 use crate::book::OrderBook;
@@ -67,43 +70,6 @@ impl Default for HeatmapConfig {
             max_levels: 250,
         }
     }
-}
-
-/// One non-empty cell.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct HeatCell {
-    /// Column within the tile.
-    pub col: u32,
-    /// Row within the tile.
-    pub row: u32,
-    /// Resting bid size in the cell.
-    pub bid_size: Size,
-    /// Resting ask size in the cell.
-    pub ask_size: Size,
-}
-
-/// A tile of resting size.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct HeatmapTile {
-    /// End of the last block applied before the tile was emitted.
-    pub prov: Provenance,
-    /// `heatmap@1`; inputs are the book events of the tile's blocks.
-    pub derived: DerivedHeader,
-    /// Start of column 0.
-    pub time_start_ms: UnixMillis,
-    /// Column width, ms.
-    pub time_step_ms: i64,
-    /// Columns in the tile.
-    pub cols: u32,
-    /// Lower bound of row 0.
-    pub price_start: Price,
-    /// Row height.
-    pub price_step: Price,
-    /// Rows in the tile.
-    pub rows: u32,
-    /// Non-empty cells, by column then row.
-    pub cells: Vec<HeatCell>,
 }
 
 type Sample = Arc<BTreeMap<i64, (i64, i64)>>;

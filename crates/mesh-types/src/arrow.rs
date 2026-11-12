@@ -17,6 +17,17 @@
 //! - Derived kinds add `method`, `inputs_hash` (32-byte fixed binary) and
 //!   `input_count`.
 //!
+//! - Analytics kinds and coverage ([`RecordKind::is_analytics`]) are flat
+//!   too, with one column per top-level field. Each column's
+//!   [`META_ENCODING`] field metadata says how its value is stored:
+//!   `price` or `size` (an `Int64` mantissa at the row's `price_scale` or
+//!   `size_scale`), `decimal` (exact decimal text, for values with a
+//!   method-defined scale such as basis points with two decimals) or
+//!   `json` (the canonical JSON of a nested value, such as a queue level
+//!   or heatmap cells). Columns without it hold plain scalars. Kinds with
+//!   no `price` or `size` column have no scale columns.
+//! - Swap prints carry per-row scales for each decimal.
+//!
 //! Every schema carries metadata `bleh.schema = observation-v0` and
 //! `bleh.kind = <kind>`.
 
@@ -32,6 +43,182 @@ use crate::record::RecordKind;
 pub const META_SCHEMA: &str = "bleh.schema";
 /// Metadata key naming the record kind.
 pub const META_KIND: &str = "bleh.kind";
+/// Field metadata key giving how an analytics column stores its value
+/// (`price`, `size`, `decimal` or `json`; see the module docs).
+pub const META_ENCODING: &str = "bleh.encoding";
+
+/// How an analytics column stores its value ([`META_ENCODING`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnEncoding {
+    /// A plain scalar (string, integer, boolean, timestamp).
+    Plain,
+    /// `Int64` mantissa at the row's `price_scale`.
+    Price,
+    /// `Int64` mantissa at the row's `size_scale` (may be negative for
+    /// signed quantities).
+    Size,
+    /// Exact decimal text.
+    Decimal,
+    /// Canonical JSON text of a nested value.
+    Json,
+}
+
+impl ColumnEncoding {
+    /// The metadata value, if any.
+    #[must_use]
+    pub const fn as_str(self) -> Option<&'static str> {
+        match self {
+            Self::Plain => None,
+            Self::Price => Some("price"),
+            Self::Size => Some("size"),
+            Self::Decimal => Some("decimal"),
+            Self::Json => Some("json"),
+        }
+    }
+
+    /// The encoding of a field built by [`schema`].
+    #[must_use]
+    pub fn of(field: &Field) -> Self {
+        match field.metadata().get(META_ENCODING).map(String::as_str) {
+            Some("price") => Self::Price,
+            Some("size") => Self::Size,
+            Some("decimal") => Self::Decimal,
+            Some("json") => Self::Json,
+            _ => Self::Plain,
+        }
+    }
+}
+
+fn enc(f: Field, e: ColumnEncoding) -> Field {
+    match e.as_str() {
+        Some(v) => f.with_metadata(HashMap::from([(META_ENCODING.to_owned(), v.to_owned())])),
+        None => f,
+    }
+}
+
+fn price_col(name: &str) -> Field {
+    enc(req(name, DataType::Int64), ColumnEncoding::Price)
+}
+
+fn size_col(name: &str) -> Field {
+    enc(req(name, DataType::Int64), ColumnEncoding::Size)
+}
+
+fn decimal_col(name: &str, nullable: bool) -> Field {
+    enc(
+        Field::new(name, DataType::Utf8, nullable),
+        ColumnEncoding::Decimal,
+    )
+}
+
+fn json_col(name: &str, nullable: bool) -> Field {
+    enc(
+        Field::new(name, DataType::Utf8, nullable),
+        ColumnEncoding::Json,
+    )
+}
+
+fn ms_col(name: &str) -> Field {
+    req(name, utc(TimeUnit::Millisecond))
+}
+
+/// Kind-specific columns of the analytics kinds and coverage.
+fn analytics_fields(kind: RecordKind) -> Vec<Field> {
+    match kind {
+        RecordKind::ActivityBar => vec![
+            json_col("spec", false),
+            ms_col("session_start_ms"),
+            json_col("first_seq", false),
+            ms_col("first_ms"),
+            price_col("open"),
+            price_col("high"),
+            price_col("low"),
+            price_col("close"),
+            size_col("volume"),
+            size_col("buy_volume"),
+            size_col("sell_volume"),
+            req("trade_count", DataType::UInt32),
+            req("complete", DataType::Boolean),
+        ],
+        RecordKind::DeltaBar => vec![
+            req("interval", DataType::Utf8),
+            ms_col("start_ms"),
+            size_col("buy_volume"),
+            size_col("sell_volume"),
+            size_col("volume_delta"),
+            ms_col("anchor_start_ms"),
+            size_col("cvd"),
+        ],
+        RecordKind::ProfileSummary => vec![
+            ms_col("start_ms"),
+            ms_col("end_ms"),
+            price_col("bucket"),
+            req("value_area_bps", DataType::UInt32),
+            price_col("poc"),
+            price_col("value_area_low"),
+            price_col("value_area_high"),
+            size_col("value_area_volume"),
+            size_col("total_volume"),
+        ],
+        RecordKind::OrderActivity => vec![
+            req("interval", DataType::Utf8),
+            ms_col("start_ms"),
+            req("adds", DataType::UInt64),
+            req("modifies", DataType::UInt64),
+            req("cancels", DataType::UInt64),
+            req("partial_fills", DataType::UInt64),
+            req("full_fills", DataType::UInt64),
+            size_col("added_size"),
+            size_col("cancelled_size"),
+            size_col("filled_size"),
+            opt("cancel_to_add_bps", DataType::UInt64),
+            opt("cancel_replace_to_fill_bps", DataType::UInt64),
+            json_col("lifetimes", false),
+        ],
+        RecordKind::QueuePositions => vec![json_col("bid", true), json_col("ask", true)],
+        RecordKind::Sweep => vec![
+            req("side", DataType::Utf8),
+            json_col("first_seq", false),
+            price_col("first_price"),
+            price_col("last_price"),
+            req("levels", DataType::UInt32),
+            size_col("size"),
+            req("trade_count", DataType::UInt32),
+        ],
+        RecordKind::HeatmapTile => vec![
+            ms_col("time_start_ms"),
+            req("time_step_ms", DataType::Int64),
+            req("cols", DataType::UInt32),
+            price_col("price_start"),
+            price_col("price_step"),
+            req("rows", DataType::UInt32),
+            json_col("cells", false),
+        ],
+        RecordKind::LiquidityGrade => vec![
+            ms_col("as_of_ms"),
+            req("window_ms", DataType::Int64),
+            req("samples", DataType::UInt32),
+            decimal_col("spread_bps", true),
+            req("depth_bps", DataType::UInt32),
+            decimal_col("depth_bid", false),
+            decimal_col("depth_ask", false),
+            req("trades", DataType::UInt64),
+            decimal_col("trades_per_minute", false),
+            req("grade", DataType::Utf8),
+            req("label", DataType::Utf8),
+        ],
+        RecordKind::Coverage => vec![
+            req("interval", DataType::Utf8),
+            ms_col("start_ms"),
+            req("first_block", DataType::UInt64),
+            req("last_block", DataType::UInt64),
+            req("blocks", DataType::UInt64),
+            req("missing_blocks", DataType::UInt64),
+            req("gap_blocks", DataType::UInt64),
+        ],
+        _ => Vec::new(),
+    }
+}
 
 fn utc(unit: TimeUnit) -> DataType {
     DataType::Timestamp(unit, Some("UTC".into()))
@@ -166,10 +353,49 @@ fn kind_fields(kind: RecordKind) -> Vec<Field> {
             opt("notional", DataType::Int64),
             opt("notional_scale", DataType::UInt8),
             opt("notional_currency", DataType::Utf8),
+            opt("quantity", DataType::Int64),
+            opt("quantity_scale", DataType::UInt8),
+            opt("quantity_unit", DataType::Utf8),
+            opt("event_type", DataType::Utf8),
+            opt("strike_type", DataType::Utf8),
+            opt("strike", DataType::Int64),
+            opt("strike_scale", DataType::UInt8),
+            opt("option_premium", DataType::Int64),
+            opt("option_premium_scale", DataType::UInt8),
+            opt("option_premium_currency", DataType::Utf8),
+            opt("option_type", DataType::Utf8),
+            opt("option_style", DataType::Utf8),
+            opt("first_exercise_date", DataType::Date32),
             req("ts_execution_ms", utc(TimeUnit::Millisecond)),
             req("ts_dissemination_ms", utc(TimeUnit::Millisecond)),
         ],
+        RecordKind::ActivityBar
+        | RecordKind::DeltaBar
+        | RecordKind::ProfileSummary
+        | RecordKind::OrderActivity
+        | RecordKind::QueuePositions
+        | RecordKind::Sweep
+        | RecordKind::HeatmapTile
+        | RecordKind::LiquidityGrade
+        | RecordKind::Coverage => analytics_fields(kind),
     }
+}
+
+/// True if `kind`'s schema has `price_scale` and `size_scale` columns.
+#[must_use]
+pub fn has_scales(kind: RecordKind) -> bool {
+    if kind == RecordKind::SwapPrint {
+        return false;
+    }
+    if !kind.is_analytics() {
+        return true;
+    }
+    analytics_fields(kind).iter().any(|f| {
+        matches!(
+            ColumnEncoding::of(f),
+            ColumnEncoding::Price | ColumnEncoding::Size
+        )
+    })
 }
 
 /// The Arrow schema for archived records of `kind`.
@@ -180,9 +406,9 @@ pub fn schema(kind: RecordKind) -> Schema {
         fields.extend(derived());
     }
     fields.extend(kind_fields(kind));
-    // Swap prints carry per-row scales; every other kind has one price and
-    // one size scale per instrument.
-    if kind != RecordKind::SwapPrint {
+    // Swap prints carry per-row scales; every other kind with prices or
+    // sizes has one price and one size scale per instrument.
+    if has_scales(kind) {
         fields.extend(scales());
     }
     let metadata = HashMap::from([
@@ -231,6 +457,38 @@ mod tests {
             assert_eq!(s.field(0).name(), "instrument");
             assert!(s.field_with_name("ts_publish_ns").is_err());
             assert_eq!(s.field_with_name("inputs_hash").is_ok(), kind.is_derived());
+            if kind != RecordKind::SwapPrint {
+                assert_eq!(s.field_with_name("price_scale").is_ok(), has_scales(kind));
+            }
         }
+    }
+
+    #[test]
+    fn analytics_columns_cover_every_field() {
+        use crate::allowlist::kind_paths;
+        for kind in RecordKind::ALL.into_iter().filter(|k| k.is_analytics()) {
+            let s = schema(kind);
+            for p in kind_paths(kind)
+                .iter()
+                .filter(|p| !p.contains('.') && !p.contains("[]"))
+            {
+                assert!(s.field_with_name(p).is_ok(), "{kind}: no column for {p}");
+            }
+            for f in analytics_fields(kind) {
+                assert!(
+                    kind_paths(kind).contains(&f.name().as_str()),
+                    "{kind}: column {} is not a field",
+                    f.name()
+                );
+            }
+        }
+        assert!(!has_scales(RecordKind::Coverage));
+        assert!(!has_scales(RecordKind::LiquidityGrade));
+        assert!(has_scales(RecordKind::DeltaBar));
+        let f = schema(RecordKind::DeltaBar);
+        assert_eq!(
+            ColumnEncoding::of(f.field_with_name("cvd").unwrap()),
+            ColumnEncoding::Size
+        );
     }
 }

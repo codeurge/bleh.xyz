@@ -192,8 +192,165 @@ const SWAP_PRINT: &[&str] = &[
     "notional",
     "notional.amount",
     "notional.currency",
+    "quantity",
+    "quantity.amount",
+    "quantity.unit",
+    "event_type",
+    "strike",
+    "strike.type",
+    "strike.value",
+    "option_premium",
+    "option_premium.amount",
+    "option_premium.currency",
+    "option_type",
+    "option_style",
+    "first_exercise_date",
     "ts_execution_ms",
     "ts_dissemination_ms",
+];
+
+const ACTIVITY_BAR: &[&str] = &[
+    "spec",
+    "spec.type",
+    "spec.trades",
+    "spec.size",
+    "spec.width",
+    "session_start_ms",
+    "first_seq",
+    "first_seq.block_number",
+    "first_seq.event_index",
+    "first_ms",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "buy_volume",
+    "sell_volume",
+    "trade_count",
+    "complete",
+];
+
+const DELTA_BAR: &[&str] = &[
+    "interval",
+    "start_ms",
+    "buy_volume",
+    "sell_volume",
+    "volume_delta",
+    "anchor_start_ms",
+    "cvd",
+];
+
+const PROFILE_SUMMARY: &[&str] = &[
+    "start_ms",
+    "end_ms",
+    "bucket",
+    "value_area_bps",
+    "poc",
+    "value_area_low",
+    "value_area_high",
+    "value_area_volume",
+    "total_volume",
+];
+
+const ORDER_ACTIVITY: &[&str] = &[
+    "interval",
+    "start_ms",
+    "adds",
+    "modifies",
+    "cancels",
+    "partial_fills",
+    "full_fills",
+    "added_size",
+    "cancelled_size",
+    "filled_size",
+    "cancel_to_add_bps",
+    "cancel_replace_to_fill_bps",
+    "lifetimes",
+    "lifetimes.removed",
+    "lifetimes.filled",
+    "lifetimes.cancelled",
+    "lifetimes.fleeting_cancels",
+    "lifetimes.min_ms",
+    "lifetimes.p50_ms",
+    "lifetimes.p90_ms",
+    "lifetimes.max_ms",
+];
+
+const QUEUE_POSITIONS: &[&str] = &[
+    "bid",
+    "bid.price",
+    "bid.total_size",
+    "bid.order_count",
+    "bid.orders",
+    "bid.orders[]",
+    "bid.orders[].order_id",
+    "bid.orders[].size",
+    "bid.orders[].size_ahead",
+    "bid.orders[].ts_order_ms",
+    "bid.truncated",
+    "ask",
+    "ask.price",
+    "ask.total_size",
+    "ask.order_count",
+    "ask.orders",
+    "ask.orders[]",
+    "ask.orders[].order_id",
+    "ask.orders[].size",
+    "ask.orders[].size_ahead",
+    "ask.orders[].ts_order_ms",
+    "ask.truncated",
+];
+
+const SWEEP: &[&str] = &[
+    "side",
+    "first_seq",
+    "first_seq.block_number",
+    "first_seq.event_index",
+    "first_price",
+    "last_price",
+    "levels",
+    "size",
+    "trade_count",
+];
+
+const HEATMAP_TILE: &[&str] = &[
+    "time_start_ms",
+    "time_step_ms",
+    "cols",
+    "price_start",
+    "price_step",
+    "rows",
+    "cells",
+    "cells[]",
+    "cells[].col",
+    "cells[].row",
+    "cells[].bid_size",
+    "cells[].ask_size",
+];
+
+const LIQUIDITY_GRADE: &[&str] = &[
+    "as_of_ms",
+    "window_ms",
+    "samples",
+    "spread_bps",
+    "depth_bps",
+    "depth_bid",
+    "depth_ask",
+    "trades",
+    "trades_per_minute",
+    "grade",
+    "label",
+];
+
+const COVERAGE: &[&str] = &[
+    "interval",
+    "start_ms",
+    "first_block",
+    "last_block",
+    "blocks",
+    "missing_blocks",
+    "gap_blocks",
 ];
 
 /// A field that is not allowed in a record's output.
@@ -231,6 +388,15 @@ pub const fn kind_paths(kind: RecordKind) -> &'static [&'static str] {
         RecordKind::Footprint => FOOTPRINT,
         RecordKind::VolumeProfile => VOLUME_PROFILE,
         RecordKind::SwapPrint => SWAP_PRINT,
+        RecordKind::ActivityBar => ACTIVITY_BAR,
+        RecordKind::DeltaBar => DELTA_BAR,
+        RecordKind::ProfileSummary => PROFILE_SUMMARY,
+        RecordKind::OrderActivity => ORDER_ACTIVITY,
+        RecordKind::QueuePositions => QUEUE_POSITIONS,
+        RecordKind::Sweep => SWEEP,
+        RecordKind::HeatmapTile => HEATMAP_TILE,
+        RecordKind::LiquidityGrade => LIQUIDITY_GRADE,
+        RecordKind::Coverage => COVERAGE,
     }
 }
 
@@ -314,9 +480,10 @@ pub fn check_batch(batch: &BlockBatch) -> Result<(), AllowlistError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::analytics::tests::samples as analytics_samples;
     use crate::derived::tests::{footprint, profile};
     use crate::record::tests::{bar, book_event, snapshot, sz, trade};
-    use crate::swap::tests::print;
+    use crate::swap::tests::{option_print, print};
     use crate::{BookAction, SnapshotDepth, UnixNanos};
 
     fn all_records() -> Vec<Record> {
@@ -360,7 +527,11 @@ mod tests {
                 p.upi = Some("SYNUPI0000".into());
                 p.into()
             },
+            option_print().into(),
         ]
+        .into_iter()
+        .chain(analytics_samples())
+        .collect()
     }
 
     #[test]

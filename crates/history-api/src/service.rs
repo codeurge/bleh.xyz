@@ -1019,6 +1019,9 @@ fn flag_meaning(f: Flag) -> &'static str {
         Flag::LowResolution => "Lower resolution than the live stream.",
         Flag::SizeCapped => "The source capped the size or notional.",
         Flag::BlockTradeDelayed => "The source delayed the record as a block trade.",
+        Flag::Replayed => {
+            "Reconstructed by replaying venue actions through an emulated matcher, not observed directly."
+        }
     }
 }
 

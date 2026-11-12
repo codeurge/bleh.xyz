@@ -212,6 +212,45 @@ impl Registry {
         Ok(())
     }
 
+    /// Replaces the spec registered under `spec.id`, or adds it if absent,
+    /// and returns the previous spec. The venue symbol may change; the
+    /// symbol index follows.
+    ///
+    /// Changing a registered market's scales changes how its decimals are
+    /// read: callers decide when that is allowed (an operator decision for
+    /// Hyperliquid, see `docs/operations/node-reader.md`).
+    ///
+    /// # Errors
+    ///
+    /// Fails if the new (venue, symbol) pair belongs to another instrument.
+    pub fn replace(
+        &mut self,
+        spec: InstrumentSpec,
+    ) -> Result<Option<InstrumentSpec>, RegistryError> {
+        let key = (spec.venue.clone(), spec.venue_symbol.clone());
+        if let Some(owner) = self.by_symbol.get(&key)
+            && *owner != spec.id
+        {
+            return Err(RegistryError::Duplicate(spec.id.to_string()));
+        }
+        let old = self.by_id.remove(&spec.id);
+        if let Some(o) = &old {
+            self.by_symbol
+                .remove(&(o.venue.clone(), o.venue_symbol.clone()));
+        }
+        self.by_symbol.insert(key, spec.id.clone());
+        self.by_id.insert(spec.id.clone(), spec);
+        Ok(old)
+    }
+
+    /// Removes an instrument, returning its spec if it was registered.
+    pub fn remove(&mut self, id: &InstrumentId) -> Option<InstrumentSpec> {
+        let old = self.by_id.remove(id)?;
+        self.by_symbol
+            .remove(&(old.venue.clone(), old.venue_symbol.clone()));
+        Some(old)
+    }
+
     /// Looks up by mesh ID.
     #[must_use]
     pub fn get(&self, id: &InstrumentId) -> Option<&InstrumentSpec> {
@@ -312,5 +351,33 @@ mod tests {
         assert_eq!(back.len(), 3);
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v["instruments"][0]["id"], "hyperliquid:outcome:#9001");
+    }
+
+    #[test]
+    fn registry_replace_and_remove() {
+        let mut r = Registry::new();
+        let btc = InstrumentSpec::hyperliquid(MarketClass::Perp, "BTC", 5, None, adm()).unwrap();
+        let eth = InstrumentSpec::hyperliquid(MarketClass::Perp, "ETH", 4, None, adm()).unwrap();
+        r.insert(btc.clone()).unwrap();
+        r.insert(eth.clone()).unwrap();
+        // Replace with new scales: the old spec comes back.
+        let btc4 = InstrumentSpec::hyperliquid(MarketClass::Perp, "BTC", 4, None, adm()).unwrap();
+        assert_eq!(r.replace(btc4.clone()).unwrap(), Some(btc.clone()));
+        assert_eq!(r.get(&btc.id), Some(&btc4));
+        let venue = VenueId::new("hyperliquid").unwrap();
+        assert_eq!(r.by_venue_symbol(&venue, "BTC"), Some(&btc4));
+        // A new symbol that belongs to another instrument is refused.
+        let mut clash = btc4.clone();
+        clash.venue_symbol = "ETH".into();
+        assert!(matches!(r.replace(clash), Err(RegistryError::Duplicate(_))));
+        // Replace of an absent spec inserts it.
+        let sol = InstrumentSpec::hyperliquid(MarketClass::Perp, "SOL", 2, None, adm()).unwrap();
+        assert_eq!(r.replace(sol.clone()).unwrap(), None);
+        assert_eq!(r.len(), 3);
+        // Remove clears both indexes.
+        assert_eq!(r.remove(&eth.id), Some(eth.clone()));
+        assert!(r.by_venue_symbol(&venue, "ETH").is_none());
+        assert_eq!(r.remove(&eth.id), None);
+        r.insert(eth).unwrap();
     }
 }

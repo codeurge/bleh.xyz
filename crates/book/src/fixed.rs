@@ -7,123 +7,12 @@
 //! toward zero (floor for non-negative values), so every implementation
 //! gets the same digits.
 
-use std::fmt;
+use mesh_types::{Flag, Flags, Price, Size};
 
-use mesh_types::{DecimalError, Flag, Flags, Price, Size};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+/// Signed fixed-point quantity, defined in `mesh-types`.
+pub use mesh_types::SignedSize;
 
 use crate::error::InputError;
-
-/// A signed quantity (delta, cumulative volume delta): an `i64` mantissa
-/// and a scale, like [`Size`] but allowed to be negative.
-///
-/// The text form is the canonical decimal form used for [`Price`]: exactly
-/// `scale` fractional digits and a leading `-` when negative.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SignedSize {
-    mantissa: i64,
-    scale: u8,
-}
-
-impl SignedSize {
-    /// Builds a value.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the scale exceeds [`mesh_types::MAX_SCALE`].
-    pub fn new(mantissa: i64, scale: u8) -> Result<Self, DecimalError> {
-        Price::new(mantissa, scale)?;
-        Ok(Self { mantissa, scale })
-    }
-
-    /// Zero at `scale`.
-    ///
-    /// # Errors
-    ///
-    /// Fails if the scale exceeds [`mesh_types::MAX_SCALE`].
-    pub fn zero(scale: u8) -> Result<Self, DecimalError> {
-        Self::new(0, scale)
-    }
-
-    /// `a - b`.
-    ///
-    /// # Errors
-    ///
-    /// Fails on a scale mismatch or overflow.
-    pub fn difference(a: Size, b: Size) -> Result<Self, DecimalError> {
-        if a.scale() != b.scale() {
-            return Err(DecimalError::ScaleMismatch(a.scale(), b.scale()));
-        }
-        let m = a
-            .mantissa()
-            .checked_sub(b.mantissa())
-            .ok_or(DecimalError::Overflow)?;
-        Self::new(m, a.scale())
-    }
-
-    /// Adds a value of the same scale.
-    ///
-    /// # Errors
-    ///
-    /// Fails on a scale mismatch or overflow.
-    pub fn checked_add(self, other: Self) -> Result<Self, DecimalError> {
-        if self.scale != other.scale {
-            return Err(DecimalError::ScaleMismatch(self.scale, other.scale));
-        }
-        let m = self
-            .mantissa
-            .checked_add(other.mantissa)
-            .ok_or(DecimalError::Overflow)?;
-        Self::new(m, self.scale)
-    }
-
-    /// The integer mantissa.
-    #[must_use]
-    pub const fn mantissa(self) -> i64 {
-        self.mantissa
-    }
-
-    /// The number of fractional digits.
-    #[must_use]
-    pub const fn scale(self) -> u8 {
-        self.scale
-    }
-
-    fn as_price(self) -> Option<Price> {
-        Price::new(self.mantissa, self.scale).ok()
-    }
-}
-
-impl fmt::Display for SignedSize {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.as_price() {
-            Some(p) => p.fmt(f),
-            None => write!(f, "{}e-{}", self.mantissa, self.scale),
-        }
-    }
-}
-
-impl fmt::Debug for SignedSize {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SignedSize({self})")
-    }
-}
-
-impl Serialize for SignedSize {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.collect_str(self)
-    }
-}
-
-impl<'de> Deserialize<'de> for SignedSize {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let p = Price::deserialize(deserializer)?;
-        Ok(Self {
-            mantissa: p.mantissa(),
-            scale: p.scale(),
-        })
-    }
-}
 
 /// The union of two flag sets.
 #[must_use]

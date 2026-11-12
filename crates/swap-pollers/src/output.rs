@@ -169,6 +169,9 @@ impl Emitter {
             SwapAction::New => "new",
             SwapAction::Cancel => "cancel",
             SwapAction::Correct => "correct",
+            SwapAction::Modify => "modify",
+            SwapAction::Terminate => "terminate",
+            SwapAction::Revive => "revive",
         };
         self.metrics.inc(
             "swap_records_total",

@@ -827,6 +827,16 @@ mod tests {
                     v.end_ms.0 += d;
                 }
                 mesh_types::Record::SwapPrint(s) => s.ts_dissemination_ms.0 += d,
+                r if r.kind().is_analytics() => {
+                    // Shift every top-level time; durations stay.
+                    let mut v = serde_json::to_value(&*r).unwrap();
+                    for (k, x) in v.as_object_mut().unwrap() {
+                        if k.ends_with("_ms") && k != "time_step_ms" && k != "window_ms" {
+                            *x = serde_json::Value::from(x.as_i64().unwrap() + d);
+                        }
+                    }
+                    *r = serde_json::from_value(v).unwrap();
+                }
                 _ => {}
             }
         }

@@ -533,7 +533,7 @@ mod tests {
     fn builds_signs_and_chains() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        write_partitions(root, every_kind(), &PartitionOptions::default()).unwrap();
+        let written = write_partitions(root, every_kind(), &PartitionOptions::default()).unwrap();
         // A stray file outside the day and a reserved directory are ignored.
         std::fs::create_dir_all(root.join("_iceberg/trade")).unwrap();
         std::fs::write(root.join("_iceberg/trade/x.avro"), b"x").unwrap();
@@ -541,7 +541,7 @@ mod tests {
         let built = build(root, &opts("2026-01-01", &k, None)).unwrap();
         let m = &built.manifest;
         assert_eq!(m.sequence, 0);
-        assert_eq!(m.files.len(), 8);
+        assert_eq!(m.files.len(), written.len());
         for f in &m.files {
             assert!(f.content_hash.is_some() && f.record_count.is_some());
             assert_eq!(f.ipfs.codec, IpfsCodec::Raw);
@@ -590,6 +590,15 @@ mod tests {
                     v.end_ms.0 += 86_400_000;
                 }
                 mesh_types::Record::SwapPrint(s) => s.ts_dissemination_ms.0 += 86_400_000,
+                r if r.kind().is_analytics() => {
+                    let mut v = serde_json::to_value(&*r).unwrap();
+                    for (k, x) in v.as_object_mut().unwrap() {
+                        if k.ends_with("_ms") && k != "time_step_ms" && k != "window_ms" {
+                            *x = serde_json::Value::from(x.as_i64().unwrap() + 86_400_000);
+                        }
+                    }
+                    *r = serde_json::from_value(v).unwrap();
+                }
                 _ => {}
             }
         }

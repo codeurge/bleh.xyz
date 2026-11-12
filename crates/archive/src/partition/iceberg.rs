@@ -126,6 +126,7 @@ pub fn snapshots_from_manifests(
 fn iceberg_type(dt: &DataType, nullable_elem: bool) -> Result<Json> {
     Ok(match dt {
         DataType::Utf8 => json!("string"),
+        DataType::Boolean => json!("boolean"),
         DataType::Timestamp(_, _) => json!("timestamptz"),
         DataType::Int64 | DataType::UInt64 | DataType::UInt32 => json!("long"),
         DataType::UInt8 | DataType::Int32 => json!("int"),

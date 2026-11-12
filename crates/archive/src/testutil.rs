@@ -225,6 +225,16 @@ pub(crate) fn every_kind() -> Vec<Record> {
             amount: sz("25000000.00"),
             currency: "USD".into(),
         }),
+        quantity: None,
+        event_type: Some(mesh_types::SwapEventType::Trade),
+        strike: Some(SwapPrice::SpreadAmount { value: px("0.25") }),
+        option_premium: Some(Notional {
+            amount: sz("1250.00"),
+            currency: "USD".into(),
+        }),
+        option_type: Some(mesh_types::OptionType::Put),
+        option_style: Some(mesh_types::OptionStyle::Bermudan),
+        first_exercise_date: Some("2027-01-15".into()),
         ts_execution_ms: UnixMillis(DAY_MS + 4000),
         ts_dissemination_ms: UnixMillis(DAY_MS + 5000),
     }));
@@ -242,10 +252,109 @@ pub(crate) fn every_kind() -> Vec<Record> {
         expiry: None,
         price: None,
         notional: None,
+        quantity: Some(mesh_types::Quantity {
+            amount: sz("10000"),
+            unit: "MMBTU".into(),
+        }),
+        event_type: None,
+        strike: None,
+        option_premium: None,
+        option_type: None,
+        option_style: None,
+        first_exercise_date: None,
         ts_execution_ms: UnixMillis(DAY_MS + 4000),
         ts_dissemination_ms: UnixMillis(DAY_MS + 5000),
     }));
+    v.extend(analytics());
     v
+}
+
+/// Analytics records and coverage for every analytics kind, from JSON so
+/// the shapes read like the spec. Values are invented.
+pub(crate) fn analytics() -> Vec<Record> {
+    let prov = |block: u64, index: u32, ts: i64| {
+        serde_json::to_value(self::prov("hyperliquid:perp:SYN", block, index, ts)).unwrap()
+    };
+    let eob = |block: u64, ts: i64| {
+        let mut p = self::prov("hyperliquid:perp:SYN", block, 0, ts);
+        p.seq = Seq::end_of_block(block);
+        serde_json::to_value(p).unwrap()
+    };
+    let derived = |method: &str, n: u64| serde_json::json!({"method": method, "inputs_hash": "07".repeat(32), "input_count": n});
+    let entry = |id: u64, size: &str, ahead: &str| serde_json::json!({"order_id": id, "size": size, "size_ahead": ahead, "ts_order_ms": DAY_MS - 5000});
+    let mut cov = self::prov("hyperliquid:perp:SYN", 120, 0, DAY_MS + 59_900);
+    cov.instrument = InstrumentId::venue_wide(&VenueId::new("hyperliquid").unwrap());
+    let values = vec![
+        serde_json::json!({
+            "kind": "activity_bar", "prov": prov(6, 1, DAY_MS + 200), "derived": derived("tick-bars@1", 2),
+            "spec": {"type": "tick", "trades": 2}, "session_start_ms": DAY_MS,
+            "first_seq": {"block_number": 5, "event_index": 0}, "first_ms": DAY_MS + 100,
+            "open": "100.250", "high": "100.500", "low": "100.000", "close": "100.250",
+            "volume": "1.0", "buy_volume": "0.5", "sell_volume": "0.5", "trade_count": 2, "complete": true
+        }),
+        serde_json::json!({
+            "kind": "activity_bar", "prov": prov(7, 0, DAY_MS + 300), "derived": derived("range-bars@1", 1),
+            "spec": {"type": "range", "width": "1.000"}, "session_start_ms": DAY_MS,
+            "first_seq": {"block_number": 7, "event_index": 0}, "first_ms": DAY_MS + 300,
+            "open": "100.250", "high": "100.250", "low": "100.250", "close": "100.250",
+            "volume": "0.5", "buy_volume": "0.5", "sell_volume": "0.0", "trade_count": 1, "complete": false
+        }),
+        serde_json::json!({
+            "kind": "delta_bar", "prov": prov(6, 1, DAY_MS + 200), "derived": derived("delta@1", 2),
+            "interval": "1m", "start_ms": DAY_MS, "buy_volume": "0.5", "sell_volume": "1.5",
+            "volume_delta": "-1.0", "anchor_start_ms": DAY_MS, "cvd": "-1.0"
+        }),
+        serde_json::json!({
+            "kind": "profile_summary", "prov": prov(6, 1, DAY_MS + 200), "derived": derived("value-area@1", 2),
+            "start_ms": DAY_MS, "end_ms": DAY_MS + 86_400_000, "bucket": "0.500", "value_area_bps": 7000,
+            "poc": "100.000", "value_area_low": "100.000", "value_area_high": "100.500",
+            "value_area_volume": "0.8", "total_volume": "1.0"
+        }),
+        serde_json::json!({
+            "kind": "order_activity", "prov": prov(6, 2, DAY_MS + 200), "derived": derived("order-activity@1", 3),
+            "interval": "1m", "start_ms": DAY_MS, "adds": 2, "modifies": 0, "cancels": 1,
+            "partial_fills": 0, "full_fills": 0, "added_size": "2.000", "cancelled_size": "1.000",
+            "filled_size": "0.000", "cancel_to_add_bps": 5000, "cancel_replace_to_fill_bps": null,
+            "lifetimes": {"removed": 1, "filled": 0, "cancelled": 1, "fleeting_cancels": 1,
+                          "min_ms": 100, "p50_ms": 100, "p90_ms": 100, "max_ms": 100}
+        }),
+        serde_json::json!({
+            "kind": "queue_positions", "prov": eob(6, DAY_MS + 200), "derived": derived("queue-position@1", 2),
+            "bid": {"price": "100.000", "total_size": "3.000", "order_count": 2,
+                    "orders": [entry(1, "1.000", "0.000"), entry(2, "2.000", "1.000")], "truncated": false},
+            "ask": null
+        }),
+        serde_json::json!({
+            "kind": "sweep", "prov": prov(6, 1, DAY_MS + 200), "derived": derived("sweep@1", 2),
+            "side": "buy", "first_seq": {"block_number": 6, "event_index": 0},
+            "first_price": "100.250", "last_price": "100.500", "levels": 2, "size": "1.0", "trade_count": 2
+        }),
+        serde_json::json!({
+            "kind": "heatmap_tile", "prov": eob(7, DAY_MS + 300), "derived": derived("heatmap@1", 4),
+            "time_start_ms": DAY_MS, "time_step_ms": 1000, "cols": 60, "price_start": "99.000",
+            "price_step": "0.500", "rows": 64,
+            "cells": [{"col": 0, "row": 2, "bid_size": "1.000", "ask_size": "0.000"}]
+        }),
+        serde_json::json!({
+            "kind": "liquidity_grade", "prov": eob(7, DAY_MS + 300), "derived": derived("liquidity-grade@1", 6),
+            "as_of_ms": DAY_MS + 60_000, "window_ms": 300_000, "samples": 60, "spread_bps": null,
+            "depth_bps": 50, "depth_bid": "6500.00", "depth_ask": "7000", "trades": 12,
+            "trades_per_minute": "2.40", "grade": "C", "label": "tape"
+        }),
+        serde_json::json!({
+            "kind": "coverage", "prov": serde_json::to_value(cov).unwrap(),
+            "interval": "1m", "start_ms": DAY_MS, "first_block": 1, "last_block": 120,
+            "blocks": 118, "missing_blocks": 2, "gap_blocks": 1
+        }),
+    ];
+    values
+        .into_iter()
+        .map(|v| {
+            let r: Record = serde_json::from_value(v).unwrap();
+            r.validate().unwrap();
+            r
+        })
+        .collect()
 }
 
 /// A deterministic signing key for tests.

@@ -13,9 +13,10 @@
 //! The inputs hash covers the book events (and any snapshot loaded) since
 //! the previous record, in block-major order (see [`crate::inputs`]).
 
-use mesh_types::{
-    BookSide, ContentHasher, DerivedHeader, OrderId, Price, Provenance, Size, UnixMillis,
-};
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::{QueueEntry, QueueLevel, QueuePositions};
+
+use mesh_types::{BookSide, ContentHasher, Provenance};
 use serde::{Deserialize, Serialize};
 
 use crate::book::OrderBook;
@@ -35,49 +36,6 @@ impl Default for QueueConfig {
     fn default() -> Self {
         Self { max_orders: 50 }
     }
-}
-
-/// One order in a top-of-book queue.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QueueEntry {
-    /// Order ID.
-    pub order_id: OrderId,
-    /// Resting size.
-    pub size: Size,
-    /// Total size of the orders ahead of it at this price.
-    pub size_ahead: Size,
-    /// Placement time.
-    pub ts_order_ms: UnixMillis,
-}
-
-/// The queue at one best price.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct QueueLevel {
-    /// Price.
-    pub price: Price,
-    /// Total resting size.
-    pub total_size: Size,
-    /// Number of orders.
-    pub order_count: u32,
-    /// The first orders, in queue order.
-    pub orders: Vec<QueueEntry>,
-    /// True if orders were left out (more than `max_orders`).
-    pub truncated: bool,
-}
-
-/// Top-of-book queues after a block.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct QueuePositions {
-    /// End of the block (`seq` is an end-of-block marker).
-    pub prov: Provenance,
-    /// `queue-position@1`; inputs are the book events since the previous
-    /// record.
-    pub derived: DerivedHeader,
-    /// Best bid queue.
-    pub bid: Option<QueueLevel>,
-    /// Best ask queue.
-    pub ask: Option<QueueLevel>,
 }
 
 /// The best level's queue on `side`.
@@ -228,7 +186,7 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert_eq!(out[1].derived.input_count, 2);
         let bid = out[1].bid.as_ref().unwrap();
-        assert_eq!(bid.orders[0].order_id, OrderId(2));
+        assert_eq!(bid.orders[0].order_id, mesh_types::OrderId(2));
         assert_eq!(bid.orders[0].size_ahead, sz("0.00"));
         assert!(!bid.truncated);
     }

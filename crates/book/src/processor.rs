@@ -212,16 +212,45 @@ impl Output {
         }
     }
 
-    /// The output as an observation [`Record`], for the kinds the data
-    /// model defines (bars, footprints, volume profiles, checkpoints).
+    /// The output as an observation [`Record`]: every derived record and
+    /// checkpoint. Reconciliation reports, desyncs and stale-snapshot
+    /// notices are operational and have no record kind.
     #[must_use]
     pub fn record(&self) -> Option<Record> {
         match self {
             Self::Bar(b) => Some(Record::Bar(b.clone())),
+            Self::ActivityBar(b) => Some(Record::ActivityBar(b.clone())),
             Self::Footprint(f) => Some(Record::Footprint(f.clone())),
+            Self::Delta(d) => Some(Record::DeltaBar(d.clone())),
             Self::VolumeProfile(p) => Some(Record::VolumeProfile(p.clone())),
+            Self::ProfileSummary(p) => Some(Record::ProfileSummary(p.clone())),
             Self::Checkpoint(s) => Some(Record::BookSnapshot(s.clone())),
-            _ => None,
+            Self::OrderActivity(a) => Some(Record::OrderActivity(a.clone())),
+            Self::Queue(q) => Some(Record::QueuePositions(q.clone())),
+            Self::Sweep(s) => Some(Record::Sweep(s.clone())),
+            Self::Heatmap(h) => Some(Record::HeatmapTile(h.clone())),
+            Self::Liquidity(l) => Some(Record::LiquidityGrade(l.clone())),
+            Self::Reconciliation(_) | Self::Desync(_) | Self::StaleSnapshot { .. } => None,
+        }
+    }
+
+    /// Consumes the output into a [`Record`] (see [`Output::record`]).
+    #[must_use]
+    pub fn into_record(self) -> Option<Record> {
+        match self {
+            Self::Bar(b) => Some(Record::Bar(b)),
+            Self::ActivityBar(b) => Some(Record::ActivityBar(b)),
+            Self::Footprint(f) => Some(Record::Footprint(f)),
+            Self::Delta(d) => Some(Record::DeltaBar(d)),
+            Self::VolumeProfile(p) => Some(Record::VolumeProfile(p)),
+            Self::ProfileSummary(p) => Some(Record::ProfileSummary(p)),
+            Self::Checkpoint(s) => Some(Record::BookSnapshot(s)),
+            Self::OrderActivity(a) => Some(Record::OrderActivity(a)),
+            Self::Queue(q) => Some(Record::QueuePositions(q)),
+            Self::Sweep(s) => Some(Record::Sweep(s)),
+            Self::Heatmap(h) => Some(Record::HeatmapTile(h)),
+            Self::Liquidity(l) => Some(Record::LiquidityGrade(l)),
+            Self::Reconciliation(_) | Self::Desync(_) | Self::StaleSnapshot { .. } => None,
         }
     }
 

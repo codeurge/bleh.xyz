@@ -34,12 +34,14 @@
 //! | [`flags`] | [`Flags`] bitset |
 //! | [`provenance`] | [`Provenance`] |
 //! | [`record`] | Record kinds and the [`Record`] enum |
-//! | [`derived`] | Derived-record header and analytics kinds (footprint, volume profile) |
+//! | [`derived`] | Derived-record header, footprint and volume profile |
+//! | [`analytics`] | Analytics kinds (activity bars, delta, value area, order activity, queues, sweeps, heatmaps, liquidity grades) and venue coverage |
 //! | [`swap`] | Part 43 / SBSR swap prints |
 //! | [`batch`] | [`BlockBatch`], the unit published on the bus |
 //! | [`registry`] | Instrument specifications built from venue metadata |
 //! | [`allowlist`] | Runtime field allowlist |
 //! | [`hash`] | Canonical encoding and content hash |
+//! | [`canonical`] | Fast direct canonical encoders for trades, book events and snapshots |
 //! | [`merkle`] | Per-block Merkle roots and inclusion proofs |
 //! | [`signing`] | secp256k1 (Ethereum-style) keys, signatures, block commitments |
 //! | [`manifest`] | Daily archive manifest and anchors |
@@ -49,8 +51,10 @@
 #![warn(missing_docs)]
 
 pub mod allowlist;
+pub mod analytics;
 pub mod arrow;
 pub mod batch;
+pub mod canonical;
 pub mod decimal;
 pub mod derived;
 pub mod flags;
@@ -67,6 +71,11 @@ pub mod signing;
 pub mod swap;
 pub mod time;
 
+pub use analytics::{
+    ActivityBar, ActivitySpec, Coverage, DeltaBar, Grade, HeatCell, HeatmapTile, LifetimeStats,
+    LiquidityGrade, LiquidityLabel, OrderActivity, ProfileSummary, QueueEntry, QueueLevel,
+    QueuePositions, SignedSize, Sweep,
+};
 pub use batch::{BatchError, BlockBatch};
 pub use decimal::{DecimalError, MAX_SCALE, Price, Size};
 pub use derived::{DerivedHeader, Footprint, FootprintLevel, ProfileLevel, VolumeProfile};
@@ -82,7 +91,10 @@ pub use record::{
 pub use registry::{InstrumentSpec, MarketClass, Registry};
 pub use seq::Seq;
 pub use signing::{BlockCommitment, EthAddress, EthSignature, SigningKey, StreamId};
-pub use swap::{AssetClass, Notional, SwapAction, SwapPrice, SwapPrint};
+pub use swap::{
+    AssetClass, Notional, OptionStyle, OptionType, Quantity, SwapAction, SwapEventType, SwapPrice,
+    SwapPrint,
+};
 pub use time::{UnixMillis, UnixNanos};
 
 /// Version tag of the observation data model implemented by this crate.

@@ -21,212 +21,39 @@
 //! # Fast encoding
 //!
 //! [`canonical_trade`], [`canonical_event`] and [`canonical_snapshot`]
-//! write the canonical encoding directly, without building a JSON value
-//! tree, and produce exactly the bytes of
-//! [`mesh_types::hash::canonical_record`] (tests compare them on random
-//! and fixture records). Keys are written in byte order; strings are
-//! escaped like `mesh_types::hash`.
+//! are the direct encoders of [`mesh_types::canonical`], which
+//! [`mesh_types::hash::canonical_record`] also uses; they produce exactly
+//! the canonical bytes without building a JSON value tree.
 
-use std::io::Write as _;
-
-use mesh_types::{
-    BookAction, BookEvent, BookSnapshot, ContentHasher, DerivedHeader, Flag, Level, MethodId,
-    Provenance, RestingOrder, SnapshotDepth, Trade,
-};
+use mesh_types::{BookEvent, BookSnapshot, ContentHasher, DerivedHeader, MethodId, Trade};
 
 use crate::error::InputError;
-
-fn io(e: std::io::Error) -> InputError {
-    InputError::Canonical(e.to_string())
-}
-
-/// Writes a JSON string with the escapes of `mesh_types::hash`.
-fn write_str(out: &mut Vec<u8>, s: &str) {
-    out.push(b'"');
-    for c in s.chars() {
-        match c {
-            '"' => out.extend_from_slice(br#"\""#),
-            '\\' => out.extend_from_slice(br"\\"),
-            '\u{08}' => out.extend_from_slice(br"\b"),
-            '\u{0c}' => out.extend_from_slice(br"\f"),
-            '\n' => out.extend_from_slice(br"\n"),
-            '\r' => out.extend_from_slice(br"\r"),
-            '\t' => out.extend_from_slice(br"\t"),
-            c if u32::from(c) < 0x20 => {
-                let _ = write!(out, "\\u{:04x}", u32::from(c));
-            }
-            c => {
-                let mut buf = [0u8; 4];
-                out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
-            }
-        }
-    }
-    out.push(b'"');
-}
-
-/// Writes a value's `Display` text as a JSON string. Used for decimals,
-/// whose text has only digits, `-` and `.`.
-fn write_display(out: &mut Vec<u8>, v: &dyn std::fmt::Display) -> Result<(), InputError> {
-    out.push(b'"');
-    write!(out, "{v}").map_err(io)?;
-    out.push(b'"');
-    Ok(())
-}
-
-fn write_prov(out: &mut Vec<u8>, p: &Provenance) -> Result<(), InputError> {
-    out.extend_from_slice(br#"{"admission":"#);
-    write_str(out, p.admission.as_str());
-    out.extend_from_slice(br#","flags":["#);
-    let mut first = true;
-    for f in Flag::ALL {
-        if p.flags.contains(f) {
-            if !first {
-                out.push(b',');
-            }
-            first = false;
-            write_str(out, f.name());
-        }
-    }
-    out.extend_from_slice(br#"],"instrument":"#);
-    write_str(out, p.instrument.as_str());
-    write!(
-        out,
-        r#","seq":{{"block_number":{},"event_index":{}}},"ts_ingest_ns":"{}","ts_source_ms":{},"venue":"#,
-        p.seq.block_number, p.seq.event_index, p.ts_ingest_ns.0, p.ts_source_ms.0
-    )
-    .map_err(io)?;
-    write_str(out, p.venue.as_str());
-    out.push(b'}');
-    Ok(())
-}
 
 /// Canonical encoding of a trade.
 ///
 /// # Errors
 ///
-/// Fails only if writing fails.
+/// Never fails; the `Result` keeps the builder signatures uniform.
 pub fn canonical_trade(t: &Trade) -> Result<Vec<u8>, InputError> {
-    let mut out = Vec::with_capacity(320);
-    out.extend_from_slice(br#"{"aggressor":"#);
-    write_str(&mut out, t.aggressor.as_str());
-    out.extend_from_slice(br#","kind":"trade","price":"#);
-    write_display(&mut out, &t.price)?;
-    out.extend_from_slice(br#","prov":"#);
-    write_prov(&mut out, &t.prov)?;
-    out.extend_from_slice(br#","size":"#);
-    write_display(&mut out, &t.size)?;
-    write!(out, r#","trade_id":{}}}"#, t.trade_id.0).map_err(io)?;
-    Ok(out)
+    Ok(mesh_types::canonical::trade(t))
 }
 
 /// Canonical encoding of a book event.
 ///
 /// # Errors
 ///
-/// Fails only if writing fails.
+/// Never fails; the `Result` keeps the builder signatures uniform.
 pub fn canonical_event(e: &BookEvent) -> Result<Vec<u8>, InputError> {
-    let mut out = Vec::with_capacity(320);
-    out.extend_from_slice(br#"{"action":{"#);
-    match e.action {
-        BookAction::Add { size } => {
-            out.extend_from_slice(br#""size":"#);
-            write_display(&mut out, &size)?;
-            out.extend_from_slice(br#","type":"add""#);
-        }
-        BookAction::Modify {
-            orig_size,
-            new_size,
-        }
-        | BookAction::Fill {
-            orig_size,
-            new_size,
-        } => {
-            out.extend_from_slice(br#""new_size":"#);
-            write_display(&mut out, &new_size)?;
-            if let Some(o) = orig_size {
-                out.extend_from_slice(br#","orig_size":"#);
-                write_display(&mut out, &o)?;
-            }
-            out.extend_from_slice(br#","type":"#);
-            write_str(&mut out, e.action.as_str());
-        }
-        BookAction::Cancel {} => out.extend_from_slice(br#""type":"cancel""#),
-    }
-    write!(
-        out,
-        r#"}},"kind":"book_event","order_id":{},"price":"#,
-        e.order_id.0
-    )
-    .map_err(io)?;
-    write_display(&mut out, &e.price)?;
-    out.extend_from_slice(br#","prov":"#);
-    write_prov(&mut out, &e.prov)?;
-    out.extend_from_slice(br#","side":"#);
-    write_str(&mut out, e.side.as_str());
-    out.push(b'}');
-    Ok(out)
-}
-
-fn write_orders(out: &mut Vec<u8>, orders: &[RestingOrder]) -> Result<(), InputError> {
-    out.push(b'[');
-    for (i, o) in orders.iter().enumerate() {
-        if i > 0 {
-            out.push(b',');
-        }
-        write!(out, r#"{{"order_id":{},"price":"#, o.order_id.0).map_err(io)?;
-        write_display(out, &o.price)?;
-        out.extend_from_slice(br#","size":"#);
-        write_display(out, &o.size)?;
-        write!(out, r#","ts_order_ms":{}}}"#, o.ts_order_ms.0).map_err(io)?;
-    }
-    out.push(b']');
-    Ok(())
-}
-
-fn write_levels(out: &mut Vec<u8>, levels: &[Level]) -> Result<(), InputError> {
-    out.push(b'[');
-    for (i, l) in levels.iter().enumerate() {
-        if i > 0 {
-            out.push(b',');
-        }
-        write!(out, r#"{{"order_count":{},"price":"#, l.order_count).map_err(io)?;
-        write_display(out, &l.price)?;
-        out.extend_from_slice(br#","size":"#);
-        write_display(out, &l.size)?;
-        out.push(b'}');
-    }
-    out.push(b']');
-    Ok(())
+    Ok(mesh_types::canonical::book_event(e))
 }
 
 /// Canonical encoding of a book snapshot.
 ///
 /// # Errors
 ///
-/// Fails only if writing fails.
+/// Never fails; the `Result` keeps the builder signatures uniform.
 pub fn canonical_snapshot(s: &BookSnapshot) -> Result<Vec<u8>, InputError> {
-    let mut out = Vec::with_capacity(512);
-    out.extend_from_slice(br#"{"depth":{"asks":"#);
-    let kind = match &s.depth {
-        SnapshotDepth::L4 { bids, asks } => {
-            write_orders(&mut out, asks)?;
-            out.extend_from_slice(br#","bids":"#);
-            write_orders(&mut out, bids)?;
-            "l4"
-        }
-        SnapshotDepth::L2 { bids, asks } => {
-            write_levels(&mut out, asks)?;
-            out.extend_from_slice(br#","bids":"#);
-            write_levels(&mut out, bids)?;
-            "l2"
-        }
-    };
-    out.extend_from_slice(br#","type":"#);
-    write_str(&mut out, kind);
-    out.extend_from_slice(br#"},"kind":"book_snapshot","prov":"#);
-    write_prov(&mut out, &s.prov)?;
-    out.push(b'}');
-    Ok(out)
+    Ok(mesh_types::canonical::book_snapshot(s))
 }
 
 /// A trade together with its canonical encoding.
@@ -341,7 +168,7 @@ mod tests {
     use super::*;
     use crate::testutil::*;
     use mesh_types::hash::canonical_record;
-    use mesh_types::{AggressorSide, BookSide, Record, Seq, UnixNanos};
+    use mesh_types::{AggressorSide, BookSide, Flag, Record, Seq, UnixNanos};
 
     #[test]
     fn fast_encoding_equals_mesh_types() {

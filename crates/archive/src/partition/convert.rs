@@ -32,7 +32,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use mesh_types::derived::{DerivedHeader, Footprint, FootprintLevel, ProfileLevel, VolumeProfile};
-use mesh_types::swap::{Notional, SwapPrice, SwapPrint};
+use mesh_types::swap::{Notional, Quantity, SwapPrice, SwapPrint};
 use mesh_types::{
     AdmissionId, AggressorSide, Bar, BarInterval, BookAction, BookEvent, BookSide, BookSnapshot,
     ContentHash, Flags, InstrumentId, Level, MethodId, OrderId, Price, Provenance, Record,
@@ -160,8 +160,14 @@ struct Columns {
     cols: HashMap<&'static str, ArrayRef>,
 }
 
+/// Provenance columns under construction (shared with the analytics
+/// converter).
+pub(super) type ProvColumns = ProvCols;
+/// Derived-header columns under construction.
+pub(super) type DerivedColumns = DerivedCols;
+
 #[derive(Default)]
-struct ProvCols {
+pub(super) struct ProvCols {
     instrument: Vec<String>,
     venue: Vec<String>,
     ts_source_ms: Vec<i64>,
@@ -173,7 +179,21 @@ struct ProvCols {
 }
 
 impl ProvCols {
-    fn push(&mut self, p: &Provenance) {
+    /// The finished columns, by name.
+    pub(super) fn finish(self) -> HashMap<&'static str, ArrayRef> {
+        HashMap::from([
+            ("instrument", strings(self.instrument)),
+            ("venue", strings(self.venue)),
+            ("ts_source_ms", utc_ms(self.ts_source_ms)),
+            ("ts_ingest_ns", utc_ns(self.ts_ingest_ns)),
+            ("block_number", u64s(self.block_number)),
+            ("event_index", u32s(self.event_index)),
+            ("admission", strings(self.admission)),
+            ("flags", u32s(self.flags)),
+        ])
+    }
+
+    pub(super) fn push(&mut self, p: &Provenance) {
         self.instrument.push(p.instrument.as_str().to_owned());
         self.venue.push(p.venue.as_str().to_owned());
         self.ts_source_ms.push(p.ts_source_ms.0);
@@ -186,14 +206,31 @@ impl ProvCols {
 }
 
 #[derive(Default)]
-struct DerivedCols {
+pub(super) struct DerivedCols {
     method: Vec<String>,
     inputs_hash: Vec<[u8; 32]>,
     input_count: Vec<u64>,
 }
 
 impl DerivedCols {
-    fn push(&mut self, d: &DerivedHeader) {
+    /// The finished columns, by name (empty for a non-derived kind).
+    pub(super) fn finish(self) -> Result<HashMap<&'static str, ArrayRef>> {
+        let flat: Vec<u8> = self.inputs_hash.concat();
+        Ok(HashMap::from([
+            ("method", strings(self.method)),
+            (
+                "inputs_hash",
+                Arc::new(FixedSizeBinaryArray::try_new(
+                    32,
+                    Buffer::from_vec(flat),
+                    None,
+                )?) as ArrayRef,
+            ),
+            ("input_count", u64s(self.input_count)),
+        ]))
+    }
+
+    pub(super) fn push(&mut self, d: &DerivedHeader) {
         self.method.push(d.method.as_str().to_owned());
         self.inputs_hash.push(d.inputs_hash.0.0);
         self.input_count.push(d.input_count);
@@ -280,6 +317,9 @@ fn offsets(lengths: &[usize]) -> Result<OffsetBuffer<i32>> {
 /// Fails if a record has another kind or mixes scales within a row.
 pub fn encode(kind: RecordKind, records: &[Record]) -> Result<RecordBatch> {
     let schema = writer_schema(kind);
+    if kind.is_analytics() {
+        return super::analytics::encode(kind, &schema, records);
+    }
     let mut c = Columns::default();
     for r in records {
         if r.kind() != kind {
@@ -301,6 +341,7 @@ pub fn encode(kind: RecordKind, records: &[Record]) -> Result<RecordBatch> {
         RecordKind::Footprint => encode_footprints(&schema, records, &mut c)?,
         RecordKind::VolumeProfile => encode_profiles(&schema, records, &mut c)?,
         RecordKind::SwapPrint => encode_swaps(records, &mut c)?,
+        _ => return Err(Error::invalid(format!("no encoder for {kind}"))),
     }
     let ProvCols {
         instrument,
@@ -591,6 +632,60 @@ fn encode_profiles(schema: &Schema, records: &[Record], c: &mut Columns) -> Resu
     Ok(())
 }
 
+fn swap_price_parts(p: Option<&SwapPrice>) -> (Option<&'static str>, Option<Price>) {
+    match p {
+        Some(SwapPrice::Price { value }) => (Some("price"), Some(*value)),
+        Some(SwapPrice::Spread { value }) => (Some("spread"), Some(*value)),
+        Some(SwapPrice::Rate { value }) => (Some("rate"), Some(*value)),
+        Some(SwapPrice::SpreadAmount { value }) => (Some("spread_amount"), Some(*value)),
+        None => (None, None),
+    }
+}
+
+fn swap_price(
+    r: &Reader<'_>,
+    i: usize,
+    type_col: &str,
+    col: &str,
+    scale_col: &str,
+) -> Result<Option<SwapPrice>> {
+    let Some(t) = r.str_opt(type_col, i)? else {
+        return Ok(None);
+    };
+    let value = Price::new(
+        r.i64(col, i)?,
+        r.u8_opt(scale_col, i)?.ok_or_else(|| missing(scale_col))?,
+    )
+    .map_err(dec)?;
+    Ok(Some(match t.as_str() {
+        "price" => SwapPrice::Price { value },
+        "spread" => SwapPrice::Spread { value },
+        "rate" => SwapPrice::Rate { value },
+        "spread_amount" => SwapPrice::SpreadAmount { value },
+        s => return Err(Error::invalid(format!("{type_col} {s:?}"))),
+    }))
+}
+
+fn amount(
+    r: &Reader<'_>,
+    i: usize,
+    col: &str,
+    scale_col: &str,
+    cur_col: &str,
+) -> Result<Option<Notional>> {
+    let Some(currency) = r.str_opt(cur_col, i)? else {
+        return Ok(None);
+    };
+    Ok(Some(Notional {
+        amount: Size::new(
+            r.i64(col, i)?,
+            r.u8_opt(scale_col, i)?.ok_or_else(|| missing(scale_col))?,
+        )
+        .map_err(dec)?,
+        currency,
+    }))
+}
+
 fn encode_swaps(records: &[Record], c: &mut Columns) -> Result<()> {
     let mut repo = vec![];
     let mut diss = vec![];
@@ -601,6 +696,12 @@ fn encode_swaps(records: &[Record], c: &mut Columns) -> Result<()> {
     let mut expiry: Vec<Option<i32>> = vec![];
     let (mut ptype, mut price, mut pscale) = (vec![], vec![], vec![]);
     let (mut notional, mut nscale, mut ncur) = (vec![], vec![], vec![]);
+    let (mut qty, mut qscale, mut qunit) = (vec![], vec![], vec![]);
+    let mut event_type = vec![];
+    let (mut stype, mut strike, mut sscale) = (vec![], vec![], vec![]);
+    let (mut prem, mut prem_scale, mut prem_cur) = (vec![], vec![], vec![]);
+    let (mut otype, mut ostyle) = (vec![], vec![]);
+    let mut first_ex: Vec<Option<i32>> = vec![];
     let (mut exec, mut dissem) = (vec![], vec![]);
     for r in records {
         let Record::SwapPrint(p) = r else { continue };
@@ -619,18 +720,32 @@ fn encode_swaps(records: &[Record], c: &mut Columns) -> Result<()> {
                 .map(|e| e.parse::<Day>().map(Day::days))
                 .transpose()?,
         );
-        let (t, v) = match p.price {
-            Some(SwapPrice::Price { value }) => (Some("price"), Some(value)),
-            Some(SwapPrice::Spread { value }) => (Some("spread"), Some(value)),
-            Some(SwapPrice::Rate { value }) => (Some("rate"), Some(value)),
-            None => (None, None),
-        };
+        let (t, v) = swap_price_parts(p.price.as_ref());
         ptype.push(t.map(str::to_owned));
         price.push(v.map(Price::mantissa));
         pscale.push(v.map(Price::scale));
         notional.push(p.notional.as_ref().map(|n| n.amount.mantissa()));
         nscale.push(p.notional.as_ref().map(|n| n.amount.scale()));
         ncur.push(p.notional.as_ref().map(|n| n.currency.clone()));
+        qty.push(p.quantity.as_ref().map(|q| q.amount.mantissa()));
+        qscale.push(p.quantity.as_ref().map(|q| q.amount.scale()));
+        qunit.push(p.quantity.as_ref().map(|q| q.unit.clone()));
+        event_type.push(p.event_type.as_ref().map(enum_str).transpose()?);
+        let (t, v) = swap_price_parts(p.strike.as_ref());
+        stype.push(t.map(str::to_owned));
+        strike.push(v.map(Price::mantissa));
+        sscale.push(v.map(Price::scale));
+        prem.push(p.option_premium.as_ref().map(|n| n.amount.mantissa()));
+        prem_scale.push(p.option_premium.as_ref().map(|n| n.amount.scale()));
+        prem_cur.push(p.option_premium.as_ref().map(|n| n.currency.clone()));
+        otype.push(p.option_type.as_ref().map(enum_str).transpose()?);
+        ostyle.push(p.option_style.as_ref().map(enum_str).transpose()?);
+        first_ex.push(
+            p.first_exercise_date
+                .as_deref()
+                .map(|e| e.parse::<Day>().map(Day::days))
+                .transpose()?,
+        );
         exec.push(p.ts_execution_ms.0);
         dissem.push(p.ts_dissemination_ms.0);
     }
@@ -653,6 +768,26 @@ fn encode_swaps(records: &[Record], c: &mut Columns) -> Result<()> {
     c.cols
         .insert("notional_scale", Arc::new(UInt8Array::from(nscale)));
     c.cols.insert("notional_currency", strings_opt(ncur));
+    c.cols.insert("quantity", i64s_opt(qty));
+    c.cols
+        .insert("quantity_scale", Arc::new(UInt8Array::from(qscale)));
+    c.cols.insert("quantity_unit", strings_opt(qunit));
+    c.cols.insert("event_type", strings_opt(event_type));
+    c.cols.insert("strike_type", strings_opt(stype));
+    c.cols.insert("strike", i64s_opt(strike));
+    c.cols
+        .insert("strike_scale", Arc::new(UInt8Array::from(sscale)));
+    c.cols.insert("option_premium", i64s_opt(prem));
+    c.cols.insert(
+        "option_premium_scale",
+        Arc::new(UInt8Array::from(prem_scale)),
+    );
+    c.cols
+        .insert("option_premium_currency", strings_opt(prem_cur));
+    c.cols.insert("option_type", strings_opt(otype));
+    c.cols.insert("option_style", strings_opt(ostyle));
+    c.cols
+        .insert("first_exercise_date", Arc::new(Date32Array::from(first_ex)));
     c.cols.insert("ts_execution_ms", utc_ms(exec));
     c.cols.insert("ts_dissemination_ms", utc_ms(dissem));
     Ok(())
@@ -836,6 +971,22 @@ fn derived_header(r: &Reader<'_>, i: usize) -> Result<DerivedHeader> {
     })
 }
 
+/// The provenance of every row, as JSON (for the analytics converter).
+pub(super) fn prov_json_rows(batch: &RecordBatch) -> Result<Vec<serde_json::Value>> {
+    let r = Reader { batch };
+    (0..batch.num_rows())
+        .map(|i| Ok(serde_json::to_value(provenance(&r, i)?)?))
+        .collect()
+}
+
+/// The derived header of every row, as JSON (for the analytics converter).
+pub(super) fn derived_json_rows(batch: &RecordBatch) -> Result<Vec<serde_json::Value>> {
+    let r = Reader { batch };
+    (0..batch.num_rows())
+        .map(|i| Ok(serde_json::to_value(derived_header(&r, i)?)?))
+        .collect()
+}
+
 fn interval(s: &str) -> Result<BarInterval> {
     BarInterval::ALL
         .into_iter()
@@ -850,6 +1001,9 @@ fn interval(s: &str) -> Result<BarInterval> {
 ///
 /// Fails on missing columns, nulls in required fields or invalid values.
 pub fn decode(kind: RecordKind, batch: &RecordBatch) -> Result<Vec<Record>> {
+    if kind.is_analytics() {
+        return super::analytics::decode(kind, batch);
+    }
     let r = Reader { batch };
     (0..batch.num_rows())
         .map(|i| decode_row(kind, &r, i))
@@ -984,36 +1138,25 @@ fn decode_row(kind: RecordKind, r: &Reader<'_>, i: usize) -> Result<Record> {
             })
         }
         RecordKind::SwapPrint => {
-            let price = match r.str_opt("price_type", i)? {
+            let price = swap_price(r, i, "price_type", "price", "price_scale")?;
+            let notional = amount(r, i, "notional", "notional_scale", "notional_currency")?;
+            let quantity = match r.str_opt("quantity_unit", i)? {
                 None => None,
-                Some(t) => {
-                    let value = Price::new(
-                        r.i64("price", i)?,
-                        r.u8_opt("price_scale", i)?
-                            .ok_or_else(|| missing("price_scale"))?,
-                    )
-                    .map_err(dec)?;
-                    Some(match t.as_str() {
-                        "price" => SwapPrice::Price { value },
-                        "spread" => SwapPrice::Spread { value },
-                        "rate" => SwapPrice::Rate { value },
-                        s => return Err(Error::invalid(format!("price_type {s:?}"))),
-                    })
-                }
-            };
-            let notional = match r.str_opt("notional_currency", i)? {
-                None => None,
-                Some(currency) => Some(Notional {
+                Some(unit) => Some(Quantity {
                     amount: Size::new(
-                        r.i64("notional", i)?,
-                        r.u8_opt("notional_scale", i)?
-                            .ok_or_else(|| missing("notional_scale"))?,
+                        r.i64("quantity", i)?,
+                        r.u8_opt("quantity_scale", i)?
+                            .ok_or_else(|| missing("quantity_scale"))?,
                     )
                     .map_err(dec)?,
-                    currency,
+                    unit,
                 }),
             };
             let exp = as_date(column(r.batch, "expiry")?, "expiry")?;
+            let first_ex = as_date(
+                column(r.batch, "first_exercise_date")?,
+                "first_exercise_date",
+            )?;
             Record::SwapPrint(SwapPrint {
                 prov,
                 repository: VenueId::new(r.str("repository", i)?).map_err(id_err)?,
@@ -1028,10 +1171,34 @@ fn decode_row(kind: RecordKind, r: &Reader<'_>, i: usize) -> Result<Record> {
                 expiry: (!exp.is_null(i)).then(|| Day::from_days(exp.value(i)).to_string()),
                 price,
                 notional,
+                quantity,
+                event_type: r
+                    .str_opt("event_type", i)?
+                    .map(|s| parse_enum(&s))
+                    .transpose()?,
+                strike: swap_price(r, i, "strike_type", "strike", "strike_scale")?,
+                option_premium: amount(
+                    r,
+                    i,
+                    "option_premium",
+                    "option_premium_scale",
+                    "option_premium_currency",
+                )?,
+                option_type: r
+                    .str_opt("option_type", i)?
+                    .map(|s| parse_enum(&s))
+                    .transpose()?,
+                option_style: r
+                    .str_opt("option_style", i)?
+                    .map(|s| parse_enum(&s))
+                    .transpose()?,
+                first_exercise_date: (!first_ex.is_null(i))
+                    .then(|| Day::from_days(first_ex.value(i)).to_string()),
                 ts_execution_ms: r.ms("ts_execution_ms", i)?,
                 ts_dissemination_ms: r.ms("ts_dissemination_ms", i)?,
             })
         }
+        other => return Err(Error::invalid(format!("no decoder for {other}"))),
     })
 }
 

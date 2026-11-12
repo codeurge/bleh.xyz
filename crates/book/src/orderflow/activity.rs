@@ -22,9 +22,10 @@
 //! sizes and lifetimes also depend on the book before the interval, which
 //! is fixed by the archive (nearest checkpoint plus events).
 
-use mesh_types::{
-    BarInterval, BookAction, ContentHasher, DerivedHeader, Flags, Provenance, Size, UnixMillis,
-};
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::{LifetimeStats, OrderActivity};
+
+use mesh_types::{BarInterval, BookAction, ContentHasher, Flags, Provenance, UnixMillis};
 use serde::{Deserialize, Serialize};
 
 use crate::book::OrderView;
@@ -50,63 +51,6 @@ impl Default for OrderActivityConfig {
             fleeting_ms: 1_000,
         }
     }
-}
-
-/// Lifetime statistics of orders removed in an interval.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct LifetimeStats {
-    /// Orders removed (filled or cancelled).
-    pub removed: u64,
-    /// Removed by a full fill.
-    pub filled: u64,
-    /// Removed by a cancel.
-    pub cancelled: u64,
-    /// Cancelled younger than `fleeting_ms`.
-    pub fleeting_cancels: u64,
-    /// Shortest lifetime, ms.
-    pub min_ms: Option<i64>,
-    /// Nearest-rank median, ms.
-    pub p50_ms: Option<i64>,
-    /// Nearest-rank 90th percentile, ms.
-    pub p90_ms: Option<i64>,
-    /// Longest lifetime, ms.
-    pub max_ms: Option<i64>,
-}
-
-/// Order activity in one interval.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct OrderActivity {
-    /// Provenance of the interval's last event, with the union of flags.
-    pub prov: Provenance,
-    /// `order-activity@1`; inputs are the interval's book events.
-    pub derived: DerivedHeader,
-    /// Interval length.
-    pub interval: BarInterval,
-    /// Interval start (inclusive), aligned.
-    pub start_ms: UnixMillis,
-    /// `add` events.
-    pub adds: u64,
-    /// `modify` events.
-    pub modifies: u64,
-    /// `cancel` events.
-    pub cancels: u64,
-    /// `fill` events leaving size.
-    pub partial_fills: u64,
-    /// `fill` events removing the order.
-    pub full_fills: u64,
-    /// Size added.
-    pub added_size: Size,
-    /// Size cancelled.
-    pub cancelled_size: Size,
-    /// Size filled.
-    pub filled_size: Size,
-    /// `floor(cancels * 10_000 / adds)`.
-    pub cancel_to_add_bps: Option<u64>,
-    /// `floor((cancels + modifies) * 10_000 / fills)`.
-    pub cancel_replace_to_fill_bps: Option<u64>,
-    /// Lifetimes of removed orders.
-    pub lifetimes: LifetimeStats,
 }
 
 #[derive(Debug, Clone)]

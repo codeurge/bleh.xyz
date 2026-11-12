@@ -53,7 +53,7 @@ pub fn parse_partition_path(archive: &str, rel: &str) -> Option<PartitionKey> {
         } else if let Some(v) = seg.strip_prefix("venue=") {
             venue = Some(v.to_owned());
         } else if let Some(v) = seg.strip_prefix("instrument=") {
-            instrument = Some(v.replace('~', ":"));
+            instrument = Some(v.replace("%23", "#").replace('~', ":"));
         } else if let Some(v) = seg.strip_prefix("date=") {
             date = Some(v.to_owned());
         }
@@ -212,7 +212,7 @@ pub fn walk_local_archive(root: &Path, archive: &str) -> BTreeMap<PartitionKey, 
                             archive: archive.to_owned(),
                             kind: kind.clone(),
                             venue: venue.clone(),
-                            instrument: inst.replace('~', ":"),
+                            instrument: inst.replace("%23", "#").replace('~', ":"),
                             date: date.clone(),
                         },
                         files,
@@ -250,14 +250,47 @@ pub fn manifest_partition_files(
         .files
         .iter()
         .filter(|f| f.path.starts_with(&prefix) && f.path.ends_with(".parquet"))
-        .map(|f| format!("{base}/{}", f.path))
+        .map(|f| format!("{base}/{}", url_path(&f.path)))
         .collect()
+}
+
+/// Escapes the characters of an archive path that are not literal in a
+/// URL path: `%` (instrument paths write `#` as `%23`, so the object key
+/// holds a literal `%`), `#`, `?` and spaces.
+#[must_use]
+pub fn url_path(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    for c in path.chars() {
+        match c {
+            '%' => out.push_str("%25"),
+            '#' => out.push_str("%23"),
+            '?' => out.push_str("%3F"),
+            ' ' => out.push_str("%20"),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use mesh_types::InstrumentId;
+
+    #[test]
+    fn outcome_paths_round_trip_and_escape() {
+        let id = InstrumentId::new("hyperliquid:outcome:#9001").unwrap();
+        let rel = format!(
+            "kind=trade/venue=hyperliquid/instrument={}/date=2026-01-01/part-00000.parquet",
+            id.path_segment()
+        );
+        let key = parse_partition_path("hyperliquid-normalized", &rel).unwrap();
+        assert_eq!(key.instrument, id.as_str());
+        assert_eq!(
+            url_path(&rel),
+            "kind=trade/venue=hyperliquid/instrument=hyperliquid~outcome~%25239001/date=2026-01-01/part-00000.parquet"
+        );
+    }
 
     #[test]
     fn partition_paths() {

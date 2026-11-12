@@ -15,9 +15,10 @@
 //! one run; this is a known limit of the heuristic. The inputs hash covers
 //! the run's trades in `seq` order.
 
-use mesh_types::{
-    AggressorSide, ContentHasher, DerivedHeader, Price, Provenance, Seq, Size, Trade,
-};
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::Sweep;
+
+use mesh_types::{AggressorSide, ContentHasher, Provenance, Seq, Trade};
 use serde::{Deserialize, Serialize};
 
 use crate::error::InputError;
@@ -37,30 +38,6 @@ impl Default for SweepConfig {
     fn default() -> Self {
         Self { min_levels: 2 }
     }
-}
-
-/// An aggressive run across several price levels.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Sweep {
-    /// Provenance of the run's last trade, with the union of flags.
-    pub prov: Provenance,
-    /// `sweep@1`; inputs are the run's trades.
-    pub derived: DerivedHeader,
-    /// Aggressor side (`buy` or `sell`).
-    pub side: AggressorSide,
-    /// `seq` of the first trade.
-    pub first_seq: Seq,
-    /// Price of the first trade.
-    pub first_price: Price,
-    /// Price of the last trade (the deepest level reached).
-    pub last_price: Price,
-    /// Distinct prices traded.
-    pub levels: u32,
-    /// Total size.
-    pub size: Size,
-    /// Number of trades.
-    pub trade_count: u32,
 }
 
 #[derive(Debug, Clone)]

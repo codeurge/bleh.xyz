@@ -47,10 +47,94 @@ pub enum AssetClass {
 pub enum SwapAction {
     /// A new transaction.
     New,
-    /// Cancels an earlier print.
+    /// Cancels an earlier print (it was reported in error).
     Cancel,
     /// Corrects an earlier print.
     Correct,
+    /// Amends the terms of an existing transaction (for example a price
+    /// change); repository action `MODI`.
+    Modify,
+    /// Terminates an existing transaction, often with a price; repository
+    /// action `TERM`.
+    Terminate,
+    /// Revives a print that was cancelled in error; repository action
+    /// `REVI`.
+    Revive,
+}
+
+impl SwapAction {
+    /// True for actions that refer to an earlier print and therefore need
+    /// `original_dissemination_id`.
+    #[must_use]
+    pub const fn needs_original(self) -> bool {
+        matches!(self, Self::Cancel | Self::Correct | Self::Revive)
+    }
+}
+
+/// The lifecycle event behind a print (CFTC technical specification event
+/// types). Absent when the repository leaves it empty.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SwapEventType {
+    /// A trade (`TRAD`).
+    Trade,
+    /// A novation (`NOVA`).
+    Novation,
+    /// A compression (`COMP`).
+    Compression,
+    /// An early termination (`ETRM`).
+    EarlyTermination,
+    /// Clearing (`CLRG`).
+    Clearing,
+    /// An exercise (`EXER`).
+    Exercise,
+    /// An allocation (`ALOC`).
+    Allocation,
+    /// Clearing and allocation (`CLAL`).
+    ClearingAllocation,
+    /// A credit event (`CREV`).
+    CreditEvent,
+    /// Porting (`PTNG`).
+    Porting,
+    /// A corporate event (`CORP`).
+    CorporateEvent,
+    /// An update (`UPDT`).
+    Update,
+}
+
+/// Option type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OptionType {
+    /// A call (or payer swaption, cap).
+    Call,
+    /// A put (or receiver swaption, floor).
+    Put,
+}
+
+/// Option exercise style.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OptionStyle {
+    /// Exercisable at any time (`AMER`).
+    American,
+    /// Exercisable at expiry only (`EURO`).
+    European,
+    /// Exercisable on set dates (`BERM`).
+    Bermudan,
+    /// Settled on an average (`ASIA`).
+    Asian,
+}
+
+/// A quantity with a unit of measure, for notionals that are not amounts
+/// of a currency (commodity swaps).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Quantity {
+    /// Amount as disseminated.
+    pub amount: Size,
+    /// Unit of measure as disseminated (for example `BBL`, `MMBTU`).
+    pub unit: String,
 }
 
 /// The print's price, in the notation the repository used.
@@ -69,6 +153,12 @@ pub enum SwapPrice {
     },
     /// A fixed rate, in percent.
     Rate {
+        /// The value.
+        value: Price,
+    },
+    /// A spread in currency units (repository notation 1, for example a
+    /// commodity basis).
+    SpreadAmount {
         /// The value.
         value: Price,
     },
@@ -122,6 +212,28 @@ pub struct SwapPrint {
     /// Notional, if disseminated.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notional: Option<Notional>,
+    /// Notional quantity with a unit (commodities), if disseminated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quantity: Option<Quantity>,
+    /// Lifecycle event type, if disseminated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event_type: Option<SwapEventType>,
+    /// Option strike, if disseminated (options only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strike: Option<SwapPrice>,
+    /// Option premium amount and currency, if disseminated. (`premium` is
+    /// an excluded venue field name, so the field is `option_premium`.)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub option_premium: Option<Notional>,
+    /// Option type, if disseminated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub option_type: Option<OptionType>,
+    /// Option exercise style, if disseminated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub option_style: Option<OptionStyle>,
+    /// First exercise date, `YYYY-MM-DD`, if disseminated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub first_exercise_date: Option<String>,
     /// Execution time.
     pub ts_execution_ms: UnixMillis,
     /// Dissemination time (equals `prov.ts_source_ms`).
@@ -157,9 +269,9 @@ impl SwapPrint {
             "bad dissemination_id".into()
         })?;
         ensure(
-            self.action == SwapAction::New || self.original_dissemination_id.is_some(),
+            !self.action.needs_original() || self.original_dissemination_id.is_some(),
             k,
-            || "cancel and correct need original_dissemination_id".into(),
+            || "cancel, correct and revive need original_dissemination_id".into(),
         )?;
         for (name, v) in [
             ("original_dissemination_id", &self.original_dissemination_id),
@@ -172,14 +284,28 @@ impl SwapPrint {
                 ensure(is_clean_text(v), k, || format!("bad {name}"))?;
             }
         }
-        if let Some(e) = &self.expiry {
-            ensure(is_date(e), k, || "expiry must be YYYY-MM-DD".into())?;
+        for (name, d) in [
+            ("expiry", &self.expiry),
+            ("first_exercise_date", &self.first_exercise_date),
+        ] {
+            if let Some(d) = d {
+                ensure(is_date(d), k, || format!("{name} must be YYYY-MM-DD"))?;
+            }
         }
-        if let Some(n) = &self.notional {
+        for n in [&self.notional, &self.option_premium].into_iter().flatten() {
             ensure(
                 n.currency.len() == 3 && n.currency.bytes().all(|c| c.is_ascii_uppercase()),
                 k,
                 || "currency must be an ISO 4217 code".into(),
+            )?;
+        }
+        if let Some(q) = &self.quantity {
+            ensure(
+                !q.unit.is_empty()
+                    && q.unit.len() <= 16
+                    && q.unit.bytes().all(|c| c.is_ascii_alphanumeric()),
+                k,
+                || "quantity unit must be 1-16 ASCII letters or digits".into(),
             )?;
         }
         ensure(
@@ -222,8 +348,40 @@ pub(crate) mod tests {
                 amount: sz("250000000"),
                 currency: "USD".into(),
             }),
+            quantity: None,
+            event_type: Some(SwapEventType::Trade),
+            strike: None,
+            option_premium: None,
+            option_type: None,
+            option_style: None,
+            first_exercise_date: None,
             ts_execution_ms: UnixMillis(1_767_225_590_000),
         }
+    }
+
+    /// A commodity option print using every optional field added for
+    /// lifecycle actions, options and quantities.
+    pub(crate) fn option_print() -> SwapPrint {
+        let mut p = print();
+        p.asset_class = AssetClass::Commodity;
+        p.action = SwapAction::Modify;
+        p.original_dissemination_id = Some("SYN-0".into());
+        p.event_type = Some(SwapEventType::Exercise);
+        p.price = Some(SwapPrice::SpreadAmount { value: px("0.25") });
+        p.notional = None;
+        p.quantity = Some(Quantity {
+            amount: sz("10000"),
+            unit: "MMBTU".into(),
+        });
+        p.strike = Some(SwapPrice::Price { value: px("3.50") });
+        p.option_premium = Some(Notional {
+            amount: sz("1250.00"),
+            currency: "USD".into(),
+        });
+        p.option_type = Some(OptionType::Call);
+        p.option_style = Some(OptionStyle::European);
+        p.first_exercise_date = Some("2027-01-15".into());
+        p
     }
 
     #[test]
@@ -246,5 +404,24 @@ pub(crate) mod tests {
             currency: "usd".into(),
         });
         assert!(p.validate().is_err());
+
+        let o = option_print();
+        o.validate().unwrap();
+        let r = Record::from(o.clone());
+        let json = serde_json::to_string(&r).unwrap();
+        assert_eq!(serde_json::from_str::<Record>(&json).unwrap(), r);
+        assert!(json.contains(r#""option_premium""#));
+        let mut revive = print();
+        revive.action = SwapAction::Revive;
+        assert!(revive.validate().is_err());
+        let mut terminate = print();
+        terminate.action = SwapAction::Terminate;
+        assert!(terminate.validate().is_ok());
+        let mut bad = option_print();
+        bad.quantity = Some(Quantity {
+            amount: sz("1"),
+            unit: "m 3".into(),
+        });
+        assert!(bad.validate().is_err());
     }
 }

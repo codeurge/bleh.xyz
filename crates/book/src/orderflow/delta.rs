@@ -11,42 +11,15 @@
 //! through the end of the interval, in `seq` order, and `input_count` is
 //! their number.
 
-use mesh_types::{
-    AggressorSide, BarInterval, ContentHasher, DerivedHeader, Flags, Provenance, Size, Trade,
-    UnixMillis,
-};
-use serde::{Deserialize, Serialize};
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::DeltaBar;
+
+use mesh_types::{AggressorSide, BarInterval, ContentHasher, Flags, Provenance, Trade, UnixMillis};
 
 use crate::error::InputError;
 use crate::fixed::{SignedSize, add, same_scale, size, union};
 use crate::inputs::{Cursor, TradeIn, encode_trades, header_of_clone};
 use crate::methods;
-
-/// Delta and CVD for one interval.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct DeltaBar {
-    /// Provenance of the last trade in the interval, with the union of the
-    /// interval's trade flags.
-    pub prov: Provenance,
-    /// `delta@1`; inputs are the anchor period's trades through this
-    /// interval.
-    pub derived: DerivedHeader,
-    /// Interval length.
-    pub interval: BarInterval,
-    /// Interval start (inclusive), aligned.
-    pub start_ms: UnixMillis,
-    /// Size traded with a buy aggressor.
-    pub buy_volume: Size,
-    /// Size traded with a sell aggressor.
-    pub sell_volume: Size,
-    /// `buy_volume - sell_volume`.
-    pub delta: SignedSize,
-    /// Start of the anchor period.
-    pub anchor_start_ms: UnixMillis,
-    /// Sum of `delta` from the anchor start through this interval.
-    pub cvd: SignedSize,
-}
 
 #[derive(Debug, Clone)]
 struct Open {
@@ -190,7 +163,7 @@ impl DeltaBuilder {
             start_ms: o.start,
             buy_volume: size(o.buy, ss)?,
             sell_volume: size(o.sell, ss)?,
-            delta: SignedSize::new(delta, ss)?,
+            volume_delta: SignedSize::new(delta, ss)?,
             anchor_start_ms: self.anchor_start.unwrap_or(o.start),
             cvd: SignedSize::new(self.cvd, ss)?,
         });
@@ -236,9 +209,9 @@ mod tests {
         ];
         let d = deltas(&t, BarInterval::M1, BarInterval::D1).unwrap();
         assert_eq!(d.len(), 3);
-        assert_eq!(d[0].delta.to_string(), "2.00");
+        assert_eq!(d[0].volume_delta.to_string(), "2.00");
         assert_eq!(d[0].cvd.to_string(), "2.00");
-        assert_eq!(d[1].delta.to_string(), "-5.00");
+        assert_eq!(d[1].volume_delta.to_string(), "-5.00");
         assert_eq!(d[1].cvd.to_string(), "-3.00");
         assert_eq!(d[2].cvd.to_string(), "1.00");
         assert_eq!(d[2].anchor_start_ms, ms(86_400_000));

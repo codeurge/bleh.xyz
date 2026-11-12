@@ -9,6 +9,8 @@
 //! | `footprint` | [`crate::Footprint`] | Derived from trades (stub) |
 //! | `volume_profile` | [`crate::VolumeProfile`] | Derived from trades (stub) |
 //! | `swap_print` | [`crate::SwapPrint`] | Part 43 / SBSR public dissemination |
+//! | `activity_bar` … `liquidity_grade` | [`crate::analytics`] | Derived from trades and book events |
+//! | `coverage` | [`crate::Coverage`] | What the recorder observed of a venue |
 //!
 //! The [`Record`] enum is the tagged union of all kinds. In JSON it is an
 //! object with a `kind` field, a `prov` object ([`Provenance`]) and the
@@ -22,6 +24,10 @@ use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
+use crate::analytics::{
+    ActivityBar, Coverage, DeltaBar, HeatmapTile, LiquidityGrade, OrderActivity, ProfileSummary,
+    QueuePositions, Sweep,
+};
 use crate::decimal::{Price, Size};
 use crate::derived::{DerivedHeader, Footprint, VolumeProfile};
 use crate::ids::{OrderId, TradeId};
@@ -40,7 +46,8 @@ pub struct ValidationError {
 }
 
 impl ValidationError {
-    pub(crate) fn new(kind: RecordKind, reason: impl Into<String>) -> Self {
+    /// A validation error for `kind`.
+    pub fn new(kind: RecordKind, reason: impl Into<String>) -> Self {
         Self {
             kind,
             reason: reason.into(),
@@ -612,11 +619,29 @@ pub enum RecordKind {
     VolumeProfile,
     /// [`SwapPrint`].
     SwapPrint,
+    /// [`ActivityBar`].
+    ActivityBar,
+    /// [`DeltaBar`].
+    DeltaBar,
+    /// [`ProfileSummary`].
+    ProfileSummary,
+    /// [`OrderActivity`].
+    OrderActivity,
+    /// [`QueuePositions`].
+    QueuePositions,
+    /// [`Sweep`].
+    Sweep,
+    /// [`HeatmapTile`].
+    HeatmapTile,
+    /// [`LiquidityGrade`].
+    LiquidityGrade,
+    /// [`Coverage`].
+    Coverage,
 }
 
 impl RecordKind {
-    /// Every kind.
-    pub const ALL: [RecordKind; 7] = [
+    /// Every kind, in canonical order.
+    pub const ALL: [RecordKind; 16] = [
         RecordKind::Trade,
         RecordKind::BookEvent,
         RecordKind::BookSnapshot,
@@ -624,6 +649,15 @@ impl RecordKind {
         RecordKind::Footprint,
         RecordKind::VolumeProfile,
         RecordKind::SwapPrint,
+        RecordKind::ActivityBar,
+        RecordKind::DeltaBar,
+        RecordKind::ProfileSummary,
+        RecordKind::OrderActivity,
+        RecordKind::QueuePositions,
+        RecordKind::Sweep,
+        RecordKind::HeatmapTile,
+        RecordKind::LiquidityGrade,
+        RecordKind::Coverage,
     ];
 
     /// The `kind` tag in JSON, and the `kind=` partition value.
@@ -637,13 +671,60 @@ impl RecordKind {
             Self::Footprint => "footprint",
             Self::VolumeProfile => "volume_profile",
             Self::SwapPrint => "swap_print",
+            Self::ActivityBar => "activity_bar",
+            Self::DeltaBar => "delta_bar",
+            Self::ProfileSummary => "profile_summary",
+            Self::OrderActivity => "order_activity",
+            Self::QueuePositions => "queue_positions",
+            Self::Sweep => "sweep",
+            Self::HeatmapTile => "heatmap_tile",
+            Self::LiquidityGrade => "liquidity_grade",
+            Self::Coverage => "coverage",
         }
+    }
+
+    /// Looks up a kind by its `kind` tag.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|k| k.as_str() == name)
     }
 
     /// True for kinds computed by a versioned method from other records.
     #[must_use]
     pub const fn is_derived(self) -> bool {
-        matches!(self, Self::Bar | Self::Footprint | Self::VolumeProfile)
+        matches!(
+            self,
+            Self::Bar
+                | Self::Footprint
+                | Self::VolumeProfile
+                | Self::ActivityBar
+                | Self::DeltaBar
+                | Self::ProfileSummary
+                | Self::OrderActivity
+                | Self::QueuePositions
+                | Self::Sweep
+                | Self::HeatmapTile
+                | Self::LiquidityGrade
+        )
+    }
+
+    /// True for the analytics kinds of [`crate::analytics`] and coverage,
+    /// whose Arrow schemas keep nested parts as canonical JSON text (see
+    /// [`crate::arrow`]).
+    #[must_use]
+    pub const fn is_analytics(self) -> bool {
+        matches!(
+            self,
+            Self::ActivityBar
+                | Self::DeltaBar
+                | Self::ProfileSummary
+                | Self::OrderActivity
+                | Self::QueuePositions
+                | Self::Sweep
+                | Self::HeatmapTile
+                | Self::LiquidityGrade
+                | Self::Coverage
+        )
     }
 }
 
@@ -671,6 +752,48 @@ pub enum Record {
     VolumeProfile(VolumeProfile),
     /// A swap print.
     SwapPrint(SwapPrint),
+    /// A tick, volume or range bar.
+    ActivityBar(ActivityBar),
+    /// Delta and CVD.
+    DeltaBar(DeltaBar),
+    /// POC and value area.
+    ProfileSummary(ProfileSummary),
+    /// Order activity.
+    OrderActivity(OrderActivity),
+    /// Top-of-book queue positions.
+    QueuePositions(QueuePositions),
+    /// A sweep.
+    Sweep(Sweep),
+    /// A heatmap tile.
+    HeatmapTile(HeatmapTile),
+    /// A liquidity grade.
+    LiquidityGrade(LiquidityGrade),
+    /// Venue coverage.
+    Coverage(Coverage),
+}
+
+/// Evaluates `$e` with `$v` bound to the record inside any variant.
+macro_rules! each {
+    ($r:expr, $v:ident => $e:expr) => {
+        match $r {
+            Record::Trade($v) => $e,
+            Record::BookEvent($v) => $e,
+            Record::BookSnapshot($v) => $e,
+            Record::Bar($v) => $e,
+            Record::Footprint($v) => $e,
+            Record::VolumeProfile($v) => $e,
+            Record::SwapPrint($v) => $e,
+            Record::ActivityBar($v) => $e,
+            Record::DeltaBar($v) => $e,
+            Record::ProfileSummary($v) => $e,
+            Record::OrderActivity($v) => $e,
+            Record::QueuePositions($v) => $e,
+            Record::Sweep($v) => $e,
+            Record::HeatmapTile($v) => $e,
+            Record::LiquidityGrade($v) => $e,
+            Record::Coverage($v) => $e,
+        }
+    };
 }
 
 impl Record {
@@ -685,34 +808,27 @@ impl Record {
             Record::Footprint(_) => RecordKind::Footprint,
             Record::VolumeProfile(_) => RecordKind::VolumeProfile,
             Record::SwapPrint(_) => RecordKind::SwapPrint,
+            Record::ActivityBar(_) => RecordKind::ActivityBar,
+            Record::DeltaBar(_) => RecordKind::DeltaBar,
+            Record::ProfileSummary(_) => RecordKind::ProfileSummary,
+            Record::OrderActivity(_) => RecordKind::OrderActivity,
+            Record::QueuePositions(_) => RecordKind::QueuePositions,
+            Record::Sweep(_) => RecordKind::Sweep,
+            Record::HeatmapTile(_) => RecordKind::HeatmapTile,
+            Record::LiquidityGrade(_) => RecordKind::LiquidityGrade,
+            Record::Coverage(_) => RecordKind::Coverage,
         }
     }
 
     /// The record's provenance.
     #[must_use]
     pub const fn prov(&self) -> &Provenance {
-        match self {
-            Record::Trade(r) => &r.prov,
-            Record::BookEvent(r) => &r.prov,
-            Record::BookSnapshot(r) => &r.prov,
-            Record::Bar(r) => &r.prov,
-            Record::Footprint(r) => &r.prov,
-            Record::VolumeProfile(r) => &r.prov,
-            Record::SwapPrint(r) => &r.prov,
-        }
+        each!(self, r => &r.prov)
     }
 
     /// The record's provenance, mutably (for stamping the publish time).
     pub fn prov_mut(&mut self) -> &mut Provenance {
-        match self {
-            Record::Trade(r) => &mut r.prov,
-            Record::BookEvent(r) => &mut r.prov,
-            Record::BookSnapshot(r) => &mut r.prov,
-            Record::Bar(r) => &mut r.prov,
-            Record::Footprint(r) => &mut r.prov,
-            Record::VolumeProfile(r) => &mut r.prov,
-            Record::SwapPrint(r) => &mut r.prov,
-        }
+        each!(self, r => &mut r.prov)
     }
 
     /// The derived-record header, for derived kinds.
@@ -722,7 +838,19 @@ impl Record {
             Record::Bar(r) => Some(&r.derived),
             Record::Footprint(r) => Some(&r.derived),
             Record::VolumeProfile(r) => Some(&r.derived),
-            _ => None,
+            Record::ActivityBar(r) => Some(&r.derived),
+            Record::DeltaBar(r) => Some(&r.derived),
+            Record::ProfileSummary(r) => Some(&r.derived),
+            Record::OrderActivity(r) => Some(&r.derived),
+            Record::QueuePositions(r) => Some(&r.derived),
+            Record::Sweep(r) => Some(&r.derived),
+            Record::HeatmapTile(r) => Some(&r.derived),
+            Record::LiquidityGrade(r) => Some(&r.derived),
+            Record::Trade(_)
+            | Record::BookEvent(_)
+            | Record::BookSnapshot(_)
+            | Record::SwapPrint(_)
+            | Record::Coverage(_) => None,
         }
     }
 
@@ -732,15 +860,7 @@ impl Record {
     ///
     /// Returns the kind's validation error.
     pub fn validate(&self) -> Result<(), ValidationError> {
-        match self {
-            Record::Trade(r) => r.validate(),
-            Record::BookEvent(r) => r.validate(),
-            Record::BookSnapshot(r) => r.validate(),
-            Record::Bar(r) => r.validate(),
-            Record::Footprint(r) => r.validate(),
-            Record::VolumeProfile(r) => r.validate(),
-            Record::SwapPrint(r) => r.validate(),
-        }
+        each!(self, r => r.validate())
     }
 
     /// Canonical archive order: instrument, then kind, then `seq`.
@@ -770,7 +890,16 @@ from_variant!(
     Bar,
     Footprint,
     VolumeProfile,
-    SwapPrint
+    SwapPrint,
+    ActivityBar,
+    DeltaBar,
+    ProfileSummary,
+    OrderActivity,
+    QueuePositions,
+    Sweep,
+    HeatmapTile,
+    LiquidityGrade,
+    Coverage
 );
 
 #[cfg(test)]

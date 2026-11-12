@@ -204,10 +204,25 @@ pub fn canonical_json<T: Serialize + ?Sized>(value: &T) -> Result<Vec<u8>, Canon
 /// Canonical encoding of a record: canonical JSON without
 /// `prov.ts_publish_ns`.
 ///
+/// Trades, book events and book snapshots use the direct encoders in
+/// [`crate::canonical`]; other kinds go through `serde_json`. Both give
+/// the same bytes.
+///
 /// # Errors
 ///
 /// Fails if serialization fails.
 pub fn canonical_record(record: &Record) -> Result<Vec<u8>, CanonicalError> {
+    match record {
+        Record::Trade(t) => Ok(crate::canonical::trade(t)),
+        Record::BookEvent(e) => Ok(crate::canonical::book_event(e)),
+        Record::BookSnapshot(s) => Ok(crate::canonical::book_snapshot(s)),
+        other => canonical_record_generic(other),
+    }
+}
+
+/// The generic (serde) canonical encoding, the reference the fast
+/// encoders are tested against.
+pub(crate) fn canonical_record_generic(record: &Record) -> Result<Vec<u8>, CanonicalError> {
     let mut v = serde_json::to_value(record)?;
     if let Some(prov) = v.get_mut("prov").and_then(Value::as_object_mut) {
         prov.remove("ts_publish_ns");

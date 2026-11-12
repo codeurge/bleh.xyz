@@ -10,7 +10,16 @@
     { "$ref": "#/$defs/bar" },
     { "$ref": "#/$defs/footprint" },
     { "$ref": "#/$defs/volume_profile" },
-    { "$ref": "#/$defs/swap_print" }
+    { "$ref": "#/$defs/swap_print" },
+    { "$ref": "#/$defs/activity_bar" },
+    { "$ref": "#/$defs/delta_bar" },
+    { "$ref": "#/$defs/profile_summary" },
+    { "$ref": "#/$defs/order_activity" },
+    { "$ref": "#/$defs/queue_positions" },
+    { "$ref": "#/$defs/sweep" },
+    { "$ref": "#/$defs/heatmap_tile" },
+    { "$ref": "#/$defs/liquidity_grade" },
+    { "$ref": "#/$defs/coverage" }
   ],
   "$defs": {
     "decimal": {
@@ -53,7 +62,8 @@
           "gap_before",
           "low_resolution",
           "size_capped",
-          "block_trade_delayed"
+          "block_trade_delayed",
+          "replayed"
         ]
       }
     },
@@ -297,7 +307,304 @@
         }
       }
     },
+    "activity_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "spec", "session_start_ms", "first_seq", "first_ms",
+        "open", "high", "low", "close", "volume", "buy_volume", "sell_volume",
+        "trade_count", "complete"
+      ],
+      "properties": {
+        "kind": { "const": "activity_bar" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "spec": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "trades"],
+              "properties": { "type": { "const": "tick" }, "trades": { "$ref": "#/$defs/u32" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "size"],
+              "properties": {
+                "type": { "const": "volume" },
+                "size": { "$ref": "#/$defs/nonneg_decimal" }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "width"],
+              "properties": { "type": { "const": "range" }, "width": { "$ref": "#/$defs/decimal" } }
+            }
+          ]
+        },
+        "session_start_ms": { "$ref": "#/$defs/ms" },
+        "first_seq": { "$ref": "#/$defs/seq" },
+        "first_ms": { "$ref": "#/$defs/ms" },
+        "open": { "$ref": "#/$defs/decimal" },
+        "high": { "$ref": "#/$defs/decimal" },
+        "low": { "$ref": "#/$defs/decimal" },
+        "close": { "$ref": "#/$defs/decimal" },
+        "volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "buy_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "sell_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "trade_count": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+        "complete": { "type": "boolean" }
+      }
+    },
+    "delta_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "interval", "start_ms", "buy_volume", "sell_volume",
+        "volume_delta", "anchor_start_ms", "cvd"
+      ],
+      "properties": {
+        "kind": { "const": "delta_bar" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "interval": { "$ref": "#/$defs/interval" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "buy_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "sell_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "volume_delta": { "$ref": "#/$defs/decimal" },
+        "anchor_start_ms": { "$ref": "#/$defs/ms" },
+        "cvd": { "$ref": "#/$defs/decimal" }
+      }
+    },
+    "profile_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "start_ms", "end_ms", "bucket", "value_area_bps", "poc",
+        "value_area_low", "value_area_high", "value_area_volume", "total_volume"
+      ],
+      "properties": {
+        "kind": { "const": "profile_summary" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "end_ms": { "$ref": "#/$defs/ms" },
+        "bucket": { "$ref": "#/$defs/decimal" },
+        "value_area_bps": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "poc": { "$ref": "#/$defs/decimal" },
+        "value_area_low": { "$ref": "#/$defs/decimal" },
+        "value_area_high": { "$ref": "#/$defs/decimal" },
+        "value_area_volume": { "$ref": "#/$defs/nonneg_decimal" },
+        "total_volume": { "$ref": "#/$defs/nonneg_decimal" }
+      }
+    },
+    "opt_ms": { "oneOf": [{ "type": "integer" }, { "type": "null" }] },
+    "opt_u64": { "oneOf": [{ "$ref": "#/$defs/u64" }, { "type": "null" }] },
+    "order_activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "interval", "start_ms", "adds", "modifies", "cancels",
+        "partial_fills", "full_fills", "added_size", "cancelled_size", "filled_size",
+        "cancel_to_add_bps", "cancel_replace_to_fill_bps", "lifetimes"
+      ],
+      "properties": {
+        "kind": { "const": "order_activity" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "interval": { "$ref": "#/$defs/interval" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "adds": { "$ref": "#/$defs/u64" },
+        "modifies": { "$ref": "#/$defs/u64" },
+        "cancels": { "$ref": "#/$defs/u64" },
+        "partial_fills": { "$ref": "#/$defs/u64" },
+        "full_fills": { "$ref": "#/$defs/u64" },
+        "added_size": { "$ref": "#/$defs/nonneg_decimal" },
+        "cancelled_size": { "$ref": "#/$defs/nonneg_decimal" },
+        "filled_size": { "$ref": "#/$defs/nonneg_decimal" },
+        "cancel_to_add_bps": { "$ref": "#/$defs/opt_u64" },
+        "cancel_replace_to_fill_bps": { "$ref": "#/$defs/opt_u64" },
+        "lifetimes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "removed", "filled", "cancelled", "fleeting_cancels", "min_ms", "p50_ms", "p90_ms",
+            "max_ms"
+          ],
+          "properties": {
+            "removed": { "$ref": "#/$defs/u64" },
+            "filled": { "$ref": "#/$defs/u64" },
+            "cancelled": { "$ref": "#/$defs/u64" },
+            "fleeting_cancels": { "$ref": "#/$defs/u64" },
+            "min_ms": { "$ref": "#/$defs/opt_ms" },
+            "p50_ms": { "$ref": "#/$defs/opt_ms" },
+            "p90_ms": { "$ref": "#/$defs/opt_ms" },
+            "max_ms": { "$ref": "#/$defs/opt_ms" }
+          }
+        }
+      }
+    },
+    "queue_level": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["price", "total_size", "order_count", "orders", "truncated"],
+          "properties": {
+            "price": { "$ref": "#/$defs/decimal" },
+            "total_size": { "$ref": "#/$defs/nonneg_decimal" },
+            "order_count": { "$ref": "#/$defs/u32" },
+            "orders": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["order_id", "size", "size_ahead", "ts_order_ms"],
+                "properties": {
+                  "order_id": { "$ref": "#/$defs/u64" },
+                  "size": { "$ref": "#/$defs/nonneg_decimal" },
+                  "size_ahead": { "$ref": "#/$defs/nonneg_decimal" },
+                  "ts_order_ms": { "$ref": "#/$defs/ms" }
+                }
+              }
+            },
+            "truncated": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "queue_positions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "prov", "derived", "bid", "ask"],
+      "properties": {
+        "kind": { "const": "queue_positions" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "bid": { "$ref": "#/$defs/queue_level" },
+        "ask": { "$ref": "#/$defs/queue_level" }
+      }
+    },
+    "sweep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "side", "first_seq", "first_price", "last_price", "levels",
+        "size", "trade_count"
+      ],
+      "properties": {
+        "kind": { "const": "sweep" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "side": { "enum": ["buy", "sell"] },
+        "first_seq": { "$ref": "#/$defs/seq" },
+        "first_price": { "$ref": "#/$defs/decimal" },
+        "last_price": { "$ref": "#/$defs/decimal" },
+        "levels": { "type": "integer", "minimum": 2, "maximum": 4294967295 },
+        "size": { "$ref": "#/$defs/nonneg_decimal" },
+        "trade_count": { "$ref": "#/$defs/u32" }
+      }
+    },
+    "heatmap_tile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "time_start_ms", "time_step_ms", "cols", "price_start",
+        "price_step", "rows", "cells"
+      ],
+      "properties": {
+        "kind": { "const": "heatmap_tile" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "time_start_ms": { "$ref": "#/$defs/ms" },
+        "time_step_ms": { "type": "integer", "minimum": 1 },
+        "cols": { "$ref": "#/$defs/u32" },
+        "price_start": { "$ref": "#/$defs/decimal" },
+        "price_step": { "$ref": "#/$defs/decimal" },
+        "rows": { "$ref": "#/$defs/u32" },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["col", "row", "bid_size", "ask_size"],
+            "properties": {
+              "col": { "$ref": "#/$defs/u32" },
+              "row": { "$ref": "#/$defs/u32" },
+              "bid_size": { "$ref": "#/$defs/nonneg_decimal" },
+              "ask_size": { "$ref": "#/$defs/nonneg_decimal" }
+            }
+          }
+        }
+      }
+    },
+    "liquidity_grade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "as_of_ms", "window_ms", "samples", "spread_bps",
+        "depth_bps", "depth_bid", "depth_ask", "trades", "trades_per_minute", "grade", "label"
+      ],
+      "properties": {
+        "kind": { "const": "liquidity_grade" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "as_of_ms": { "$ref": "#/$defs/ms" },
+        "window_ms": { "type": "integer", "minimum": 1 },
+        "samples": { "$ref": "#/$defs/u32" },
+        "spread_bps": {
+          "oneOf": [{ "$ref": "#/$defs/nonneg_decimal" }, { "type": "null" }]
+        },
+        "depth_bps": { "$ref": "#/$defs/u32" },
+        "depth_bid": { "$ref": "#/$defs/nonneg_decimal" },
+        "depth_ask": { "$ref": "#/$defs/nonneg_decimal" },
+        "trades": { "$ref": "#/$defs/u64" },
+        "trades_per_minute": { "$ref": "#/$defs/nonneg_decimal" },
+        "grade": { "enum": ["A", "B", "C", "D"] },
+        "label": { "enum": ["benchmark", "tape"] }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "interval", "start_ms", "first_block", "last_block", "blocks",
+        "missing_blocks", "gap_blocks"
+      ],
+      "properties": {
+        "kind": { "const": "coverage" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "interval": { "$ref": "#/$defs/interval" },
+        "start_ms": { "$ref": "#/$defs/ms" },
+        "first_block": { "$ref": "#/$defs/u64" },
+        "last_block": { "$ref": "#/$defs/u64" },
+        "blocks": { "type": "integer", "minimum": 1 },
+        "missing_blocks": { "$ref": "#/$defs/u64" },
+        "gap_blocks": { "$ref": "#/$defs/u64" }
+      }
+    },
     "swap_text": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "swap_price": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "value"],
+      "properties": {
+        "type": { "enum": ["price", "spread", "rate", "spread_amount"] },
+        "value": { "$ref": "#/$defs/decimal" }
+      }
+    },
+    "amount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": { "$ref": "#/$defs/nonneg_decimal" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    },
     "swap_print": {
       "type": "object",
       "additionalProperties": false,
@@ -317,7 +624,9 @@
         "repository": { "$ref": "#/$defs/venue_id" },
         "dissemination_id": { "$ref": "#/$defs/swap_text" },
         "original_dissemination_id": { "$ref": "#/$defs/swap_text" },
-        "action": { "enum": ["new", "cancel", "correct"] },
+        "action": {
+          "enum": ["new", "cancel", "correct", "modify", "terminate", "revive"]
+        },
         "asset_class": {
           "enum": ["interest_rate", "credit", "equity", "foreign_exchange", "commodity"]
         },
@@ -326,24 +635,38 @@
         "underlier": { "$ref": "#/$defs/swap_text" },
         "tenor": { "$ref": "#/$defs/swap_text" },
         "expiry": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
-        "price": {
+        "price": { "$ref": "#/$defs/swap_price" },
+        "notional": { "$ref": "#/$defs/amount" },
+        "quantity": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["type", "value"],
-          "properties": {
-            "type": { "enum": ["price", "spread", "rate"] },
-            "value": { "$ref": "#/$defs/decimal" }
-          }
-        },
-        "notional": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": ["amount", "currency"],
+          "required": ["amount", "unit"],
           "properties": {
             "amount": { "$ref": "#/$defs/nonneg_decimal" },
-            "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+            "unit": { "type": "string", "pattern": "^[A-Za-z0-9]{1,16}$" }
           }
         },
+        "event_type": {
+          "enum": [
+            "trade",
+            "novation",
+            "compression",
+            "early_termination",
+            "clearing",
+            "exercise",
+            "allocation",
+            "clearing_allocation",
+            "credit_event",
+            "porting",
+            "corporate_event",
+            "update"
+          ]
+        },
+        "strike": { "$ref": "#/$defs/swap_price" },
+        "option_premium": { "$ref": "#/$defs/amount" },
+        "option_type": { "enum": ["call", "put"] },
+        "option_style": { "enum": ["american", "european", "bermudan", "asian"] },
+        "first_exercise_date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
         "ts_execution_ms": { "$ref": "#/$defs/ms" },
         "ts_dissemination_ms": { "$ref": "#/$defs/ms" }
       }

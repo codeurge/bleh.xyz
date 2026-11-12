@@ -32,17 +32,23 @@ pub enum Flag {
     SizeCapped = 1 << 4,
     /// The source delayed the record as a block trade.
     BlockTradeDelayed = 1 << 5,
+    /// Reconstructed by replaying venue actions through an emulated
+    /// matcher (for example order-level books rebuilt from a public action
+    /// archive), not observed directly. Always set together with
+    /// [`Flag::Backfill`].
+    Replayed = 1 << 6,
 }
 
 impl Flag {
     /// Every flag, in bit order.
-    pub const ALL: [Flag; 6] = [
+    pub const ALL: [Flag; 7] = [
         Flag::OracleAnchoredVenue,
         Flag::Backfill,
         Flag::GapBefore,
         Flag::LowResolution,
         Flag::SizeCapped,
         Flag::BlockTradeDelayed,
+        Flag::Replayed,
     ];
 
     /// The flag's bit.
@@ -61,6 +67,7 @@ impl Flag {
             Flag::LowResolution => "low_resolution",
             Flag::SizeCapped => "size_capped",
             Flag::BlockTradeDelayed => "block_trade_delayed",
+            Flag::Replayed => "replayed",
         }
     }
 
@@ -195,7 +202,7 @@ mod tests {
         assert_eq!(Flags::from_bits(0b11).unwrap(), f);
         assert_eq!(Flags::from_bits(1 << 31), Err(UnknownFlagBits(1 << 31)));
         let all: Flags = Flag::ALL.into_iter().collect();
-        assert_eq!(all.bits(), 0b11_1111);
+        assert_eq!(all.bits(), 0b111_1111);
         for flag in Flag::ALL {
             assert_eq!(Flag::from_name(flag.name()), Some(flag));
         }

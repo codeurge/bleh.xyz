@@ -15,102 +15,15 @@
 //! bar still open at a reset, or when the builder finishes, is emitted with
 //! `complete = false`.
 
-use mesh_types::{
-    BarInterval, ContentHasher, DerivedHeader, Price, Provenance, Seq, Size, Trade, UnixMillis,
-};
-use serde::{Deserialize, Serialize};
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::{ActivityBar, ActivitySpec};
+
+use mesh_types::{BarInterval, ContentHasher, Trade, UnixMillis};
 
 use super::Ohlcv;
 use crate::error::InputError;
 use crate::fixed::{price, size};
 use crate::inputs::{Cursor, TradeIn, encode_trades, header};
-use crate::methods;
-
-/// What closes an activity bar.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
-pub enum ActivitySpec {
-    /// A bar every `trades` trades.
-    Tick {
-        /// Trades per bar (at least 1).
-        trades: u32,
-    },
-    /// A bar when volume reaches `size`.
-    Volume {
-        /// Volume threshold (positive).
-        size: Size,
-    },
-    /// A bar whose range stays within `width`.
-    Range {
-        /// Maximum `high - low` (positive).
-        width: Price,
-    },
-}
-
-impl ActivitySpec {
-    /// The method that builds bars of this kind.
-    #[must_use]
-    pub const fn method(self) -> &'static str {
-        match self {
-            Self::Tick { .. } => methods::TICK_BARS,
-            Self::Volume { .. } => methods::VOLUME_BARS,
-            Self::Range { .. } => methods::RANGE_BARS,
-        }
-    }
-
-    fn validate(self) -> Result<(), InputError> {
-        let ok = match self {
-            Self::Tick { trades } => trades > 0,
-            Self::Volume { size } => size.is_positive(),
-            Self::Range { width } => width.mantissa() > 0,
-        };
-        if ok {
-            Ok(())
-        } else {
-            Err(InputError::InvalidConfig(format!(
-                "activity bar threshold must be positive: {self:?}"
-            )))
-        }
-    }
-}
-
-/// A tick, volume or range bar.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ActivityBar {
-    /// Provenance of the last trade, with the union of the trades' flags.
-    pub prov: Provenance,
-    /// Method (`tick-bars@1`, `volume-bars@1` or `range-bars@1`) and the
-    /// hash of the bar's trades.
-    pub derived: DerivedHeader,
-    /// What closes the bar.
-    pub spec: ActivitySpec,
-    /// Start of the reset period (UTC day by default) the bar belongs to.
-    pub session_start_ms: UnixMillis,
-    /// `seq` of the first trade.
-    pub first_seq: Seq,
-    /// Time of the first trade.
-    pub first_ms: UnixMillis,
-    /// First trade price.
-    pub open: Price,
-    /// Highest trade price.
-    pub high: Price,
-    /// Lowest trade price.
-    pub low: Price,
-    /// Last trade price.
-    pub close: Price,
-    /// Total traded size.
-    pub volume: Size,
-    /// Size with a buy aggressor.
-    pub buy_volume: Size,
-    /// Size with a sell aggressor.
-    pub sell_volume: Size,
-    /// Number of trades.
-    pub trade_count: u32,
-    /// True if the threshold closed the bar; false if a reset or the end of
-    /// input did.
-    pub complete: bool,
-}
 
 #[derive(Debug, Clone)]
 struct Open {
@@ -136,7 +49,11 @@ impl ActivityBarBuilder {
     ///
     /// Fails on a non-positive threshold.
     pub fn new(spec: ActivitySpec, reset: BarInterval) -> Result<Self, InputError> {
-        spec.validate()?;
+        if !spec.is_valid() {
+            return Err(InputError::InvalidConfig(format!(
+                "activity bar threshold must be positive: {spec:?}"
+            )));
+        }
         Ok(Self {
             spec,
             reset,

@@ -17,6 +17,7 @@
 pub mod convert;
 pub mod iceberg;
 
+mod analytics;
 mod avro;
 
 use std::collections::BTreeMap;
@@ -53,13 +54,21 @@ pub const META_CONTENT_HASH: &str = "bleh.content_hash";
 pub const META_RECORD_COUNT: &str = "bleh.record_count";
 
 /// The UTC day a record is partitioned under: the day of `ts_source_ms`,
-/// or of `start_ms` for interval records (bars, footprints, profiles).
+/// or of the interval start for interval records (bars, footprints,
+/// profiles, delta bars, value areas, order activity, heatmap tiles,
+/// coverage; activity bars use their first trade).
 #[must_use]
 pub fn record_day(r: &Record) -> Day {
     let ms = match r {
         Record::Bar(b) => b.start_ms.0,
         Record::Footprint(f) => f.start_ms.0,
         Record::VolumeProfile(v) => v.start_ms.0,
+        Record::DeltaBar(d) => d.start_ms.0,
+        Record::ProfileSummary(p) => p.start_ms.0,
+        Record::OrderActivity(a) => a.start_ms.0,
+        Record::HeatmapTile(h) => h.time_start_ms.0,
+        Record::Coverage(c) => c.start_ms.0,
+        Record::ActivityBar(a) => a.first_ms.0,
         other => other.prov().ts_source_ms.0,
     };
     Day::from_millis(ms)

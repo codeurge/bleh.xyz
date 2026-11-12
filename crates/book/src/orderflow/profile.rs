@@ -26,11 +26,14 @@
 //! A [`ProfileSummary`] carries the result with the same inputs as its
 //! profile.
 
+/// Record types, defined in `mesh-types`.
+pub use mesh_types::ProfileSummary;
+
 use std::collections::BTreeMap;
 
 use mesh_types::{
-    AggressorSide, BarInterval, ContentHasher, DerivedHeader, Flags, Price, ProfileLevel,
-    Provenance, Size, Trade, UnixMillis, VolumeProfile,
+    AggressorSide, BarInterval, ContentHasher, Flags, Price, ProfileLevel, Provenance, Size, Trade,
+    UnixMillis, VolumeProfile,
 };
 use serde::{Deserialize, Serialize};
 
@@ -131,34 +134,6 @@ pub fn value_area(
         volume: to_size(acc)?,
         total: to_size(total)?,
     }))
-}
-
-/// POC and value area of one profile period.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct ProfileSummary {
-    /// The profile's provenance.
-    pub prov: Provenance,
-    /// `value-area@1`, with the profile's inputs.
-    pub derived: DerivedHeader,
-    /// Period start (inclusive).
-    pub start_ms: UnixMillis,
-    /// Period end (exclusive).
-    pub end_ms: UnixMillis,
-    /// Bucket width.
-    pub bucket: Price,
-    /// Value-area share in basis points (7000 = 70%).
-    pub value_area_bps: u32,
-    /// Lower bound of the point-of-control bucket.
-    pub poc: Price,
-    /// Lower bound of the lowest value-area bucket.
-    pub value_area_low: Price,
-    /// Lower bound of the highest value-area bucket.
-    pub value_area_high: Price,
-    /// Volume inside the value area.
-    pub value_area_volume: Size,
-    /// Total volume.
-    pub total_volume: Size,
 }
 
 /// Volume profile settings.

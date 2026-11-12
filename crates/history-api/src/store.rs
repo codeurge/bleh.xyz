@@ -839,10 +839,10 @@ impl Store {
                     .next()
                     .map(|r| r.into_record().map(Record::VolumeProfile))
                     .transpose()?,
-                RecordKind::SwapPrint => {
+                other => {
                     return Err(ApiError::new(
                         ErrorCode::Unsupported,
-                        "swap prints are not served by this API yet",
+                        format!("{other} records are not served by this API yet"),
                     ));
                 }
             };

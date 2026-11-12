@@ -750,15 +750,7 @@ async fn run(socket: WebSocket, svc: Service, range: TimeRange, speed: f64) {
 }
 
 fn stamp(r: &mut Record, at: UnixNanos) {
-    match r {
-        Record::Trade(t) => t.prov.stamp_publish(at),
-        Record::BookEvent(e) => e.prov.stamp_publish(at),
-        Record::BookSnapshot(s) => s.prov.stamp_publish(at),
-        Record::Bar(b) => b.prov.stamp_publish(at),
-        Record::Footprint(f) => f.prov.stamp_publish(at),
-        Record::VolumeProfile(v) => v.prov.stamp_publish(at),
-        Record::SwapPrint(p) => p.prov.stamp_publish(at),
-    }
+    r.prov_mut().stamp_publish(at);
 }
 
 /// Sends a snapshot for a book channel as of `at_ms`; on failure sends an
