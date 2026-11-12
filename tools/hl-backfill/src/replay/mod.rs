@@ -121,7 +121,7 @@ pub fn to_records(
     let admission = AdmissionId::new(crate::ADMISSION).map_err(|e| e.to_string())?;
     let ts = UnixMillis(block.block_time_ms);
     let ingest = ts.to_nanos().ok_or("block time out of range")?;
-    let flags = extra_flags.with(Flag::Backfill);
+    let flags = extra_flags.with(Flag::Backfill).with(Flag::Replayed);
     let mut idx: BTreeMap<(u32, bool), u32> = BTreeMap::new();
     let mut out = Vec::with_capacity(events.len());
     for ev in events {
@@ -206,7 +206,7 @@ pub fn l4_snapshot(matcher: &Matcher, asset: u32, block: &ReplayBlock) -> Result
         ts.to_nanos().ok_or("block time out of range")?,
         admission,
     )
-    .with_flags(Flags::NONE.with(Flag::Backfill));
+    .with_flags(Flags::NONE.with(Flag::Backfill).with(Flag::Replayed));
     let conv = |orders: Vec<(u64, i64, i64, i64)>| -> Result<Vec<RestingOrder>, String> {
         orders
             .into_iter()

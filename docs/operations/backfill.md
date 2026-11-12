@@ -297,9 +297,9 @@ filled size.
 | **Signer recovery** | Not implemented in the prototype | k256 recovery over the EIP-712 action hash |
 | **Start state** | Orders resting before the first replayed block are unknown | § 7.1 step 6 |
 
-The observation model has no `replayed` flag yet; replay records carry
-`backfill`. A `replayed` flag (Phase 2 plan, l3-replay) needs a minor
-version of observation-v0 from the integrator.
+Replay records carry both `backfill` and `replayed` (observation-v0
+§ 2.9, bit 6): they are reconstructed by the emulated matcher, not
+observed.
 
 ## 8. Integration notes
 

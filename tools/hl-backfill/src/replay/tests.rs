@@ -500,6 +500,7 @@ fn records_carry_admission_flags_and_indices() {
     for r in &records {
         assert_eq!(r.prov().admission.as_str(), "ADM-0003");
         assert!(r.prov().flags.contains(mesh_types::Flag::Backfill));
+        assert!(r.prov().flags.contains(mesh_types::Flag::Replayed));
     }
     let Record::Trade(t) = &records[2] else {
         panic!()
