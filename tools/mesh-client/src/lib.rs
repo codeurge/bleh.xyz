@@ -1,5 +1,44 @@
-//! Reference client for the bleh.xyz gateway.
+//! Reference client for the bleh.xyz gateway (`docs/protocol/gateway-v0.md`).
 //!
-//! Skeleton. Connects to a gateway, subscribes, keeps a correct local book from snapshot plus deltas, detects gaps and requests re-snapshots, and optionally verifies block commitments and inclusion proofs.
+//! | Module | Contents |
+//! |---|---|
+//! | [`protocol`] | Every gateway-v0 message type, shared with the gateway |
+//! | [`codec`] | JSON and CBOR framing |
+//! | [`book`] | [`L4Book`]: order-level book from snapshot plus deltas |
+//! | [`verify`] | Signer trust, full-stream root checks, proof checks |
+//! | [`client`] | [`Client`]: connect, subscribe, keep books, verify, recover, rotate URLs |
 //!
-//! Owned by one build lane; see `docs/decisions/0007-code-layout.md`.
+//! ```no_run
+//! # async fn demo() -> Result<(), mesh_client::ClientError> {
+//! use mesh_client::{Client, ClientConfig, ClientEvent};
+//! let mut client = Client::new(ClientConfig {
+//!     urls: vec!["wss://gateway.example/v0/ws".into()],
+//!     channels: vec!["*|book_event".parse().expect("channel")],
+//!     ..ClientConfig::default()
+//! });
+//! loop {
+//!     if let ClientEvent::Block { block_number, .. } = client.next_event().await? {
+//!         println!("block {block_number}: {} books", client.books().count());
+//!     }
+//! }
+//! # }
+//! ```
+//!
+//! Operations: `docs/operations/client.md`.
+
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![warn(missing_docs)]
+
+pub mod book;
+pub mod client;
+pub mod codec;
+pub mod protocol;
+pub mod verify;
+
+pub use book::{BookError, L4Book};
+pub use client::{Client, ClientConfig, ClientError, ClientEvent, ClientStats};
+pub use protocol::{
+    ChannelSpec, ClientMessage, Depth, Encoding, ErrorCode, Hello, InstrumentPattern, Limits,
+    ServerMessage, SnapshotReason,
+};
+pub use verify::{BlockCollector, SignerSet, VerifyError};

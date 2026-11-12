@@ -1,6 +1,6 @@
 [package]
 name = "gateway"
-description = "Public websocket gateway for the bleh.xyz mesh"
+description = "Public websocket gateway and relay for the bleh.xyz mesh"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,33 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+axum = { workspace = true, default-features = false, features = ["http1", "json", "query", "tokio"] }
+bus = { path = "../bus" }
+bytes.workspace = true
+ciborium = "0.2.2"
+clap.workspace = true
+futures.workspace = true
+hl-synth = { path = "../../tools/hl-synth" }
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+mesh-client = { path = "../../tools/mesh-client" }
 mesh-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zeroize = "1.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[[bench]]
+name = "fanout"
+harness = false
 
 [lints]
 workspace = true

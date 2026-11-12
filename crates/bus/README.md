@@ -1,12 +1,12 @@
 # bus
 
-Internal bus client for the bleh.xyz mesh.
+In-process bus, block signer and JetStream side tap for the bleh.xyz mesh.
 
-**Status:** skeleton.
+**Status:** implemented and tested.
 
 ## Responsibility
 
-Publishes and consumes BlockBatch, record and block-commitment messages on NATS JetStream, one subject per instrument and record kind, with a bounded replay window.
+In-process broadcast ring from producers to the gateway (per-subscriber cursors, lag detection); the block signer stage (per block and stream Merkle roots over canonical encodings, secp256k1 commitments, key loading and rotation, inclusion-proof store); and the NATS JetStream side tap, one subject per instrument and kind, with a bounded replay window. Runbook: [docs/operations/bus.md](../../docs/operations/bus.md).
 
 ## Rules
 
