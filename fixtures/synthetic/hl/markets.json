@@ -1,0 +1,37 @@
+{
+  "instruments": [
+    {
+      "id": "hyperliquid:outcome:#9001",
+      "venue": "hyperliquid",
+      "class": "outcome",
+      "venue_symbol": "#9001",
+      "price_scale": 4,
+      "size_scale": 0,
+      "flags": [],
+      "admission": "ADM-0001"
+    },
+    {
+      "id": "hyperliquid:perp:SYN",
+      "venue": "hyperliquid",
+      "class": "perp",
+      "venue_symbol": "SYN",
+      "price_scale": 3,
+      "size_scale": 3,
+      "flags": [],
+      "admission": "ADM-0001"
+    },
+    {
+      "id": "hyperliquid:perp:syn:IDX",
+      "venue": "hyperliquid",
+      "class": "perp",
+      "venue_symbol": "syn:IDX",
+      "namespace": "syn",
+      "price_scale": 4,
+      "size_scale": 2,
+      "flags": [
+        "oracle_anchored_venue"
+      ],
+      "admission": "ADM-0001"
+    }
+  ]
+}

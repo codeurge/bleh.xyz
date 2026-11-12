@@ -1,0 +1,7675 @@
+{
+  "admission": "ADM-0001",
+  "coins": {
+    "#9001": {
+      "book_at_snapshot": {
+        "asks": [
+          {
+            "order_id": 100385,
+            "price": "0.5000",
+            "size": "6",
+            "ts_order_ms": 1767229199917
+          },
+          {
+            "order_id": 100419,
+            "price": "0.5000",
+            "size": "10",
+            "ts_order_ms": 1767229200125
+          },
+          {
+            "order_id": 100399,
+            "price": "0.5020",
+            "size": "23",
+            "ts_order_ms": 1767229200054
+          },
+          {
+            "order_id": 100051,
+            "price": "0.5030",
+            "size": "3",
+            "ts_order_ms": 1767229197000
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100417,
+            "price": "0.4960",
+            "size": "26",
+            "ts_order_ms": 1767229200125
+          },
+          {
+            "order_id": 100413,
+            "price": "0.4950",
+            "size": "7",
+            "ts_order_ms": 1767229200054
+          },
+          {
+            "order_id": 100350,
+            "price": "0.4860",
+            "size": "1",
+            "ts_order_ms": 1767229199489
+          }
+        ]
+      },
+      "book_events": [
+        {
+          "action": "add",
+          "order_id": 100042,
+          "price": "0.4990",
+          "seq": [
+            1000000,
+            0
+          ],
+          "side": "bid",
+          "size": "2"
+        },
+        {
+          "action": "add",
+          "order_id": 100044,
+          "price": "0.5010",
+          "seq": [
+            1000000,
+            1
+          ],
+          "side": "ask",
+          "size": "41"
+        },
+        {
+          "action": "add",
+          "order_id": 100046,
+          "price": "0.4980",
+          "seq": [
+            1000000,
+            2
+          ],
+          "side": "bid",
+          "size": "48"
+        },
+        {
+          "action": "add",
+          "order_id": 100047,
+          "price": "0.5020",
+          "seq": [
+            1000000,
+            3
+          ],
+          "side": "ask",
+          "size": "12"
+        },
+        {
+          "action": "add",
+          "order_id": 100048,
+          "price": "0.4970",
+          "seq": [
+            1000000,
+            4
+          ],
+          "side": "bid",
+          "size": "2"
+        },
+        {
+          "action": "add",
+          "order_id": 100051,
+          "price": "0.5030",
+          "seq": [
+            1000000,
+            5
+          ],
+          "side": "ask",
+          "size": "12"
+        },
+        {
+          "action": "add",
+          "order_id": 100054,
+          "price": "0.4960",
+          "seq": [
+            1000000,
+            6
+          ],
+          "side": "bid",
+          "size": "47"
+        },
+        {
+          "action": "add",
+          "order_id": 100056,
+          "price": "0.5040",
+          "seq": [
+            1000000,
+            7
+          ],
+          "side": "ask",
+          "size": "10"
+        },
+        {
+          "action": "add",
+          "order_id": 100059,
+          "price": "0.4950",
+          "seq": [
+            1000000,
+            8
+          ],
+          "side": "bid",
+          "size": "46"
+        },
+        {
+          "action": "add",
+          "order_id": 100060,
+          "price": "0.5050",
+          "seq": [
+            1000000,
+            9
+          ],
+          "side": "ask",
+          "size": "17"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100042,
+          "price": "0.4990",
+          "seq": [
+            1000001,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "18",
+          "order_id": 100046,
+          "orig_size": "48",
+          "price": "0.4980",
+          "seq": [
+            1000001,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "27",
+          "order_id": 100044,
+          "orig_size": "41",
+          "price": "0.5010",
+          "seq": [
+            1000001,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "2",
+          "order_id": 100046,
+          "orig_size": "18",
+          "price": "0.4980",
+          "seq": [
+            1000002,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100046,
+          "price": "0.4980",
+          "seq": [
+            1000002,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100048,
+          "price": "0.4970",
+          "seq": [
+            1000002,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100070,
+          "price": "0.4970",
+          "seq": [
+            1000002,
+            3
+          ],
+          "side": "ask",
+          "size": "66"
+        },
+        {
+          "action": "add",
+          "order_id": 100073,
+          "price": "0.5010",
+          "seq": [
+            1000002,
+            4
+          ],
+          "side": "ask",
+          "size": "17"
+        },
+        {
+          "action": "add",
+          "order_id": 100076,
+          "price": "0.4930",
+          "seq": [
+            1000002,
+            5
+          ],
+          "side": "bid",
+          "size": "14"
+        },
+        {
+          "action": "modify",
+          "new_size": "5",
+          "order_id": 100056,
+          "orig_size": "10",
+          "price": "0.5040",
+          "seq": [
+            1000003,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "40",
+          "order_id": 100054,
+          "orig_size": "47",
+          "price": "0.4960",
+          "seq": [
+            1000003,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100060,
+          "price": "0.5050",
+          "seq": [
+            1000003,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100076,
+          "price": "0.4930",
+          "seq": [
+            1000008,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100054,
+          "price": "0.4960",
+          "seq": [
+            1000008,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "28",
+          "order_id": 100059,
+          "orig_size": "46",
+          "price": "0.4950",
+          "seq": [
+            1000008,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100123,
+          "price": "0.4960",
+          "seq": [
+            1000008,
+            3
+          ],
+          "side": "bid",
+          "size": "48"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100073,
+          "price": "0.5010",
+          "seq": [
+            1000009,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100128,
+          "price": "0.4920",
+          "seq": [
+            1000009,
+            1
+          ],
+          "side": "bid",
+          "size": "20"
+        },
+        {
+          "action": "fill",
+          "new_size": "19",
+          "order_id": 100123,
+          "orig_size": "48",
+          "price": "0.4960",
+          "seq": [
+            1000009,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100144,
+          "price": "0.4950",
+          "seq": [
+            1000011,
+            0
+          ],
+          "side": "bid",
+          "size": "22"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100123,
+          "price": "0.4960",
+          "seq": [
+            1000011,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100047,
+          "price": "0.5020",
+          "seq": [
+            1000011,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "32",
+          "order_id": 100070,
+          "orig_size": "66",
+          "price": "0.4970",
+          "seq": [
+            1000012,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100059,
+          "price": "0.4950",
+          "seq": [
+            1000012,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100153,
+          "price": "0.4960",
+          "seq": [
+            1000012,
+            2
+          ],
+          "side": "bid",
+          "size": "6"
+        },
+        {
+          "action": "modify",
+          "new_size": "3",
+          "order_id": 100153,
+          "orig_size": "6",
+          "price": "0.4960",
+          "seq": [
+            1000013,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100153,
+          "price": "0.4960",
+          "seq": [
+            1000013,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100144,
+          "price": "0.4950",
+          "seq": [
+            1000013,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100164,
+          "price": "0.4930",
+          "seq": [
+            1000013,
+            3
+          ],
+          "side": "ask",
+          "size": "24"
+        },
+        {
+          "action": "add",
+          "order_id": 100171,
+          "price": "0.4900",
+          "seq": [
+            1000013,
+            4
+          ],
+          "side": "bid",
+          "size": "23"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100164,
+          "price": "0.4930",
+          "seq": [
+            1000014,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100176,
+          "price": "0.4930",
+          "seq": [
+            1000014,
+            1
+          ],
+          "side": "bid",
+          "size": "47"
+        },
+        {
+          "action": "fill",
+          "new_size": "26",
+          "order_id": 100176,
+          "orig_size": "47",
+          "price": "0.4930",
+          "seq": [
+            1000016,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100070,
+          "price": "0.4970",
+          "seq": [
+            1000017,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "modify",
+          "new_size": "13",
+          "order_id": 100176,
+          "orig_size": "26",
+          "price": "0.4930",
+          "seq": [
+            1000017,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100213,
+          "price": "0.4950",
+          "seq": [
+            1000018,
+            0
+          ],
+          "side": "ask",
+          "size": "7"
+        },
+        {
+          "action": "add",
+          "order_id": 100215,
+          "price": "0.4970",
+          "seq": [
+            1000018,
+            1
+          ],
+          "side": "ask",
+          "size": "20"
+        },
+        {
+          "action": "add",
+          "order_id": 100221,
+          "price": "0.4940",
+          "seq": [
+            1000019,
+            0
+          ],
+          "side": "bid",
+          "size": "1"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100044,
+          "price": "0.5010",
+          "seq": [
+            1000021,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100221,
+          "price": "0.4940",
+          "seq": [
+            1000021,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100176,
+          "price": "0.4930",
+          "seq": [
+            1000021,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100128,
+          "price": "0.4920",
+          "seq": [
+            1000021,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100230,
+          "price": "0.4910",
+          "seq": [
+            1000021,
+            4
+          ],
+          "side": "ask",
+          "size": "3"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100215,
+          "price": "0.4970",
+          "seq": [
+            1000021,
+            5
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "2",
+          "order_id": 100230,
+          "orig_size": "3",
+          "price": "0.4910",
+          "seq": [
+            1000021,
+            6
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100242,
+          "price": "0.4870",
+          "seq": [
+            1000021,
+            7
+          ],
+          "side": "bid",
+          "size": "27"
+        },
+        {
+          "action": "add",
+          "order_id": 100245,
+          "price": "0.4880",
+          "seq": [
+            1000022,
+            0
+          ],
+          "side": "bid",
+          "size": "38"
+        },
+        {
+          "action": "add",
+          "order_id": 100248,
+          "price": "0.4890",
+          "seq": [
+            1000023,
+            0
+          ],
+          "side": "bid",
+          "size": "17"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100171,
+          "price": "0.4900",
+          "seq": [
+            1000023,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100248,
+          "price": "0.4890",
+          "seq": [
+            1000023,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100255,
+          "price": "0.4860",
+          "seq": [
+            1000023,
+            3
+          ],
+          "side": "bid",
+          "size": "45"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100230,
+          "price": "0.4910",
+          "seq": [
+            1000024,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100264,
+          "price": "0.4910",
+          "seq": [
+            1000024,
+            1
+          ],
+          "side": "bid",
+          "size": "45"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100245,
+          "price": "0.4880",
+          "seq": [
+            1000024,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100242,
+          "price": "0.4870",
+          "seq": [
+            1000027,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100297,
+          "price": "0.4900",
+          "seq": [
+            1000027,
+            1
+          ],
+          "side": "bid",
+          "size": "32"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100213,
+          "price": "0.4950",
+          "seq": [
+            1000029,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100309,
+          "price": "0.4950",
+          "seq": [
+            1000029,
+            1
+          ],
+          "side": "ask",
+          "size": "32"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100264,
+          "price": "0.4910",
+          "seq": [
+            1000029,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "4",
+          "order_id": 100297,
+          "orig_size": "32",
+          "price": "0.4900",
+          "seq": [
+            1000029,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100297,
+          "price": "0.4900",
+          "seq": [
+            1000029,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100318,
+          "price": "0.4940",
+          "seq": [
+            1000029,
+            5
+          ],
+          "side": "bid",
+          "size": "34"
+        },
+        {
+          "action": "add",
+          "order_id": 100328,
+          "price": "0.4920",
+          "seq": [
+            1000030,
+            0
+          ],
+          "side": "bid",
+          "size": "2"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100318,
+          "price": "0.4940",
+          "seq": [
+            1000031,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100328,
+          "price": "0.4920",
+          "seq": [
+            1000031,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100344,
+          "price": "0.4890",
+          "seq": [
+            1000031,
+            2
+          ],
+          "side": "ask",
+          "size": "48"
+        },
+        {
+          "action": "add",
+          "order_id": 100350,
+          "price": "0.4860",
+          "seq": [
+            1000031,
+            3
+          ],
+          "side": "bid",
+          "size": "3"
+        },
+        {
+          "action": "modify",
+          "new_size": "6",
+          "order_id": 100051,
+          "orig_size": "12",
+          "price": "0.5030",
+          "seq": [
+            1000032,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100353,
+          "price": "0.4860",
+          "seq": [
+            1000032,
+            1
+          ],
+          "side": "bid",
+          "size": "20"
+        },
+        {
+          "action": "add",
+          "order_id": 100368,
+          "price": "0.4870",
+          "seq": [
+            1000034,
+            0
+          ],
+          "side": "ask",
+          "size": "27"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100056,
+          "price": "0.5040",
+          "seq": [
+            1000034,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100368,
+          "price": "0.4870",
+          "seq": [
+            1000034,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100344,
+          "price": "0.4890",
+          "seq": [
+            1000036,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100375,
+          "price": "0.4900",
+          "seq": [
+            1000036,
+            1
+          ],
+          "side": "bid",
+          "size": "23"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100375,
+          "price": "0.4900",
+          "seq": [
+            1000036,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100309,
+          "price": "0.4950",
+          "seq": [
+            1000036,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100383,
+          "price": "0.4960",
+          "seq": [
+            1000036,
+            4
+          ],
+          "side": "bid",
+          "size": "32"
+        },
+        {
+          "action": "add",
+          "order_id": 100385,
+          "price": "0.5000",
+          "seq": [
+            1000036,
+            5
+          ],
+          "side": "ask",
+          "size": "37"
+        },
+        {
+          "action": "add",
+          "order_id": 100388,
+          "price": "0.4970",
+          "seq": [
+            1000037,
+            0
+          ],
+          "side": "bid",
+          "size": "31"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100255,
+          "price": "0.4860",
+          "seq": [
+            1000037,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "1",
+          "order_id": 100350,
+          "orig_size": "3",
+          "price": "0.4860",
+          "seq": [
+            1000037,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "3",
+          "order_id": 100051,
+          "orig_size": "6",
+          "price": "0.5030",
+          "seq": [
+            1000037,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100398,
+          "price": "0.4990",
+          "seq": [
+            1000037,
+            4
+          ],
+          "side": "ask",
+          "size": "41"
+        },
+        {
+          "action": "add",
+          "order_id": 100399,
+          "price": "0.5020",
+          "seq": [
+            1000038,
+            0
+          ],
+          "side": "ask",
+          "size": "23"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100388,
+          "price": "0.4970",
+          "seq": [
+            1000038,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100383,
+          "price": "0.4960",
+          "seq": [
+            1000038,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100398,
+          "price": "0.4990",
+          "seq": [
+            1000038,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "6",
+          "order_id": 100385,
+          "orig_size": "37",
+          "price": "0.5000",
+          "seq": [
+            1000038,
+            4
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100353,
+          "price": "0.4860",
+          "seq": [
+            1000038,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100413,
+          "price": "0.4950",
+          "seq": [
+            1000038,
+            6
+          ],
+          "side": "bid",
+          "size": "19"
+        },
+        {
+          "action": "fill",
+          "new_size": "7",
+          "order_id": 100413,
+          "orig_size": "19",
+          "price": "0.4950",
+          "seq": [
+            1000039,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100417,
+          "price": "0.4960",
+          "seq": [
+            1000039,
+            1
+          ],
+          "side": "bid",
+          "size": "26"
+        },
+        {
+          "action": "add",
+          "order_id": 100419,
+          "price": "0.5000",
+          "seq": [
+            1000039,
+            2
+          ],
+          "side": "ask",
+          "size": "10"
+        },
+        {
+          "action": "add",
+          "order_id": 100439,
+          "price": "0.4980",
+          "seq": [
+            1000041,
+            0
+          ],
+          "side": "ask",
+          "size": "30"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100399,
+          "price": "0.5020",
+          "seq": [
+            1000043,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100051,
+          "price": "0.5030",
+          "seq": [
+            1000043,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100417,
+          "price": "0.4960",
+          "seq": [
+            1000046,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100413,
+          "price": "0.4950",
+          "seq": [
+            1000046,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100479,
+          "price": "0.4950",
+          "seq": [
+            1000046,
+            2
+          ],
+          "side": "ask",
+          "size": "27"
+        },
+        {
+          "action": "add",
+          "order_id": 100483,
+          "price": "0.4900",
+          "seq": [
+            1000046,
+            3
+          ],
+          "side": "bid",
+          "size": "7"
+        },
+        {
+          "action": "fill",
+          "new_size": "11",
+          "order_id": 100479,
+          "orig_size": "27",
+          "price": "0.4950",
+          "seq": [
+            1000047,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100483,
+          "price": "0.4900",
+          "seq": [
+            1000047,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100505,
+          "price": "0.4910",
+          "seq": [
+            1000047,
+            2
+          ],
+          "side": "bid",
+          "size": "41"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100385,
+          "price": "0.5000",
+          "seq": [
+            1000048,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100505,
+          "price": "0.4910",
+          "seq": [
+            1000048,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100510,
+          "price": "0.4880",
+          "seq": [
+            1000048,
+            2
+          ],
+          "side": "ask",
+          "size": "33"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100419,
+          "price": "0.5000",
+          "seq": [
+            1000048,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100516,
+          "price": "0.4830",
+          "seq": [
+            1000048,
+            4
+          ],
+          "side": "bid",
+          "size": "19"
+        },
+        {
+          "action": "add",
+          "order_id": 100524,
+          "price": "0.4850",
+          "seq": [
+            1000049,
+            0
+          ],
+          "side": "bid",
+          "size": "18"
+        },
+        {
+          "action": "add",
+          "order_id": 100535,
+          "price": "0.4850",
+          "seq": [
+            1000051,
+            0
+          ],
+          "side": "bid",
+          "size": "29"
+        },
+        {
+          "action": "add",
+          "order_id": 100538,
+          "price": "0.4900",
+          "seq": [
+            1000052,
+            0
+          ],
+          "side": "ask",
+          "size": "5"
+        },
+        {
+          "action": "add",
+          "order_id": 100539,
+          "price": "0.4870",
+          "seq": [
+            1000052,
+            1
+          ],
+          "side": "bid",
+          "size": "47"
+        },
+        {
+          "action": "modify",
+          "new_size": "9",
+          "order_id": 100516,
+          "orig_size": "19",
+          "price": "0.4830",
+          "seq": [
+            1000052,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100510,
+          "price": "0.4880",
+          "seq": [
+            1000053,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100538,
+          "price": "0.4900",
+          "seq": [
+            1000053,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100555,
+          "price": "0.4910",
+          "seq": [
+            1000053,
+            2
+          ],
+          "side": "bid",
+          "size": "38"
+        },
+        {
+          "action": "add",
+          "order_id": 100559,
+          "price": "0.4920",
+          "seq": [
+            1000053,
+            3
+          ],
+          "side": "bid",
+          "size": "32"
+        },
+        {
+          "action": "add",
+          "order_id": 100565,
+          "price": "0.4970",
+          "seq": [
+            1000053,
+            4
+          ],
+          "side": "ask",
+          "size": "10"
+        },
+        {
+          "action": "modify",
+          "new_size": "5",
+          "order_id": 100479,
+          "orig_size": "11",
+          "price": "0.4950",
+          "seq": [
+            1000054,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100581,
+          "price": "0.4930",
+          "seq": [
+            1000056,
+            0
+          ],
+          "side": "bid",
+          "size": "45"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100516,
+          "price": "0.4830",
+          "seq": [
+            1000058,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100479,
+          "price": "0.4950",
+          "seq": [
+            1000058,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100565,
+          "price": "0.4970",
+          "seq": [
+            1000058,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100596,
+          "price": "0.4960",
+          "seq": [
+            1000058,
+            3
+          ],
+          "side": "ask",
+          "size": "40"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100581,
+          "price": "0.4930",
+          "seq": [
+            1000058,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "5",
+          "order_id": 100559,
+          "orig_size": "32",
+          "price": "0.4920",
+          "seq": [
+            1000058,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100605,
+          "price": "0.4930",
+          "seq": [
+            1000058,
+            6
+          ],
+          "side": "ask",
+          "size": "9"
+        },
+        {
+          "action": "fill",
+          "new_size": "0",
+          "order_id": 100559,
+          "price": "0.4920",
+          "seq": [
+            1000059,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "30",
+          "order_id": 100555,
+          "orig_size": "38",
+          "price": "0.4910",
+          "seq": [
+            1000059,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100612,
+          "price": "0.4940",
+          "seq": [
+            1000059,
+            2
+          ],
+          "side": "ask",
+          "size": "10"
+        }
+      ],
+      "dropped_fill_pairs": {
+        "backstop_liquidation": 0,
+        "settlement": 0
+      },
+      "final_book": {
+        "asks": [
+          {
+            "order_id": 100605,
+            "price": "0.4930",
+            "size": "9",
+            "ts_order_ms": 1767229201690
+          },
+          {
+            "order_id": 100612,
+            "price": "0.4940",
+            "size": "10",
+            "ts_order_ms": 1767229201795
+          },
+          {
+            "order_id": 100596,
+            "price": "0.4960",
+            "size": "40",
+            "ts_order_ms": 1767229201690
+          },
+          {
+            "order_id": 100439,
+            "price": "0.4980",
+            "size": "30",
+            "ts_order_ms": 1767229200329
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100555,
+            "price": "0.4910",
+            "size": "30",
+            "ts_order_ms": 1767229201276
+          },
+          {
+            "order_id": 100539,
+            "price": "0.4870",
+            "size": "47",
+            "ts_order_ms": 1767229201184
+          },
+          {
+            "order_id": 100350,
+            "price": "0.4860",
+            "size": "1",
+            "ts_order_ms": 1767229199489
+          },
+          {
+            "order_id": 100524,
+            "price": "0.4850",
+            "size": "18",
+            "ts_order_ms": 1767229200940
+          },
+          {
+            "order_id": 100535,
+            "price": "0.4850",
+            "size": "29",
+            "ts_order_ms": 1767229201076
+          }
+        ]
+      },
+      "instrument": "hyperliquid:outcome:#9001",
+      "liquidation_trades_kept": 0,
+      "price_scale": 4,
+      "size_scale": 0,
+      "trades": [
+        {
+          "aggressor": "sell",
+          "price": "0.4990",
+          "seq": [
+            1000001,
+            0
+          ],
+          "size": "2",
+          "trade_id": 434485692020088,
+          "ts_source_ms": 1767229197089
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4980",
+          "seq": [
+            1000001,
+            1
+          ],
+          "size": "30",
+          "trade_id": 578603790948237,
+          "ts_source_ms": 1767229197089
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.5010",
+          "seq": [
+            1000001,
+            2
+          ],
+          "size": "14",
+          "trade_id": 942999073870707,
+          "ts_source_ms": 1767229197089
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4980",
+          "seq": [
+            1000002,
+            0
+          ],
+          "size": "16",
+          "trade_id": 788967446346843,
+          "ts_source_ms": 1767229197175
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4980",
+          "seq": [
+            1000002,
+            1
+          ],
+          "size": "2",
+          "trade_id": 599249304563991,
+          "ts_source_ms": 1767229197175
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4970",
+          "seq": [
+            1000002,
+            2
+          ],
+          "size": "2",
+          "trade_id": 394854824355474,
+          "ts_source_ms": 1767229197175
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000003,
+            0
+          ],
+          "size": "7",
+          "trade_id": 801618794891217,
+          "ts_source_ms": 1767229197264
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000008,
+            0
+          ],
+          "size": "40",
+          "trade_id": 967516103975366,
+          "ts_source_ms": 1767229197704
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4950",
+          "seq": [
+            1000008,
+            1
+          ],
+          "size": "18",
+          "trade_id": 445930730757553,
+          "ts_source_ms": 1767229197704
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000009,
+            0
+          ],
+          "size": "29",
+          "trade_id": 692318721145390,
+          "ts_source_ms": 1767229197781
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4970",
+          "seq": [
+            1000012,
+            0
+          ],
+          "size": "34",
+          "trade_id": 123707441949014,
+          "ts_source_ms": 1767229198034
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000013,
+            0
+          ],
+          "size": "3",
+          "trade_id": 451499562571593,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4950",
+          "seq": [
+            1000013,
+            1
+          ],
+          "size": "22",
+          "trade_id": 279177318498323,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4930",
+          "seq": [
+            1000014,
+            0
+          ],
+          "size": "24",
+          "trade_id": 897667142659268,
+          "ts_source_ms": 1767229198166
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4930",
+          "seq": [
+            1000016,
+            0
+          ],
+          "size": "21",
+          "trade_id": 347913653105012,
+          "ts_source_ms": 1767229198327
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4970",
+          "seq": [
+            1000017,
+            0
+          ],
+          "size": "32",
+          "trade_id": 148329375614350,
+          "ts_source_ms": 1767229198424
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4940",
+          "seq": [
+            1000021,
+            0
+          ],
+          "size": "1",
+          "trade_id": 637983499998788,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4930",
+          "seq": [
+            1000021,
+            1
+          ],
+          "size": "13",
+          "trade_id": 1044114358542014,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4920",
+          "seq": [
+            1000021,
+            2
+          ],
+          "size": "20",
+          "trade_id": 377322696760355,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4910",
+          "seq": [
+            1000021,
+            3
+          ],
+          "size": "1",
+          "trade_id": 977902554470299,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4900",
+          "seq": [
+            1000023,
+            0
+          ],
+          "size": "23",
+          "trade_id": 99488675976894,
+          "ts_source_ms": 1767229198923
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4890",
+          "seq": [
+            1000023,
+            1
+          ],
+          "size": "17",
+          "trade_id": 4552071460663,
+          "ts_source_ms": 1767229198923
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4910",
+          "seq": [
+            1000024,
+            0
+          ],
+          "size": "2",
+          "trade_id": 161556152950786,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4950",
+          "seq": [
+            1000029,
+            0
+          ],
+          "size": "7",
+          "trade_id": 586186505386880,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4910",
+          "seq": [
+            1000029,
+            1
+          ],
+          "size": "45",
+          "trade_id": 1053555743149125,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4900",
+          "seq": [
+            1000029,
+            2
+          ],
+          "size": "28",
+          "trade_id": 1093654058225610,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4900",
+          "seq": [
+            1000029,
+            3
+          ],
+          "size": "4",
+          "trade_id": 977395454355393,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4940",
+          "seq": [
+            1000031,
+            0
+          ],
+          "size": "34",
+          "trade_id": 1000194579299126,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4920",
+          "seq": [
+            1000031,
+            1
+          ],
+          "size": "2",
+          "trade_id": 98522226619671,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4870",
+          "seq": [
+            1000034,
+            0
+          ],
+          "size": "27",
+          "trade_id": 93593993715554,
+          "ts_source_ms": 1767229199757
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4890",
+          "seq": [
+            1000036,
+            0
+          ],
+          "size": "48",
+          "trade_id": 1044333899372136,
+          "ts_source_ms": 1767229199917
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4900",
+          "seq": [
+            1000036,
+            1
+          ],
+          "size": "23",
+          "trade_id": 943696577137200,
+          "ts_source_ms": 1767229199917
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4950",
+          "seq": [
+            1000036,
+            2
+          ],
+          "size": "32",
+          "trade_id": 371880303443546,
+          "ts_source_ms": 1767229199917
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4970",
+          "seq": [
+            1000038,
+            0
+          ],
+          "size": "31",
+          "trade_id": 118907035310741,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000038,
+            1
+          ],
+          "size": "32",
+          "trade_id": 773313643831617,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4990",
+          "seq": [
+            1000038,
+            2
+          ],
+          "size": "41",
+          "trade_id": 979841510458619,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.5000",
+          "seq": [
+            1000038,
+            3
+          ],
+          "size": "31",
+          "trade_id": 245768654695369,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4950",
+          "seq": [
+            1000039,
+            0
+          ],
+          "size": "12",
+          "trade_id": 773362058189622,
+          "ts_source_ms": 1767229200125
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4960",
+          "seq": [
+            1000046,
+            0
+          ],
+          "size": "26",
+          "trade_id": 816077623019400,
+          "ts_source_ms": 1767229200704
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4950",
+          "seq": [
+            1000046,
+            1
+          ],
+          "size": "7",
+          "trade_id": 692612436799342,
+          "ts_source_ms": 1767229200704
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4950",
+          "seq": [
+            1000047,
+            0
+          ],
+          "size": "16",
+          "trade_id": 384756040636959,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4900",
+          "seq": [
+            1000047,
+            1
+          ],
+          "size": "7",
+          "trade_id": 354376942306786,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4910",
+          "seq": [
+            1000048,
+            0
+          ],
+          "size": "41",
+          "trade_id": 540659437983527,
+          "ts_source_ms": 1767229200866
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4880",
+          "seq": [
+            1000053,
+            0
+          ],
+          "size": "33",
+          "trade_id": 854139575229796,
+          "ts_source_ms": 1767229201276
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4900",
+          "seq": [
+            1000053,
+            1
+          ],
+          "size": "5",
+          "trade_id": 539787496081606,
+          "ts_source_ms": 1767229201276
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4950",
+          "seq": [
+            1000058,
+            0
+          ],
+          "size": "5",
+          "trade_id": 854117282039954,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "buy",
+          "price": "0.4970",
+          "seq": [
+            1000058,
+            1
+          ],
+          "size": "10",
+          "trade_id": 1082892380069325,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4930",
+          "seq": [
+            1000058,
+            2
+          ],
+          "size": "45",
+          "trade_id": 313080868547174,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4920",
+          "seq": [
+            1000058,
+            3
+          ],
+          "size": "27",
+          "trade_id": 668216232186349,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4920",
+          "seq": [
+            1000059,
+            0
+          ],
+          "size": "5",
+          "trade_id": 476605966392963,
+          "ts_source_ms": 1767229201795
+        },
+        {
+          "aggressor": "sell",
+          "price": "0.4910",
+          "seq": [
+            1000059,
+            1
+          ],
+          "size": "8",
+          "trade_id": 90631593756641,
+          "ts_source_ms": 1767229201795
+        }
+      ]
+    },
+    "SYN": {
+      "book_at_snapshot": {
+        "asks": [
+          {
+            "order_id": 100423,
+            "price": "100.050",
+            "size": "0.220",
+            "ts_order_ms": 1767229200125
+          },
+          {
+            "order_id": 100401,
+            "price": "100.100",
+            "size": "0.400",
+            "ts_order_ms": 1767229200054
+          },
+          {
+            "order_id": 100187,
+            "price": "100.450",
+            "size": "0.240",
+            "ts_order_ms": 1767229198254
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100408,
+            "price": "99.850",
+            "size": "0.260",
+            "ts_order_ms": 1767229200054
+          },
+          {
+            "order_id": 100251,
+            "price": "99.700",
+            "size": "0.280",
+            "ts_order_ms": 1767229198923
+          },
+          {
+            "order_id": 100290,
+            "price": "99.700",
+            "size": "0.420",
+            "ts_order_ms": 1767229199139
+          }
+        ]
+      },
+      "book_events": [
+        {
+          "action": "add",
+          "order_id": 100001,
+          "price": "99.950",
+          "seq": [
+            1000000,
+            0
+          ],
+          "side": "bid",
+          "size": "0.090"
+        },
+        {
+          "action": "add",
+          "order_id": 100003,
+          "price": "100.050",
+          "seq": [
+            1000000,
+            1
+          ],
+          "side": "ask",
+          "size": "0.090"
+        },
+        {
+          "action": "add",
+          "order_id": 100005,
+          "price": "99.900",
+          "seq": [
+            1000000,
+            2
+          ],
+          "side": "bid",
+          "size": "0.490"
+        },
+        {
+          "action": "add",
+          "order_id": 100006,
+          "price": "100.100",
+          "seq": [
+            1000000,
+            3
+          ],
+          "side": "ask",
+          "size": "0.420"
+        },
+        {
+          "action": "add",
+          "order_id": 100008,
+          "price": "99.850",
+          "seq": [
+            1000000,
+            4
+          ],
+          "side": "bid",
+          "size": "0.480"
+        },
+        {
+          "action": "add",
+          "order_id": 100011,
+          "price": "100.150",
+          "seq": [
+            1000000,
+            5
+          ],
+          "side": "ask",
+          "size": "0.330"
+        },
+        {
+          "action": "add",
+          "order_id": 100014,
+          "price": "99.800",
+          "seq": [
+            1000000,
+            6
+          ],
+          "side": "bid",
+          "size": "0.040"
+        },
+        {
+          "action": "add",
+          "order_id": 100015,
+          "price": "100.200",
+          "seq": [
+            1000000,
+            7
+          ],
+          "side": "ask",
+          "size": "0.010"
+        },
+        {
+          "action": "add",
+          "order_id": 100018,
+          "price": "99.750",
+          "seq": [
+            1000000,
+            8
+          ],
+          "side": "bid",
+          "size": "0.400"
+        },
+        {
+          "action": "add",
+          "order_id": 100019,
+          "price": "100.250",
+          "seq": [
+            1000000,
+            9
+          ],
+          "side": "ask",
+          "size": "0.250"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100003,
+          "price": "100.050",
+          "seq": [
+            1000001,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100006,
+          "price": "100.100",
+          "seq": [
+            1000001,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100019,
+          "price": "100.250",
+          "seq": [
+            1000002,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100011,
+          "price": "100.150",
+          "seq": [
+            1000002,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100080,
+          "price": "100.150",
+          "seq": [
+            1000002,
+            2
+          ],
+          "side": "ask",
+          "size": "0.440"
+        },
+        {
+          "action": "add",
+          "order_id": 100085,
+          "price": "99.900",
+          "seq": [
+            1000003,
+            0
+          ],
+          "side": "bid",
+          "size": "0.440"
+        },
+        {
+          "action": "add",
+          "order_id": 100087,
+          "price": "100.100",
+          "seq": [
+            1000003,
+            1
+          ],
+          "side": "ask",
+          "size": "0.170"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100005,
+          "price": "99.900",
+          "seq": [
+            1000004,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100093,
+          "price": "100.100",
+          "seq": [
+            1000004,
+            1
+          ],
+          "side": "ask",
+          "size": "0.300"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100008,
+          "price": "99.850",
+          "seq": [
+            1000004,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100001,
+          "price": "99.950",
+          "seq": [
+            1000004,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100085,
+          "price": "99.900",
+          "seq": [
+            1000004,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100099,
+          "price": "100.050",
+          "seq": [
+            1000004,
+            5
+          ],
+          "side": "bid",
+          "size": "0.250"
+        },
+        {
+          "action": "add",
+          "order_id": 100100,
+          "price": "100.150",
+          "seq": [
+            1000005,
+            0
+          ],
+          "side": "ask",
+          "size": "0.390"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100087,
+          "price": "100.100",
+          "seq": [
+            1000005,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100102,
+          "price": "99.950",
+          "seq": [
+            1000005,
+            2
+          ],
+          "side": "bid",
+          "size": "0.220"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100093,
+          "price": "100.100",
+          "seq": [
+            1000006,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.150",
+          "order_id": 100080,
+          "orig_size": "0.440",
+          "price": "100.150",
+          "seq": [
+            1000006,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100100,
+          "price": "100.150",
+          "seq": [
+            1000007,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100015,
+          "price": "100.200",
+          "seq": [
+            1000007,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100018,
+          "price": "99.750",
+          "seq": [
+            1000007,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.130",
+          "order_id": 100099,
+          "orig_size": "0.250",
+          "price": "100.050",
+          "seq": [
+            1000007,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100119,
+          "price": "100.300",
+          "seq": [
+            1000007,
+            4
+          ],
+          "side": "ask",
+          "size": "0.210"
+        },
+        {
+          "action": "add",
+          "order_id": 100121,
+          "price": "100.150",
+          "seq": [
+            1000008,
+            0
+          ],
+          "side": "ask",
+          "size": "0.220"
+        },
+        {
+          "action": "add",
+          "order_id": 100126,
+          "price": "100.200",
+          "seq": [
+            1000009,
+            0
+          ],
+          "side": "ask",
+          "size": "0.290"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100014,
+          "price": "99.800",
+          "seq": [
+            1000009,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100080,
+          "price": "100.150",
+          "seq": [
+            1000009,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100121,
+          "price": "100.150",
+          "seq": [
+            1000009,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.110",
+          "order_id": 100126,
+          "orig_size": "0.290",
+          "price": "100.200",
+          "seq": [
+            1000009,
+            4
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100134,
+          "price": "99.950",
+          "seq": [
+            1000009,
+            5
+          ],
+          "side": "bid",
+          "size": "0.030"
+        },
+        {
+          "action": "add",
+          "order_id": 100137,
+          "price": "100.150",
+          "seq": [
+            1000009,
+            6
+          ],
+          "side": "ask",
+          "size": "0.360"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.110",
+          "order_id": 100102,
+          "orig_size": "0.220",
+          "price": "99.950",
+          "seq": [
+            1000011,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100137,
+          "price": "100.150",
+          "seq": [
+            1000013,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.090",
+          "order_id": 100126,
+          "orig_size": "0.110",
+          "price": "100.200",
+          "seq": [
+            1000013,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100165,
+          "price": "100.250",
+          "seq": [
+            1000013,
+            2
+          ],
+          "side": "ask",
+          "size": "0.190"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100126,
+          "price": "100.200",
+          "seq": [
+            1000014,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100165,
+          "price": "100.250",
+          "seq": [
+            1000014,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100119,
+          "price": "100.300",
+          "seq": [
+            1000014,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100174,
+          "price": "100.350",
+          "seq": [
+            1000014,
+            3
+          ],
+          "side": "bid",
+          "size": "0.260"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100174,
+          "price": "100.350",
+          "seq": [
+            1000014,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100177,
+          "price": "100.200",
+          "seq": [
+            1000014,
+            5
+          ],
+          "side": "ask",
+          "size": "0.340"
+        },
+        {
+          "action": "add",
+          "order_id": 100178,
+          "price": "100.150",
+          "seq": [
+            1000014,
+            6
+          ],
+          "side": "ask",
+          "size": "0.260"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.030",
+          "order_id": 100184,
+          "orig_size": "0.470",
+          "price": "100.250",
+          "seq": [
+            1000016,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100197,
+          "price": "100.500",
+          "seq": [
+            1000016,
+            1
+          ],
+          "side": "ask",
+          "size": "0.230"
+        },
+        {
+          "action": "add",
+          "order_id": 100202,
+          "price": "100.300",
+          "seq": [
+            1000017,
+            0
+          ],
+          "side": "bid",
+          "size": "0.340"
+        },
+        {
+          "action": "add",
+          "order_id": 100211,
+          "price": "100.500",
+          "seq": [
+            1000017,
+            1
+          ],
+          "side": "ask",
+          "size": "0.010"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100099,
+          "price": "100.050",
+          "seq": [
+            1000018,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.010",
+          "order_id": 100134,
+          "orig_size": "0.030",
+          "price": "99.950",
+          "seq": [
+            1000019,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100218,
+          "price": "100.350",
+          "seq": [
+            1000019,
+            1
+          ],
+          "side": "ask",
+          "size": "0.330"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100202,
+          "price": "100.300",
+          "seq": [
+            1000020,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100184,
+          "price": "100.250",
+          "seq": [
+            1000020,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100227,
+          "price": "100.150",
+          "seq": [
+            1000021,
+            0
+          ],
+          "side": "ask",
+          "size": "0.160"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100102,
+          "price": "99.950",
+          "seq": [
+            1000021,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100134,
+          "price": "99.950",
+          "seq": [
+            1000021,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100238,
+          "price": "99.950",
+          "seq": [
+            1000021,
+            3
+          ],
+          "side": "ask",
+          "size": "0.380"
+        },
+        {
+          "action": "add",
+          "order_id": 100239,
+          "price": "99.750",
+          "seq": [
+            1000021,
+            4
+          ],
+          "side": "bid",
+          "size": "0.380"
+        },
+        {
+          "action": "add",
+          "order_id": 100243,
+          "price": "99.850",
+          "seq": [
+            1000022,
+            0
+          ],
+          "side": "bid",
+          "size": "0.120"
+        },
+        {
+          "action": "add",
+          "order_id": 100246,
+          "price": "100.100",
+          "seq": [
+            1000023,
+            0
+          ],
+          "side": "ask",
+          "size": "0.090"
+        },
+        {
+          "action": "add",
+          "order_id": 100251,
+          "price": "99.700",
+          "seq": [
+            1000023,
+            1
+          ],
+          "side": "bid",
+          "size": "0.280"
+        },
+        {
+          "action": "add",
+          "order_id": 100256,
+          "price": "99.950",
+          "seq": [
+            1000023,
+            2
+          ],
+          "side": "ask",
+          "size": "0.240"
+        },
+        {
+          "action": "add",
+          "order_id": 100258,
+          "price": "100.100",
+          "seq": [
+            1000023,
+            3
+          ],
+          "side": "ask",
+          "size": "0.080"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.150",
+          "order_id": 100238,
+          "orig_size": "0.380",
+          "price": "99.950",
+          "seq": [
+            1000024,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100269,
+          "price": "99.900",
+          "seq": [
+            1000024,
+            1
+          ],
+          "side": "ask",
+          "size": "0.400"
+        },
+        {
+          "action": "add",
+          "order_id": 100284,
+          "price": "99.950",
+          "seq": [
+            1000026,
+            0
+          ],
+          "side": "ask",
+          "size": "0.070"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100269,
+          "price": "99.900",
+          "seq": [
+            1000026,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.040",
+          "order_id": 100238,
+          "orig_size": "0.150",
+          "price": "99.950",
+          "seq": [
+            1000026,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.080",
+          "order_id": 100227,
+          "orig_size": "0.160",
+          "price": "100.150",
+          "seq": [
+            1000026,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100239,
+          "price": "99.750",
+          "seq": [
+            1000026,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100290,
+          "price": "99.700",
+          "seq": [
+            1000026,
+            5
+          ],
+          "side": "bid",
+          "size": "0.420"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100238,
+          "price": "99.950",
+          "seq": [
+            1000027,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100256,
+          "price": "99.950",
+          "seq": [
+            1000027,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100284,
+          "price": "99.950",
+          "seq": [
+            1000027,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100246,
+          "price": "100.100",
+          "seq": [
+            1000027,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100258,
+          "price": "100.100",
+          "seq": [
+            1000027,
+            4
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100243,
+          "price": "99.850",
+          "seq": [
+            1000027,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100295,
+          "price": "99.900",
+          "seq": [
+            1000027,
+            6
+          ],
+          "side": "bid",
+          "size": "0.480"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.040",
+          "order_id": 100227,
+          "orig_size": "0.080",
+          "price": "100.150",
+          "seq": [
+            1000029,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100295,
+          "price": "99.900",
+          "seq": [
+            1000029,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100227,
+          "price": "100.150",
+          "seq": [
+            1000029,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100315,
+          "price": "100.300",
+          "seq": [
+            1000029,
+            3
+          ],
+          "side": "bid",
+          "size": "0.720"
+        },
+        {
+          "action": "add",
+          "order_id": 100317,
+          "price": "100.150",
+          "seq": [
+            1000029,
+            4
+          ],
+          "side": "bid",
+          "size": "0.110"
+        },
+        {
+          "action": "add",
+          "order_id": 100320,
+          "price": "100.250",
+          "seq": [
+            1000030,
+            0
+          ],
+          "side": "bid",
+          "size": "0.070"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.270",
+          "order_id": 100315,
+          "orig_size": "0.720",
+          "price": "100.300",
+          "seq": [
+            1000030,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100218,
+          "price": "100.350",
+          "seq": [
+            1000030,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100325,
+          "price": "100.500",
+          "seq": [
+            1000030,
+            3
+          ],
+          "side": "ask",
+          "size": "0.450"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.130",
+          "order_id": 100315,
+          "orig_size": "0.270",
+          "price": "100.300",
+          "seq": [
+            1000031,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100345,
+          "price": "100.400",
+          "seq": [
+            1000031,
+            1
+          ],
+          "side": "bid",
+          "size": "0.450"
+        },
+        {
+          "action": "add",
+          "order_id": 100346,
+          "price": "100.350",
+          "seq": [
+            1000031,
+            2
+          ],
+          "side": "bid",
+          "size": "0.190"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.330",
+          "order_id": 100345,
+          "orig_size": "0.450",
+          "price": "100.400",
+          "seq": [
+            1000031,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100351,
+          "price": "100.200",
+          "seq": [
+            1000032,
+            0
+          ],
+          "side": "bid",
+          "size": "0.040"
+        },
+        {
+          "action": "add",
+          "order_id": 100352,
+          "price": "100.200",
+          "seq": [
+            1000032,
+            1
+          ],
+          "side": "bid",
+          "size": "0.030"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.240",
+          "order_id": 100187,
+          "orig_size": "0.440",
+          "price": "100.450",
+          "seq": [
+            1000033,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100345,
+          "price": "100.400",
+          "seq": [
+            1000034,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100346,
+          "price": "100.350",
+          "seq": [
+            1000034,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100365,
+          "price": "100.350",
+          "seq": [
+            1000034,
+            2
+          ],
+          "side": "ask",
+          "size": "0.070"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100325,
+          "price": "100.500",
+          "seq": [
+            1000035,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100377,
+          "price": "100.150",
+          "seq": [
+            1000036,
+            0
+          ],
+          "side": "bid",
+          "size": "0.140"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100315,
+          "price": "100.300",
+          "seq": [
+            1000037,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100320,
+          "price": "100.250",
+          "seq": [
+            1000037,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100197,
+          "price": "100.500",
+          "seq": [
+            1000038,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100351,
+          "price": "100.200",
+          "seq": [
+            1000038,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100352,
+          "price": "100.200",
+          "seq": [
+            1000038,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100317,
+          "price": "100.150",
+          "seq": [
+            1000038,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100377,
+          "price": "100.150",
+          "seq": [
+            1000038,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100401,
+          "price": "100.100",
+          "seq": [
+            1000038,
+            5
+          ],
+          "side": "ask",
+          "size": "0.400"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100365,
+          "price": "100.350",
+          "seq": [
+            1000038,
+            6
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100211,
+          "price": "100.500",
+          "seq": [
+            1000038,
+            7
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100408,
+          "price": "99.850",
+          "seq": [
+            1000038,
+            8
+          ],
+          "side": "bid",
+          "size": "0.260"
+        },
+        {
+          "action": "add",
+          "order_id": 100410,
+          "price": "99.950",
+          "seq": [
+            1000038,
+            9
+          ],
+          "side": "ask",
+          "size": "0.360"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100410,
+          "price": "99.950",
+          "seq": [
+            1000039,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100421,
+          "price": "100.000",
+          "seq": [
+            1000039,
+            1
+          ],
+          "side": "bid",
+          "size": "0.170"
+        },
+        {
+          "action": "add",
+          "order_id": 100423,
+          "price": "100.050",
+          "seq": [
+            1000039,
+            2
+          ],
+          "side": "ask",
+          "size": "0.220"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100421,
+          "price": "100.000",
+          "seq": [
+            1000040,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100426,
+          "price": "99.950",
+          "seq": [
+            1000040,
+            1
+          ],
+          "side": "ask",
+          "size": "0.580"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100426,
+          "price": "99.950",
+          "seq": [
+            1000040,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100423,
+          "price": "100.050",
+          "seq": [
+            1000041,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.250",
+          "order_id": 100401,
+          "orig_size": "0.400",
+          "price": "100.100",
+          "seq": [
+            1000041,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.130",
+          "order_id": 100408,
+          "orig_size": "0.260",
+          "price": "99.850",
+          "seq": [
+            1000041,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100442,
+          "price": "99.900",
+          "seq": [
+            1000041,
+            3
+          ],
+          "side": "ask",
+          "size": "0.490"
+        },
+        {
+          "action": "add",
+          "order_id": 100445,
+          "price": "99.650",
+          "seq": [
+            1000042,
+            0
+          ],
+          "side": "bid",
+          "size": "0.450"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.430",
+          "order_id": 100442,
+          "orig_size": "0.490",
+          "price": "99.900",
+          "seq": [
+            1000042,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100462,
+          "price": "99.800",
+          "seq": [
+            1000043,
+            0
+          ],
+          "side": "bid",
+          "size": "0.420"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.220",
+          "order_id": 100445,
+          "orig_size": "0.450",
+          "price": "99.650",
+          "seq": [
+            1000043,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.210",
+          "order_id": 100442,
+          "orig_size": "0.430",
+          "price": "99.900",
+          "seq": [
+            1000045,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.010",
+          "order_id": 100408,
+          "orig_size": "0.130",
+          "price": "99.850",
+          "seq": [
+            1000045,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100442,
+          "price": "99.900",
+          "seq": [
+            1000045,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100477,
+          "price": "99.950",
+          "seq": [
+            1000045,
+            3
+          ],
+          "side": "ask",
+          "size": "0.150"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100187,
+          "price": "100.450",
+          "seq": [
+            1000046,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100480,
+          "price": "99.950",
+          "seq": [
+            1000046,
+            1
+          ],
+          "side": "ask",
+          "size": "0.380"
+        },
+        {
+          "action": "add",
+          "order_id": 100493,
+          "price": "99.900",
+          "seq": [
+            1000047,
+            0
+          ],
+          "side": "bid",
+          "size": "0.280"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100477,
+          "price": "99.950",
+          "seq": [
+            1000047,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100480,
+          "price": "99.950",
+          "seq": [
+            1000047,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100401,
+          "price": "100.100",
+          "seq": [
+            1000047,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100499,
+          "price": "100.100",
+          "seq": [
+            1000047,
+            4
+          ],
+          "side": "bid",
+          "size": "0.420"
+        },
+        {
+          "action": "add",
+          "order_id": 100501,
+          "price": "100.250",
+          "seq": [
+            1000047,
+            5
+          ],
+          "side": "ask",
+          "size": "0.270"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100408,
+          "price": "99.850",
+          "seq": [
+            1000048,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100515,
+          "price": "100.350",
+          "seq": [
+            1000048,
+            1
+          ],
+          "side": "ask",
+          "size": "0.350"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100499,
+          "price": "100.100",
+          "seq": [
+            1000049,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100517,
+          "price": "100.000",
+          "seq": [
+            1000049,
+            1
+          ],
+          "side": "ask",
+          "size": "0.280"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100493,
+          "price": "99.900",
+          "seq": [
+            1000050,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100527,
+          "price": "99.900",
+          "seq": [
+            1000050,
+            1
+          ],
+          "side": "ask",
+          "size": "0.180"
+        },
+        {
+          "action": "add",
+          "order_id": 100532,
+          "price": "99.700",
+          "seq": [
+            1000051,
+            0
+          ],
+          "side": "bid",
+          "size": "0.150"
+        },
+        {
+          "action": "add",
+          "order_id": 100534,
+          "price": "99.800",
+          "seq": [
+            1000051,
+            1
+          ],
+          "side": "bid",
+          "size": "0.200"
+        },
+        {
+          "action": "add",
+          "order_id": 100540,
+          "price": "99.800",
+          "seq": [
+            1000052,
+            0
+          ],
+          "side": "bid",
+          "size": "0.040"
+        },
+        {
+          "action": "add",
+          "order_id": 100543,
+          "price": "100.050",
+          "seq": [
+            1000052,
+            1
+          ],
+          "side": "ask",
+          "size": "0.090"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100462,
+          "price": "99.800",
+          "seq": [
+            1000052,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100534,
+          "price": "99.800",
+          "seq": [
+            1000052,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100540,
+          "price": "99.800",
+          "seq": [
+            1000052,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100549,
+          "price": "99.800",
+          "seq": [
+            1000052,
+            5
+          ],
+          "side": "bid",
+          "size": "0.180"
+        },
+        {
+          "action": "add",
+          "order_id": 100557,
+          "price": "99.850",
+          "seq": [
+            1000053,
+            0
+          ],
+          "side": "bid",
+          "size": "0.150"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100527,
+          "price": "99.900",
+          "seq": [
+            1000053,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100561,
+          "price": "99.900",
+          "seq": [
+            1000053,
+            2
+          ],
+          "side": "bid",
+          "size": "0.220"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100557,
+          "price": "99.850",
+          "seq": [
+            1000053,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100532,
+          "price": "99.700",
+          "seq": [
+            1000054,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.110",
+          "order_id": 100561,
+          "orig_size": "0.220",
+          "price": "99.900",
+          "seq": [
+            1000055,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100561,
+          "price": "99.900",
+          "seq": [
+            1000056,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100577,
+          "price": "99.850",
+          "seq": [
+            1000056,
+            1
+          ],
+          "side": "ask",
+          "size": "0.400"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100577,
+          "price": "99.850",
+          "seq": [
+            1000056,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100501,
+          "price": "100.250",
+          "seq": [
+            1000056,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.000",
+          "order_id": 100549,
+          "price": "99.800",
+          "seq": [
+            1000056,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.130",
+          "order_id": 100251,
+          "orig_size": "0.280",
+          "price": "99.700",
+          "seq": [
+            1000056,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100290,
+          "price": "99.700",
+          "seq": [
+            1000057,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100588,
+          "price": "99.900",
+          "seq": [
+            1000057,
+            1
+          ],
+          "side": "bid",
+          "size": "0.020"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.060",
+          "order_id": 100251,
+          "orig_size": "0.130",
+          "price": "99.700",
+          "seq": [
+            1000058,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100251,
+          "price": "99.700",
+          "seq": [
+            1000058,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100602,
+          "price": "99.800",
+          "seq": [
+            1000058,
+            2
+          ],
+          "side": "bid",
+          "size": "0.070"
+        },
+        {
+          "action": "add",
+          "order_id": 100608,
+          "price": "100.000",
+          "seq": [
+            1000059,
+            0
+          ],
+          "side": "ask",
+          "size": "0.230"
+        }
+      ],
+      "dropped_fill_pairs": {
+        "backstop_liquidation": 1,
+        "settlement": 0
+      },
+      "final_book": {
+        "asks": [
+          {
+            "order_id": 100517,
+            "price": "100.000",
+            "size": "0.280",
+            "ts_order_ms": 1767229200940
+          },
+          {
+            "order_id": 100608,
+            "price": "100.000",
+            "size": "0.230",
+            "ts_order_ms": 1767229201795
+          },
+          {
+            "order_id": 100543,
+            "price": "100.050",
+            "size": "0.090",
+            "ts_order_ms": 1767229201184
+          },
+          {
+            "order_id": 100515,
+            "price": "100.350",
+            "size": "0.350",
+            "ts_order_ms": 1767229200866
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100588,
+            "price": "99.900",
+            "size": "0.020",
+            "ts_order_ms": 1767229201611
+          },
+          {
+            "order_id": 100602,
+            "price": "99.800",
+            "size": "0.070",
+            "ts_order_ms": 1767229201690
+          },
+          {
+            "order_id": 100445,
+            "price": "99.650",
+            "size": "0.220",
+            "ts_order_ms": 1767229200403
+          }
+        ]
+      },
+      "instrument": "hyperliquid:perp:SYN",
+      "liquidation_trades_kept": 2,
+      "price_scale": 3,
+      "size_scale": 3,
+      "trades": [
+        {
+          "aggressor": "buy",
+          "price": "100.050",
+          "seq": [
+            1000001,
+            0
+          ],
+          "size": "0.090",
+          "trade_id": 940039246722325,
+          "ts_source_ms": 1767229197089
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000001,
+            1
+          ],
+          "size": "0.420",
+          "trade_id": 838091955325837,
+          "ts_source_ms": 1767229197089
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.950",
+          "seq": [
+            1000004,
+            0
+          ],
+          "size": "0.090",
+          "trade_id": 522844451748901,
+          "ts_source_ms": 1767229197344
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.900",
+          "seq": [
+            1000004,
+            1
+          ],
+          "size": "0.440",
+          "trade_id": 565203217839143,
+          "ts_source_ms": 1767229197344
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000006,
+            0
+          ],
+          "size": "0.300",
+          "trade_id": 251083011162728,
+          "ts_source_ms": 1767229197521
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.150",
+          "seq": [
+            1000006,
+            1
+          ],
+          "size": "0.290",
+          "trade_id": 312608270053911,
+          "ts_source_ms": 1767229197521
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.050",
+          "seq": [
+            1000007,
+            0
+          ],
+          "size": "0.120",
+          "trade_id": 221960047606261,
+          "ts_source_ms": 1767229197620
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.150",
+          "seq": [
+            1000009,
+            0
+          ],
+          "size": "0.150",
+          "trade_id": 195394759821707,
+          "ts_source_ms": 1767229197781
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.150",
+          "seq": [
+            1000009,
+            1
+          ],
+          "size": "0.220",
+          "trade_id": 835580557530396,
+          "ts_source_ms": 1767229197781
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.200",
+          "seq": [
+            1000009,
+            2
+          ],
+          "size": "0.180",
+          "trade_id": 839870727042115,
+          "ts_source_ms": 1767229197781
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.150",
+          "seq": [
+            1000013,
+            0
+          ],
+          "size": "0.360",
+          "trade_id": 407974042003216,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.200",
+          "seq": [
+            1000013,
+            1
+          ],
+          "size": "0.020",
+          "trade_id": 158592080088100,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.200",
+          "seq": [
+            1000014,
+            0
+          ],
+          "size": "0.090",
+          "trade_id": 564008120332784,
+          "ts_source_ms": 1767229198166
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.250",
+          "seq": [
+            1000014,
+            1
+          ],
+          "size": "0.190",
+          "trade_id": 316186343816052,
+          "ts_source_ms": 1767229198166
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.300",
+          "seq": [
+            1000014,
+            2
+          ],
+          "size": "0.210",
+          "trade_id": 664232588533497,
+          "ts_source_ms": 1767229198166
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.250",
+          "seq": [
+            1000016,
+            0
+          ],
+          "size": "0.440",
+          "trade_id": 800773709193814,
+          "ts_source_ms": 1767229198327
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.300",
+          "seq": [
+            1000020,
+            0
+          ],
+          "size": "0.340",
+          "trade_id": 61467586280058,
+          "ts_source_ms": 1767229198666
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.250",
+          "seq": [
+            1000020,
+            1
+          ],
+          "size": "0.030",
+          "trade_id": 336317932386919,
+          "ts_source_ms": 1767229198666
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.950",
+          "seq": [
+            1000021,
+            0
+          ],
+          "size": "0.110",
+          "trade_id": 72546652980660,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.950",
+          "seq": [
+            1000021,
+            1
+          ],
+          "size": "0.010",
+          "trade_id": 576845567223874,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000024,
+            0
+          ],
+          "size": "0.230",
+          "trade_id": 288342326477986,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.900",
+          "seq": [
+            1000026,
+            0
+          ],
+          "size": "0.400",
+          "trade_id": 793235418713106,
+          "ts_source_ms": 1767229199139
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000026,
+            1
+          ],
+          "size": "0.110",
+          "trade_id": 887616416792044,
+          "ts_source_ms": 1767229199139
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000027,
+            0
+          ],
+          "size": "0.040",
+          "trade_id": 702230899830097,
+          "ts_source_ms": 1767229199225
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000027,
+            1
+          ],
+          "size": "0.240",
+          "trade_id": 944330593083373,
+          "ts_source_ms": 1767229199225
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000027,
+            2
+          ],
+          "size": "0.070",
+          "trade_id": 731122517293208,
+          "ts_source_ms": 1767229199225
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000027,
+            3
+          ],
+          "size": "0.090",
+          "trade_id": 812577356486055,
+          "ts_source_ms": 1767229199225
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000027,
+            4
+          ],
+          "size": "0.080",
+          "trade_id": 366949484174337,
+          "ts_source_ms": 1767229199225
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.900",
+          "seq": [
+            1000029,
+            0
+          ],
+          "size": "0.480",
+          "trade_id": 412161075164854,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.150",
+          "seq": [
+            1000029,
+            1
+          ],
+          "size": "0.040",
+          "trade_id": 385526736311350,
+          "ts_source_ms": 1767229199351
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.300",
+          "seq": [
+            1000030,
+            0
+          ],
+          "size": "0.450",
+          "trade_id": 354740775482348,
+          "ts_source_ms": 1767229199415
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.300",
+          "seq": [
+            1000031,
+            0
+          ],
+          "size": "0.140",
+          "trade_id": 50717626661124,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.400",
+          "seq": [
+            1000031,
+            1
+          ],
+          "size": "0.120",
+          "trade_id": 189439846766185,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.450",
+          "seq": [
+            1000033,
+            0
+          ],
+          "size": "0.200",
+          "trade_id": 38432713974137,
+          "ts_source_ms": 1767229199657
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.400",
+          "seq": [
+            1000034,
+            0
+          ],
+          "size": "0.330",
+          "trade_id": 887805133309253,
+          "ts_source_ms": 1767229199757
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.350",
+          "seq": [
+            1000034,
+            1
+          ],
+          "size": "0.190",
+          "trade_id": 466079073655879,
+          "ts_source_ms": 1767229199757
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.300",
+          "seq": [
+            1000037,
+            0
+          ],
+          "size": "0.130",
+          "trade_id": 687655413842457,
+          "ts_source_ms": 1767229199986
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.250",
+          "seq": [
+            1000037,
+            1
+          ],
+          "size": "0.070",
+          "trade_id": 169849533131837,
+          "ts_source_ms": 1767229199986
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.200",
+          "seq": [
+            1000038,
+            0
+          ],
+          "size": "0.040",
+          "trade_id": 117375920161001,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.200",
+          "seq": [
+            1000038,
+            1
+          ],
+          "size": "0.030",
+          "trade_id": 483609498844784,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.150",
+          "seq": [
+            1000038,
+            2
+          ],
+          "size": "0.110",
+          "trade_id": 1088059994670616,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.150",
+          "seq": [
+            1000038,
+            3
+          ],
+          "size": "0.140",
+          "trade_id": 570271681775201,
+          "ts_source_ms": 1767229200054
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000039,
+            0
+          ],
+          "size": "0.360",
+          "trade_id": 223750987168972,
+          "ts_source_ms": 1767229200125
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.000",
+          "seq": [
+            1000040,
+            0
+          ],
+          "size": "0.170",
+          "trade_id": 953022316741859,
+          "ts_source_ms": 1767229200219
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000040,
+            1
+          ],
+          "size": "0.580",
+          "trade_id": 879742080436235,
+          "ts_source_ms": 1767229200219
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.050",
+          "seq": [
+            1000041,
+            0
+          ],
+          "size": "0.220",
+          "trade_id": 650162670678822,
+          "ts_source_ms": 1767229200329
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000041,
+            1
+          ],
+          "size": "0.150",
+          "trade_id": 919860417674995,
+          "ts_source_ms": 1767229200329
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.900",
+          "seq": [
+            1000042,
+            0
+          ],
+          "size": "0.060",
+          "trade_id": 1060396987499260,
+          "ts_source_ms": 1767229200403
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.850",
+          "seq": [
+            1000045,
+            0
+          ],
+          "size": "0.120",
+          "trade_id": 65838033074374,
+          "ts_source_ms": 1767229200635
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.900",
+          "seq": [
+            1000045,
+            1
+          ],
+          "size": "0.210",
+          "trade_id": 1076697914020952,
+          "ts_source_ms": 1767229200635
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000047,
+            0
+          ],
+          "size": "0.150",
+          "trade_id": 527120658117561,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.950",
+          "seq": [
+            1000047,
+            1
+          ],
+          "size": "0.380",
+          "trade_id": 716167039404494,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "buy",
+          "price": "100.100",
+          "seq": [
+            1000047,
+            2
+          ],
+          "size": "0.250",
+          "trade_id": 556179189170750,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "sell",
+          "price": "100.100",
+          "seq": [
+            1000049,
+            0
+          ],
+          "size": "0.420",
+          "trade_id": 220330884296602,
+          "ts_source_ms": 1767229200940
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.900",
+          "seq": [
+            1000050,
+            0
+          ],
+          "size": "0.280",
+          "trade_id": 555880151181316,
+          "ts_source_ms": 1767229201008
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.800",
+          "seq": [
+            1000052,
+            0
+          ],
+          "size": "0.420",
+          "trade_id": 5944215754597,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.800",
+          "seq": [
+            1000052,
+            1
+          ],
+          "size": "0.200",
+          "trade_id": 838819484013259,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.800",
+          "seq": [
+            1000052,
+            2
+          ],
+          "size": "0.040",
+          "trade_id": 239286852882675,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.900",
+          "seq": [
+            1000053,
+            0
+          ],
+          "size": "0.180",
+          "trade_id": 80300604811053,
+          "ts_source_ms": 1767229201276
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.900",
+          "seq": [
+            1000056,
+            0
+          ],
+          "size": "0.110",
+          "trade_id": 128343778418408,
+          "ts_source_ms": 1767229201501
+        },
+        {
+          "aggressor": "buy",
+          "price": "99.850",
+          "seq": [
+            1000056,
+            1
+          ],
+          "size": "0.400",
+          "trade_id": 802512105212967,
+          "ts_source_ms": 1767229201501
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.800",
+          "seq": [
+            1000056,
+            2
+          ],
+          "size": "0.180",
+          "trade_id": 1018004574708756,
+          "ts_source_ms": 1767229201501
+        },
+        {
+          "aggressor": "sell",
+          "price": "99.700",
+          "seq": [
+            1000056,
+            3
+          ],
+          "size": "0.150",
+          "trade_id": 376287791634540,
+          "ts_source_ms": 1767229201501
+        }
+      ]
+    },
+    "syn:IDX": {
+      "book_at_snapshot": {
+        "asks": [
+          {
+            "order_id": 100326,
+            "price": "50.0450",
+            "size": "0.42",
+            "ts_order_ms": 1767229199415
+          },
+          {
+            "order_id": 100432,
+            "price": "50.0500",
+            "size": "0.49",
+            "ts_order_ms": 1767229200219
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100429,
+            "price": "50.0400",
+            "size": "0.32",
+            "ts_order_ms": 1767229200219
+          },
+          {
+            "order_id": 100306,
+            "price": "50.0050",
+            "size": "0.01",
+            "ts_order_ms": 1767229199351
+          },
+          {
+            "order_id": 100364,
+            "price": "50.0050",
+            "size": "0.02",
+            "ts_order_ms": 1767229199757
+          },
+          {
+            "order_id": 100300,
+            "price": "50.0000",
+            "size": "0.27",
+            "ts_order_ms": 1767229199286
+          },
+          {
+            "order_id": 100363,
+            "price": "49.9950",
+            "size": "0.27",
+            "ts_order_ms": 1767229199757
+          },
+          {
+            "order_id": 100373,
+            "price": "49.9950",
+            "size": "0.30",
+            "ts_order_ms": 1767229199827
+          },
+          {
+            "order_id": 100143,
+            "price": "49.9900",
+            "size": "0.08",
+            "ts_order_ms": 1767229197890
+          },
+          {
+            "order_id": 100273,
+            "price": "49.9900",
+            "size": "0.08",
+            "ts_order_ms": 1767229199052
+          }
+        ]
+      },
+      "book_events": [
+        {
+          "action": "add",
+          "order_id": 100020,
+          "price": "49.9950",
+          "seq": [
+            1000000,
+            0
+          ],
+          "side": "bid",
+          "size": "0.23"
+        },
+        {
+          "action": "add",
+          "order_id": 100023,
+          "price": "50.0050",
+          "seq": [
+            1000000,
+            1
+          ],
+          "side": "ask",
+          "size": "0.35"
+        },
+        {
+          "action": "add",
+          "order_id": 100024,
+          "price": "49.9900",
+          "seq": [
+            1000000,
+            2
+          ],
+          "side": "bid",
+          "size": "0.25"
+        },
+        {
+          "action": "add",
+          "order_id": 100027,
+          "price": "50.0100",
+          "seq": [
+            1000000,
+            3
+          ],
+          "side": "ask",
+          "size": "0.06"
+        },
+        {
+          "action": "add",
+          "order_id": 100028,
+          "price": "49.9850",
+          "seq": [
+            1000000,
+            4
+          ],
+          "side": "bid",
+          "size": "0.01"
+        },
+        {
+          "action": "add",
+          "order_id": 100031,
+          "price": "50.0150",
+          "seq": [
+            1000000,
+            5
+          ],
+          "side": "ask",
+          "size": "0.17"
+        },
+        {
+          "action": "add",
+          "order_id": 100032,
+          "price": "49.9800",
+          "seq": [
+            1000000,
+            6
+          ],
+          "side": "bid",
+          "size": "0.06"
+        },
+        {
+          "action": "add",
+          "order_id": 100035,
+          "price": "50.0200",
+          "seq": [
+            1000000,
+            7
+          ],
+          "side": "ask",
+          "size": "0.09"
+        },
+        {
+          "action": "add",
+          "order_id": 100038,
+          "price": "49.9750",
+          "seq": [
+            1000000,
+            8
+          ],
+          "side": "bid",
+          "size": "0.28"
+        },
+        {
+          "action": "add",
+          "order_id": 100041,
+          "price": "50.0250",
+          "seq": [
+            1000000,
+            9
+          ],
+          "side": "ask",
+          "size": "0.06"
+        },
+        {
+          "action": "add",
+          "order_id": 100077,
+          "price": "50.0050",
+          "seq": [
+            1000002,
+            0
+          ],
+          "side": "ask",
+          "size": "0.08"
+        },
+        {
+          "action": "add",
+          "order_id": 100079,
+          "price": "49.9950",
+          "seq": [
+            1000002,
+            1
+          ],
+          "side": "bid",
+          "size": "0.45"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100023,
+          "price": "50.0050",
+          "seq": [
+            1000003,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.14",
+          "order_id": 100038,
+          "orig_size": "0.28",
+          "price": "49.9750",
+          "seq": [
+            1000003,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100020,
+          "price": "49.9950",
+          "seq": [
+            1000003,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100079,
+          "price": "49.9950",
+          "seq": [
+            1000003,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.13",
+          "order_id": 100024,
+          "orig_size": "0.25",
+          "price": "49.9900",
+          "seq": [
+            1000003,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100024,
+          "price": "49.9900",
+          "seq": [
+            1000004,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100090,
+          "price": "49.9900",
+          "seq": [
+            1000004,
+            1
+          ],
+          "side": "ask",
+          "size": "0.44"
+        },
+        {
+          "action": "add",
+          "order_id": 100108,
+          "price": "49.9850",
+          "seq": [
+            1000006,
+            0
+          ],
+          "side": "bid",
+          "size": "0.31"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100027,
+          "price": "50.0100",
+          "seq": [
+            1000006,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100111,
+          "price": "49.9700",
+          "seq": [
+            1000006,
+            2
+          ],
+          "side": "bid",
+          "size": "0.32"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.22",
+          "order_id": 100090,
+          "orig_size": "0.44",
+          "price": "49.9900",
+          "seq": [
+            1000007,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100090,
+          "price": "49.9900",
+          "seq": [
+            1000007,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100028,
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100108,
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100139,
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            2
+          ],
+          "side": "ask",
+          "size": "0.08"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100139,
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100140,
+          "price": "49.9950",
+          "seq": [
+            1000010,
+            4
+          ],
+          "side": "bid",
+          "size": "0.21"
+        },
+        {
+          "action": "add",
+          "order_id": 100143,
+          "price": "49.9900",
+          "seq": [
+            1000010,
+            5
+          ],
+          "side": "bid",
+          "size": "0.20"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100041,
+          "price": "50.0250",
+          "seq": [
+            1000011,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100111,
+          "price": "49.9700",
+          "seq": [
+            1000011,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100077,
+          "price": "50.0050",
+          "seq": [
+            1000012,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100149,
+          "price": "50.0050",
+          "seq": [
+            1000012,
+            1
+          ],
+          "side": "bid",
+          "size": "0.20"
+        },
+        {
+          "action": "add",
+          "order_id": 100151,
+          "price": "50.0050",
+          "seq": [
+            1000012,
+            2
+          ],
+          "side": "bid",
+          "size": "0.14"
+        },
+        {
+          "action": "add",
+          "order_id": 100152,
+          "price": "50.0150",
+          "seq": [
+            1000012,
+            3
+          ],
+          "side": "ask",
+          "size": "0.37"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.01",
+          "order_id": 100149,
+          "orig_size": "0.20",
+          "price": "50.0050",
+          "seq": [
+            1000013,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100031,
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.19",
+          "order_id": 100152,
+          "orig_size": "0.37",
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100152,
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100035,
+          "price": "50.0200",
+          "seq": [
+            1000013,
+            4
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100168,
+          "price": "50.0100",
+          "seq": [
+            1000013,
+            5
+          ],
+          "side": "ask",
+          "size": "0.15"
+        },
+        {
+          "action": "add",
+          "order_id": 100180,
+          "price": "50.0300",
+          "seq": [
+            1000014,
+            0
+          ],
+          "side": "ask",
+          "size": "0.18"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100038,
+          "price": "49.9750",
+          "seq": [
+            1000016,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100195,
+          "price": "50.0300",
+          "seq": [
+            1000016,
+            1
+          ],
+          "side": "ask",
+          "size": "0.44"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100149,
+          "price": "50.0050",
+          "seq": [
+            1000017,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.13",
+          "order_id": 100151,
+          "orig_size": "0.14",
+          "price": "50.0050",
+          "seq": [
+            1000017,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100151,
+          "price": "50.0050",
+          "seq": [
+            1000017,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100140,
+          "price": "49.9950",
+          "seq": [
+            1000017,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.08",
+          "order_id": 100143,
+          "orig_size": "0.20",
+          "price": "49.9900",
+          "seq": [
+            1000017,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100212,
+          "price": "49.9850",
+          "seq": [
+            1000017,
+            5
+          ],
+          "side": "bid",
+          "size": "0.18"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100032,
+          "price": "49.9800",
+          "seq": [
+            1000018,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100217,
+          "price": "50.0050",
+          "seq": [
+            1000018,
+            1
+          ],
+          "side": "bid",
+          "size": "0.48"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100212,
+          "price": "49.9850",
+          "seq": [
+            1000019,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100223,
+          "price": "50.0050",
+          "seq": [
+            1000019,
+            1
+          ],
+          "side": "bid",
+          "size": "0.35"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.07",
+          "order_id": 100168,
+          "orig_size": "0.15",
+          "price": "50.0100",
+          "seq": [
+            1000020,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100224,
+          "price": "50.0250",
+          "seq": [
+            1000020,
+            1
+          ],
+          "side": "ask",
+          "size": "0.22"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100168,
+          "price": "50.0100",
+          "seq": [
+            1000021,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100232,
+          "price": "50.0100",
+          "seq": [
+            1000021,
+            1
+          ],
+          "side": "bid",
+          "size": "0.69"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.09",
+          "order_id": 100180,
+          "orig_size": "0.18",
+          "price": "50.0300",
+          "seq": [
+            1000021,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100188,
+          "price": "50.0250",
+          "seq": [
+            1000024,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100224,
+          "price": "50.0250",
+          "seq": [
+            1000024,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.05",
+          "order_id": 100180,
+          "orig_size": "0.09",
+          "price": "50.0300",
+          "seq": [
+            1000024,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.61",
+          "order_id": 100232,
+          "orig_size": "0.69",
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100232,
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100271,
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            5
+          ],
+          "side": "ask",
+          "size": "0.05"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.02",
+          "order_id": 100271,
+          "orig_size": "0.05",
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            6
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100273,
+          "price": "49.9900",
+          "seq": [
+            1000025,
+            0
+          ],
+          "side": "bid",
+          "size": "0.08"
+        },
+        {
+          "action": "add",
+          "order_id": 100275,
+          "price": "50.0200",
+          "seq": [
+            1000025,
+            1
+          ],
+          "side": "ask",
+          "size": "0.07"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100217,
+          "price": "50.0050",
+          "seq": [
+            1000025,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.13",
+          "order_id": 100223,
+          "orig_size": "0.35",
+          "price": "50.0050",
+          "seq": [
+            1000025,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100277,
+          "price": "50.0150",
+          "seq": [
+            1000025,
+            4
+          ],
+          "side": "ask",
+          "size": "0.01"
+        },
+        {
+          "action": "add",
+          "order_id": 100285,
+          "price": "50.0050",
+          "seq": [
+            1000026,
+            0
+          ],
+          "side": "bid",
+          "size": "0.47"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100271,
+          "price": "50.0100",
+          "seq": [
+            1000026,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100277,
+          "price": "50.0150",
+          "seq": [
+            1000026,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.03",
+          "order_id": 100275,
+          "orig_size": "0.07",
+          "price": "50.0200",
+          "seq": [
+            1000028,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100300,
+          "price": "50.0000",
+          "seq": [
+            1000028,
+            1
+          ],
+          "side": "bid",
+          "size": "0.27"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.01",
+          "order_id": 100275,
+          "orig_size": "0.03",
+          "price": "50.0200",
+          "seq": [
+            1000028,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100306,
+          "price": "50.0050",
+          "seq": [
+            1000029,
+            0
+          ],
+          "side": "bid",
+          "size": "0.27"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100275,
+          "price": "50.0200",
+          "seq": [
+            1000030,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100319,
+          "price": "50.0200",
+          "seq": [
+            1000030,
+            1
+          ],
+          "side": "bid",
+          "size": "0.35"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.22",
+          "order_id": 100195,
+          "orig_size": "0.44",
+          "price": "50.0300",
+          "seq": [
+            1000030,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.11",
+          "order_id": 100319,
+          "orig_size": "0.35",
+          "price": "50.0200",
+          "seq": [
+            1000030,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100326,
+          "price": "50.0450",
+          "seq": [
+            1000030,
+            4
+          ],
+          "side": "ask",
+          "size": "0.42"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100180,
+          "price": "50.0300",
+          "seq": [
+            1000031,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.03",
+          "order_id": 100195,
+          "orig_size": "0.22",
+          "price": "50.0300",
+          "seq": [
+            1000031,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100319,
+          "price": "50.0200",
+          "seq": [
+            1000031,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100223,
+          "price": "50.0050",
+          "seq": [
+            1000031,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.06",
+          "order_id": 100285,
+          "orig_size": "0.47",
+          "price": "50.0050",
+          "seq": [
+            1000031,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.13",
+          "order_id": 100306,
+          "orig_size": "0.27",
+          "price": "50.0050",
+          "seq": [
+            1000031,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100349,
+          "price": "50.0150",
+          "seq": [
+            1000031,
+            6
+          ],
+          "side": "ask",
+          "size": "0.42"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100285,
+          "price": "50.0050",
+          "seq": [
+            1000033,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.01",
+          "order_id": 100306,
+          "orig_size": "0.13",
+          "price": "50.0050",
+          "seq": [
+            1000033,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100349,
+          "price": "50.0150",
+          "seq": [
+            1000033,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100362,
+          "price": "50.0200",
+          "seq": [
+            1000033,
+            3
+          ],
+          "side": "ask",
+          "size": "0.28"
+        },
+        {
+          "action": "add",
+          "order_id": 100363,
+          "price": "49.9950",
+          "seq": [
+            1000034,
+            0
+          ],
+          "side": "bid",
+          "size": "0.27"
+        },
+        {
+          "action": "add",
+          "order_id": 100364,
+          "price": "50.0050",
+          "seq": [
+            1000034,
+            1
+          ],
+          "side": "bid",
+          "size": "0.04"
+        },
+        {
+          "action": "add",
+          "order_id": 100372,
+          "price": "50.0300",
+          "seq": [
+            1000034,
+            2
+          ],
+          "side": "ask",
+          "size": "0.29"
+        },
+        {
+          "action": "add",
+          "order_id": 100373,
+          "price": "49.9950",
+          "seq": [
+            1000035,
+            0
+          ],
+          "side": "bid",
+          "size": "0.30"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100362,
+          "price": "50.0200",
+          "seq": [
+            1000037,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100389,
+          "price": "50.0250",
+          "seq": [
+            1000037,
+            1
+          ],
+          "side": "bid",
+          "size": "0.42"
+        },
+        {
+          "action": "add",
+          "order_id": 100393,
+          "price": "50.0250",
+          "seq": [
+            1000037,
+            2
+          ],
+          "side": "bid",
+          "size": "0.41"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.24",
+          "order_id": 100389,
+          "orig_size": "0.42",
+          "price": "50.0250",
+          "seq": [
+            1000037,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100389,
+          "price": "50.0250",
+          "seq": [
+            1000040,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.02",
+          "order_id": 100364,
+          "orig_size": "0.04",
+          "price": "50.0050",
+          "seq": [
+            1000040,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100195,
+          "price": "50.0300",
+          "seq": [
+            1000040,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100372,
+          "price": "50.0300",
+          "seq": [
+            1000040,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100429,
+          "price": "50.0400",
+          "seq": [
+            1000040,
+            4
+          ],
+          "side": "bid",
+          "size": "0.32"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100393,
+          "price": "50.0250",
+          "seq": [
+            1000040,
+            5
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100432,
+          "price": "50.0500",
+          "seq": [
+            1000040,
+            6
+          ],
+          "side": "ask",
+          "size": "0.49"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.41",
+          "order_id": 100326,
+          "orig_size": "0.42",
+          "price": "50.0450",
+          "seq": [
+            1000041,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100444,
+          "price": "50.0600",
+          "seq": [
+            1000041,
+            1
+          ],
+          "side": "ask",
+          "size": "0.25"
+        },
+        {
+          "action": "add",
+          "order_id": 100448,
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            0
+          ],
+          "side": "bid",
+          "size": "0.03"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100429,
+          "price": "50.0400",
+          "seq": [
+            1000042,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100448,
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100451,
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            3
+          ],
+          "side": "ask",
+          "size": "0.04"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100451,
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            4
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100326,
+          "price": "50.0450",
+          "seq": [
+            1000042,
+            5
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100455,
+          "price": "50.0450",
+          "seq": [
+            1000042,
+            6
+          ],
+          "side": "bid",
+          "size": "0.22"
+        },
+        {
+          "action": "add",
+          "order_id": 100458,
+          "price": "50.0700",
+          "seq": [
+            1000042,
+            7
+          ],
+          "side": "ask",
+          "size": "0.27"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100432,
+          "price": "50.0500",
+          "seq": [
+            1000043,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100444,
+          "price": "50.0600",
+          "seq": [
+            1000043,
+            1
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100461,
+          "price": "50.0600",
+          "seq": [
+            1000043,
+            2
+          ],
+          "side": "bid",
+          "size": "0.24"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100458,
+          "price": "50.0700",
+          "seq": [
+            1000043,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100465,
+          "price": "50.0750",
+          "seq": [
+            1000043,
+            4
+          ],
+          "side": "ask",
+          "size": "0.02"
+        },
+        {
+          "action": "add",
+          "order_id": 100468,
+          "price": "50.0650",
+          "seq": [
+            1000044,
+            0
+          ],
+          "side": "ask",
+          "size": "0.17"
+        },
+        {
+          "action": "add",
+          "order_id": 100471,
+          "price": "50.0700",
+          "seq": [
+            1000044,
+            1
+          ],
+          "side": "ask",
+          "size": "0.08"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100461,
+          "price": "50.0600",
+          "seq": [
+            1000047,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100488,
+          "price": "50.0500",
+          "seq": [
+            1000047,
+            1
+          ],
+          "side": "ask",
+          "size": "0.22"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100488,
+          "price": "50.0500",
+          "seq": [
+            1000047,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100468,
+          "price": "50.0650",
+          "seq": [
+            1000047,
+            3
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100497,
+          "price": "50.0650",
+          "seq": [
+            1000047,
+            4
+          ],
+          "side": "bid",
+          "size": "0.13"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100471,
+          "price": "50.0700",
+          "seq": [
+            1000047,
+            5
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100503,
+          "price": "50.0750",
+          "seq": [
+            1000047,
+            6
+          ],
+          "side": "ask",
+          "size": "0.40"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100497,
+          "price": "50.0650",
+          "seq": [
+            1000048,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100506,
+          "price": "50.0500",
+          "seq": [
+            1000048,
+            1
+          ],
+          "side": "ask",
+          "size": "0.63"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.04",
+          "order_id": 100143,
+          "orig_size": "0.08",
+          "price": "49.9900",
+          "seq": [
+            1000048,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100507,
+          "price": "50.0300",
+          "seq": [
+            1000048,
+            3
+          ],
+          "side": "bid",
+          "size": "0.08"
+        },
+        {
+          "action": "add",
+          "order_id": 100512,
+          "price": "50.0350",
+          "seq": [
+            1000048,
+            4
+          ],
+          "side": "bid",
+          "size": "0.12"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.16",
+          "order_id": 100506,
+          "orig_size": "0.63",
+          "price": "50.0500",
+          "seq": [
+            1000049,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100522,
+          "price": "50.0650",
+          "seq": [
+            1000049,
+            1
+          ],
+          "side": "ask",
+          "size": "0.19"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100306,
+          "price": "50.0050",
+          "seq": [
+            1000050,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100373,
+          "price": "49.9950",
+          "seq": [
+            1000050,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100506,
+          "price": "50.0500",
+          "seq": [
+            1000050,
+            2
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100507,
+          "price": "50.0300",
+          "seq": [
+            1000050,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100455,
+          "price": "50.0450",
+          "seq": [
+            1000051,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100364,
+          "price": "50.0050",
+          "seq": [
+            1000052,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100512,
+          "price": "50.0350",
+          "seq": [
+            1000052,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100545,
+          "price": "50.0200",
+          "seq": [
+            1000052,
+            2
+          ],
+          "side": "ask",
+          "size": "0.58"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100300,
+          "price": "50.0000",
+          "seq": [
+            1000052,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100363,
+          "price": "49.9950",
+          "seq": [
+            1000052,
+            4
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100550,
+          "price": "49.9950",
+          "seq": [
+            1000052,
+            5
+          ],
+          "side": "ask",
+          "size": "0.01"
+        },
+        {
+          "action": "add",
+          "order_id": 100553,
+          "price": "49.9700",
+          "seq": [
+            1000052,
+            6
+          ],
+          "side": "bid",
+          "size": "0.20"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100550,
+          "price": "49.9950",
+          "seq": [
+            1000053,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100563,
+          "price": "50.0100",
+          "seq": [
+            1000053,
+            1
+          ],
+          "side": "bid",
+          "size": "0.64"
+        },
+        {
+          "action": "add",
+          "order_id": 100568,
+          "price": "50.0150",
+          "seq": [
+            1000054,
+            0
+          ],
+          "side": "bid",
+          "size": "0.29"
+        },
+        {
+          "action": "add",
+          "order_id": 100569,
+          "price": "50.0350",
+          "seq": [
+            1000054,
+            1
+          ],
+          "side": "ask",
+          "size": "0.34"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100568,
+          "price": "50.0150",
+          "seq": [
+            1000054,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100572,
+          "price": "50.0150",
+          "seq": [
+            1000054,
+            3
+          ],
+          "side": "ask",
+          "size": "0.25"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100572,
+          "price": "50.0150",
+          "seq": [
+            1000055,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100574,
+          "price": "50.0150",
+          "seq": [
+            1000055,
+            1
+          ],
+          "side": "bid",
+          "size": "0.03"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100545,
+          "price": "50.0200",
+          "seq": [
+            1000057,
+            0
+          ],
+          "side": "ask"
+        },
+        {
+          "action": "add",
+          "order_id": 100586,
+          "price": "50.0200",
+          "seq": [
+            1000057,
+            1
+          ],
+          "side": "bid",
+          "size": "0.49"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100586,
+          "price": "50.0200",
+          "seq": [
+            1000058,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100574,
+          "price": "50.0150",
+          "seq": [
+            1000058,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.53",
+          "order_id": 100563,
+          "orig_size": "0.64",
+          "price": "50.0100",
+          "seq": [
+            1000058,
+            2
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "cancel",
+          "order_id": 100553,
+          "price": "49.9700",
+          "seq": [
+            1000058,
+            3
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100597,
+          "price": "50.0300",
+          "seq": [
+            1000058,
+            4
+          ],
+          "side": "bid",
+          "size": "0.48"
+        },
+        {
+          "action": "modify",
+          "new_size": "0.24",
+          "order_id": 100597,
+          "orig_size": "0.48",
+          "price": "50.0300",
+          "seq": [
+            1000059,
+            0
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "fill",
+          "new_size": "0.00",
+          "order_id": 100597,
+          "price": "50.0300",
+          "seq": [
+            1000059,
+            1
+          ],
+          "side": "bid"
+        },
+        {
+          "action": "add",
+          "order_id": 100606,
+          "price": "50.0300",
+          "seq": [
+            1000059,
+            2
+          ],
+          "side": "ask",
+          "size": "0.16"
+        }
+      ],
+      "dropped_fill_pairs": {
+        "backstop_liquidation": 0,
+        "settlement": 1
+      },
+      "final_book": {
+        "asks": [
+          {
+            "order_id": 100606,
+            "price": "50.0300",
+            "size": "0.16",
+            "ts_order_ms": 1767229201795
+          },
+          {
+            "order_id": 100569,
+            "price": "50.0350",
+            "size": "0.34",
+            "ts_order_ms": 1767229201370
+          },
+          {
+            "order_id": 100522,
+            "price": "50.0650",
+            "size": "0.19",
+            "ts_order_ms": 1767229200940
+          },
+          {
+            "order_id": 100465,
+            "price": "50.0750",
+            "size": "0.02",
+            "ts_order_ms": 1767229200513
+          },
+          {
+            "order_id": 100503,
+            "price": "50.0750",
+            "size": "0.40",
+            "ts_order_ms": 1767229200783
+          }
+        ],
+        "bids": [
+          {
+            "order_id": 100563,
+            "price": "50.0100",
+            "size": "0.53",
+            "ts_order_ms": 1767229201276
+          },
+          {
+            "order_id": 100143,
+            "price": "49.9900",
+            "size": "0.04",
+            "ts_order_ms": 1767229197890
+          },
+          {
+            "order_id": 100273,
+            "price": "49.9900",
+            "size": "0.08",
+            "ts_order_ms": 1767229199052
+          }
+        ]
+      },
+      "instrument": "hyperliquid:perp:syn:IDX",
+      "liquidation_trades_kept": 0,
+      "price_scale": 4,
+      "size_scale": 2,
+      "trades": [
+        {
+          "aggressor": "sell",
+          "price": "49.9950",
+          "seq": [
+            1000003,
+            0
+          ],
+          "size": "0.23",
+          "trade_id": 735709155208192,
+          "ts_source_ms": 1767229197264
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9950",
+          "seq": [
+            1000003,
+            1
+          ],
+          "size": "0.45",
+          "trade_id": 257812063361003,
+          "ts_source_ms": 1767229197264
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9900",
+          "seq": [
+            1000003,
+            2
+          ],
+          "size": "0.12",
+          "trade_id": 403829589531169,
+          "ts_source_ms": 1767229197264
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9900",
+          "seq": [
+            1000004,
+            0
+          ],
+          "size": "0.13",
+          "trade_id": 344287963029409,
+          "ts_source_ms": 1767229197344
+        },
+        {
+          "aggressor": "buy",
+          "price": "49.9900",
+          "seq": [
+            1000007,
+            0
+          ],
+          "size": "0.22",
+          "trade_id": 739966652083629,
+          "ts_source_ms": 1767229197620
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            0
+          ],
+          "size": "0.01",
+          "trade_id": 586395777660286,
+          "ts_source_ms": 1767229197890
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            1
+          ],
+          "size": "0.31",
+          "trade_id": 731176257043028,
+          "ts_source_ms": 1767229197890
+        },
+        {
+          "aggressor": "buy",
+          "price": "49.9850",
+          "seq": [
+            1000010,
+            2
+          ],
+          "size": "0.08",
+          "trade_id": 415673504424374,
+          "ts_source_ms": 1767229197890
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000013,
+            0
+          ],
+          "size": "0.19",
+          "trade_id": 691869113915234,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            1
+          ],
+          "size": "0.17",
+          "trade_id": 1046285936747465,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            2
+          ],
+          "size": "0.18",
+          "trade_id": 1105050497223997,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0150",
+          "seq": [
+            1000013,
+            3
+          ],
+          "size": "0.19",
+          "trade_id": 1088777400312085,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0200",
+          "seq": [
+            1000013,
+            4
+          ],
+          "size": "0.09",
+          "trade_id": 313713230763842,
+          "ts_source_ms": 1767229198105
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000017,
+            0
+          ],
+          "size": "0.01",
+          "trade_id": 687524516559697,
+          "ts_source_ms": 1767229198424
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000017,
+            1
+          ],
+          "size": "0.01",
+          "trade_id": 263655207354704,
+          "ts_source_ms": 1767229198424
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9950",
+          "seq": [
+            1000017,
+            2
+          ],
+          "size": "0.21",
+          "trade_id": 1048635468489376,
+          "ts_source_ms": 1767229198424
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9900",
+          "seq": [
+            1000017,
+            3
+          ],
+          "size": "0.12",
+          "trade_id": 887920701942538,
+          "ts_source_ms": 1767229198424
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0100",
+          "seq": [
+            1000021,
+            0
+          ],
+          "size": "0.07",
+          "trade_id": 714335700909359,
+          "ts_source_ms": 1767229198744
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0250",
+          "seq": [
+            1000024,
+            0
+          ],
+          "size": "0.19",
+          "trade_id": 424923145153444,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0250",
+          "seq": [
+            1000024,
+            1
+          ],
+          "size": "0.22",
+          "trade_id": 295096795382349,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000024,
+            2
+          ],
+          "size": "0.04",
+          "trade_id": 1119364705016220,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            3
+          ],
+          "size": "0.08",
+          "trade_id": 967080668317346,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0100",
+          "seq": [
+            1000024,
+            4
+          ],
+          "size": "0.61",
+          "trade_id": 578155877478470,
+          "ts_source_ms": 1767229198987
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000025,
+            0
+          ],
+          "size": "0.48",
+          "trade_id": 396387323962547,
+          "ts_source_ms": 1767229199052
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000025,
+            1
+          ],
+          "size": "0.22",
+          "trade_id": 860701336954269,
+          "ts_source_ms": 1767229199052
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0100",
+          "seq": [
+            1000026,
+            0
+          ],
+          "size": "0.02",
+          "trade_id": 1075299313860582,
+          "ts_source_ms": 1767229199139
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0200",
+          "seq": [
+            1000028,
+            0
+          ],
+          "size": "0.02",
+          "trade_id": 187831562645953,
+          "ts_source_ms": 1767229199286
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0200",
+          "seq": [
+            1000030,
+            0
+          ],
+          "size": "0.01",
+          "trade_id": 1087308880412179,
+          "ts_source_ms": 1767229199415
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0200",
+          "seq": [
+            1000030,
+            1
+          ],
+          "size": "0.24",
+          "trade_id": 1117662226119885,
+          "ts_source_ms": 1767229199415
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000031,
+            0
+          ],
+          "size": "0.05",
+          "trade_id": 940768117942085,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000031,
+            1
+          ],
+          "size": "0.19",
+          "trade_id": 958238174475004,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000031,
+            2
+          ],
+          "size": "0.13",
+          "trade_id": 764389643545564,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000031,
+            3
+          ],
+          "size": "0.41",
+          "trade_id": 658499889651737,
+          "ts_source_ms": 1767229199489
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000033,
+            0
+          ],
+          "size": "0.06",
+          "trade_id": 834373689644694,
+          "ts_source_ms": 1767229199657
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0050",
+          "seq": [
+            1000033,
+            1
+          ],
+          "size": "0.12",
+          "trade_id": 642530095501819,
+          "ts_source_ms": 1767229199657
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0200",
+          "seq": [
+            1000037,
+            0
+          ],
+          "size": "0.28",
+          "trade_id": 1045394460869759,
+          "ts_source_ms": 1767229199986
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0250",
+          "seq": [
+            1000037,
+            1
+          ],
+          "size": "0.18",
+          "trade_id": 467216640357001,
+          "ts_source_ms": 1767229199986
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000040,
+            0
+          ],
+          "size": "0.03",
+          "trade_id": 760490460391846,
+          "ts_source_ms": 1767229200219
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000040,
+            1
+          ],
+          "size": "0.29",
+          "trade_id": 470543582603462,
+          "ts_source_ms": 1767229200219
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0450",
+          "seq": [
+            1000041,
+            0
+          ],
+          "size": "0.01",
+          "trade_id": 732126849311845,
+          "ts_source_ms": 1767229200329
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0400",
+          "seq": [
+            1000042,
+            0
+          ],
+          "size": "0.32",
+          "trade_id": 792064316473898,
+          "ts_source_ms": 1767229200403
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            1
+          ],
+          "size": "0.03",
+          "trade_id": 999845960058236,
+          "ts_source_ms": 1767229200403
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0300",
+          "seq": [
+            1000042,
+            2
+          ],
+          "size": "0.04",
+          "trade_id": 783702096685003,
+          "ts_source_ms": 1767229200403
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0450",
+          "seq": [
+            1000042,
+            3
+          ],
+          "size": "0.41",
+          "trade_id": 320162529048277,
+          "ts_source_ms": 1767229200403
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0700",
+          "seq": [
+            1000043,
+            0
+          ],
+          "size": "0.27",
+          "trade_id": 773605510747339,
+          "ts_source_ms": 1767229200513
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0600",
+          "seq": [
+            1000047,
+            0
+          ],
+          "size": "0.24",
+          "trade_id": 491407498945334,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0500",
+          "seq": [
+            1000047,
+            1
+          ],
+          "size": "0.22",
+          "trade_id": 95464905165948,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0650",
+          "seq": [
+            1000047,
+            2
+          ],
+          "size": "0.17",
+          "trade_id": 1014444782580911,
+          "ts_source_ms": 1767229200783
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0650",
+          "seq": [
+            1000048,
+            0
+          ],
+          "size": "0.13",
+          "trade_id": 911373142599133,
+          "ts_source_ms": 1767229200866
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0500",
+          "seq": [
+            1000049,
+            0
+          ],
+          "size": "0.47",
+          "trade_id": 1082100617525740,
+          "ts_source_ms": 1767229200940
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0500",
+          "seq": [
+            1000050,
+            0
+          ],
+          "size": "0.16",
+          "trade_id": 714898532878284,
+          "ts_source_ms": 1767229201008
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0350",
+          "seq": [
+            1000052,
+            0
+          ],
+          "size": "0.12",
+          "trade_id": 307622081408277,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0000",
+          "seq": [
+            1000052,
+            1
+          ],
+          "size": "0.27",
+          "trade_id": 1061077196448625,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "sell",
+          "price": "49.9950",
+          "seq": [
+            1000052,
+            2
+          ],
+          "size": "0.27",
+          "trade_id": 732290140376725,
+          "ts_source_ms": 1767229201184
+        },
+        {
+          "aggressor": "buy",
+          "price": "49.9950",
+          "seq": [
+            1000053,
+            0
+          ],
+          "size": "0.01",
+          "trade_id": 812133028728627,
+          "ts_source_ms": 1767229201276
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0150",
+          "seq": [
+            1000054,
+            0
+          ],
+          "size": "0.29",
+          "trade_id": 134613340758069,
+          "ts_source_ms": 1767229201370
+        },
+        {
+          "aggressor": "buy",
+          "price": "50.0150",
+          "seq": [
+            1000055,
+            0
+          ],
+          "size": "0.25",
+          "trade_id": 867439184520109,
+          "ts_source_ms": 1767229201441
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0200",
+          "seq": [
+            1000058,
+            0
+          ],
+          "size": "0.49",
+          "trade_id": 224727693273870,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0150",
+          "seq": [
+            1000058,
+            1
+          ],
+          "size": "0.03",
+          "trade_id": 40042045689058,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0100",
+          "seq": [
+            1000058,
+            2
+          ],
+          "size": "0.11",
+          "trade_id": 120959302336261,
+          "ts_source_ms": 1767229201690
+        },
+        {
+          "aggressor": "sell",
+          "price": "50.0300",
+          "seq": [
+            1000059,
+            0
+          ],
+          "size": "0.24",
+          "trade_id": 1050956306515683,
+          "ts_source_ms": 1767229201795
+        }
+      ]
+    }
+  },
+  "first_block": 1000000,
+  "generator": "hl-synth",
+  "last_block": 1000059,
+  "missing_blocks": [
+    1000015
+  ],
+  "scenario": "gap",
+  "seed": 42,
+  "snapshot_height": 1000040,
+  "synthetic": true
+}
