@@ -19,4 +19,5 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0009](0009-admission-policy-amendments.md) | Admission policy amendments: open buckets, venue-matched prices | Accepted |
 | [0010](0010-budget-first-hosting.md) | Budget-first hosting: one rented node box plus a self-hosted archive server | Accepted |
 | [0011](0011-v0-amendments-for-the-origin.md) | Data model and gateway amendments for the integrated origin | Accepted |
+| [0013](0013-synthetic-contract-months.md) | Synthetic contract months without exchange data | Proposed |
 
