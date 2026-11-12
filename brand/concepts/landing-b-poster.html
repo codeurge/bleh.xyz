@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bleh.xyz: prices are not a subscription (early preview)</title>
+<meta name="description" content="Open, signed, freely redistributable market data built from independent price discovery. Early preview.">
+<link rel="icon" href="logo-5-torn-tape-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3ede0;--fg:#111;--card:#fffdf7;--yel:#ffd60a;--red:#e5261a;--mute:#4d483f;--shadow:#111;--codebg:#111;--codefg:#f3ede0}
+@media (prefers-color-scheme:dark){:root{--bg:#0e0e0e;--fg:#f3ede0;--card:#191919;--red:#ff4a3d;--mute:#b3ab9b;--shadow:#ffd60a;--codebg:#191919}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 "Space Mono",ui-monospace,Menlo,monospace;overflow-x:hidden}
+.wrap{max-width:1120px;margin:0 auto;padding:0 16px}
+a{color:inherit}
+a:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+.disp{font-family:Anton,Impact,"Arial Narrow Bold",sans-serif;text-transform:uppercase;font-weight:400;line-height:.92;letter-spacing:.005em}
+.preview{background:var(--red);color:#fff;font-weight:700;font-size:13px;padding:8px 0;text-transform:uppercase;letter-spacing:.04em}
+nav{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0 6px}
+.logo{height:62px;width:auto;display:block;margin-left:-4px}
+nav a.gh{font-weight:700;text-transform:uppercase;font-size:14px;border:3px solid var(--fg);padding:8px 12px;text-decoration:none;white-space:nowrap}
+nav a.gh:hover{background:var(--yel);color:#111;border-color:#111}
+
+.hero{padding:26px 0 40px}
+h1{font-size:clamp(3.3rem,14.2vw,11rem);margin:0}
+h1 .hl{display:inline-block;background:var(--yel);color:#111;padding:.02em .14em 0;transform:rotate(-2.5deg);margin-left:-.06em}
+h1 .strike{position:relative;white-space:nowrap}
+h1 .strike::after{content:"";position:absolute;left:-2%;right:-2%;top:46%;height:.09em;background:var(--red);transform:rotate(-3deg)}
+.herob{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:32px;margin-top:30px;align-items:end}
+@media (max-width:780px){.herob{grid-template-columns:minmax(0,1fr)}}
+.sub{font-size:clamp(1rem,1.6vw,1.2rem);margin:0;max-width:58ch}
+.sub b{background:var(--yel);color:#111;padding:0 .25em}
+.cta{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-block;font-weight:700;text-transform:uppercase;text-decoration:none;padding:13px 18px;border:3px solid var(--fg);background:var(--yel);color:#111;box-shadow:6px 6px 0 var(--fg);font-size:15px}
+.btn.alt{background:transparent;color:var(--fg);box-shadow:none}
+.btn:hover{transform:translate(2px,2px);box-shadow:4px 4px 0 var(--fg)}
+.btn.alt:hover{background:var(--fg);color:var(--bg);box-shadow:none}
+
+.tapes{padding:26px 0 46px;overflow:hidden}
+.tp{background:var(--yel);color:#111;border-block:3px solid #111;font-weight:700;white-space:nowrap;overflow:hidden;width:106%;margin-left:-3%;transform:rotate(-1.6deg)}
+.tp+.tp{background:var(--fg);color:var(--bg);border-color:var(--fg);transform:rotate(1.2deg);margin-top:14px}
+.tp .run{display:inline-block;padding:10px 0;animation:run 38s linear infinite}
+.tp+.tp .run{animation-duration:52s;animation-direction:reverse}
+.tp span{margin:0 18px}
+.tp .u::after{content:" \25B2"}.tp .d::after{content:" \25BC";color:var(--red)}
+@keyframes run{to{transform:translateX(-50%)}}
+.tapecap{font-size:12.5px;color:var(--mute);margin:22px 0 0;text-transform:uppercase;letter-spacing:.05em}
+
+section{padding:52px 0}
+h2{font-size:clamp(2.4rem,8vw,5.2rem);margin:0 0 8px}
+h2 i{font-style:normal;color:var(--red)}
+.lede{margin:0 0 30px;color:var(--mute);max-width:62ch}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+@media (max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:580px){.cards{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:3px solid var(--fg);padding:18px 18px 20px;box-shadow:7px 7px 0 var(--shadow)}
+.card:nth-child(odd){transform:rotate(-.5deg)}.card:nth-child(even){transform:rotate(.4deg)}
+.card .n{font-family:Anton,Impact,sans-serif;font-size:2.6rem;line-height:1;color:var(--red)}
+.card h3{font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:1.55rem;line-height:1;margin:8px 0 10px;letter-spacing:.01em}
+.card p{margin:0;font-size:14px;color:var(--mute)}
+.code{background:var(--yel);padding:54px 0;color:#111;border-block:3px solid #111}
+.code h2 i{color:#111;text-decoration:underline wavy var(--red) 4px;text-underline-offset:8px}
+.code .lede{color:#111}
+pre{margin:0;background:var(--codebg);color:var(--codefg);border:3px solid #111;box-shadow:8px 8px 0 #111;padding:20px;overflow-x:auto;font:13.5px/1.7 "Space Mono",ui-monospace,Menlo,monospace}
+pre .y{color:#ffd60a}pre .c{color:#9a9384}
+.note{font-size:12.5px;margin:18px 0 0}
+.up{display:grid;gap:0;border-top:3px solid var(--fg)}
+.up>div{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:8px 28px;padding:22px 0;border-bottom:3px solid var(--fg);align-items:baseline}
+@media (max-width:700px){.up>div{grid-template-columns:minmax(0,1fr)}}
+.up h3{font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(1.7rem,4.4vw,2.7rem);line-height:.98;margin:0}
+.up h3 small{display:block;font:700 13px/1.6 "Space Mono",monospace;color:var(--red);letter-spacing:.06em}
+.up p{margin:0;color:var(--mute)}
+.honest{margin:26px 0 0;font-size:14px;max-width:70ch;border:3px dashed var(--fg);padding:14px 16px}
+footer{border-top:3px solid var(--fg);padding:24px 0 48px;font-size:13.5px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;font-weight:700;text-transform:uppercase}
+@media (prefers-reduced-motion:reduce){.tp .run{animation:none}}
+</style>
+</head>
+<body>
+<div class="preview"><div class="wrap">Early preview. Nothing here is live yet. We're building it in the open.</div></div>
+<div class="wrap">
+  <nav aria-label="Main">
+    <a href="#" aria-label="bleh.xyz home"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -14 460.1 158" role="img" aria-label="bleh.xyz torn ticker tape lockup" class="logo"><title>bleh.xyz torn ticker tape lockup</title><g transform="rotate(-3 226.1 65)"><path d="M10 130L2 118L12 108L4 96L13 84L3 70L11 58L5 44L14 32L4 20L10 8L6 0L446.1 0L438.1 12L449.1 24L440.1 38L447.1 50L437.1 64L448.1 78L441.1 90L450.1 102L440.1 116L445.1 130z" fill="#ffd60a"/><g transform="translate(48.5 11)"><g fill="none" stroke="#111111" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"><path d="M0 10V80M0 60a20 20 0 1 0 40 0a20 20 0 1 0-40 0M60 10V80M80 60H120A20 20 0 1 0 114.1 74.1M140 10V80M140 57a17 17 0 0 1 34 0V80M213.1 40L247.1 80M247.1 40L213.1 80M267.1 40L285.1 78M303.1 40L274.7 100M323.1 40H355.1L323.1 80H355.1"/></g><circle cx="193.6" cy="78.4" r="8.1" fill="#111111"/></g></g></svg></a>
+    <a class="gh" href="https://github.com/codeurge/bleh.xyz">GitHub</a>
+  </nav>
+  <header class="hero">
+    <h1 class="disp">Prices are not a <span class="strike">subscription</span>. <span class="hl">Bleh.</span></h1>
+    <div class="herob">
+      <p class="sub">The legacy market-data giants charge a fortune to tell you what something costs. We'd rather shrug. <b>bleh.xyz</b> is futures-grade market data built only from open, independent price discovery: signed, mirrored, public domain, and yours to redistribute.</p>
+      <div class="cta">
+        <a class="btn" href="https://github.com/codeurge/bleh.xyz">Read the source</a>
+        <a class="btn alt" href="#get">What you get</a>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="tapes" aria-hidden="true">
+  <div class="tp"><div class="run" id="t1"></div></div>
+  <div class="tp"><div class="run" id="t2"></div></div>
+  <div class="wrap"><p class="tapecap">Tape above is illustrative. Made-up numbers, not a live feed.</p></div>
+</div>
+
+<div class="wrap">
+  <section id="get">
+    <h2 class="disp">What you <i>get</i></h2>
+    <p class="lede">Planned for the first releases, all in development. No tiers, no seats, no "per display device".</p>
+    <div class="cards">
+      <div class="card"><div class="n">01</div><h3>Live websocket</h3><p>Trades, books, bars and order-flow analytics on one stream, for every market on the first venue from day one.</p></div>
+      <div class="card"><div class="n">02</div><h3>Every order. No embargo.</h3><p>Order-by-order books from nodes we run ourselves. Not delayed, not sampled, not held back for a pricier plan.</p></div>
+      <div class="card"><div class="n">03</div><h3>History since day one</h3><p>An archive backfilled to each venue's earliest public data. Download the lot and keep it forever.</p></div>
+      <div class="card"><div class="n">04</div><h3>Signed. Check it.</h3><p>Every block is signed by the node that published it, and manifests are timestamped on Bitcoin. Verify, don't trust.</p></div>
+      <div class="card"><div class="n">05</div><h3>Seed it yourself</h3><p>HTTPS, BitTorrent, IPFS and Arweave. Content-addressed, so your copy is exactly as real as ours.</p></div>
+      <div class="card"><div class="n">06</div><h3>Plugs into your stack</h3><p>SDKs for Rust, Python and TypeScript, plus compatibility layers so the client you already use can switch with little change.</p></div>
+    </div>
+  </section>
+</div>
+
+<div class="code" id="code">
+  <div class="wrap">
+    <h2 class="disp">No key. No contract. <i>Go.</i></h2>
+    <p class="lede">Open a socket, ask for a market, get the tape.</p>
+<pre><code><span class="c"># pip install websockets</span>
+import asyncio, json, websockets
+
+async def main():
+    async with websockets.connect(<span class="y">"wss://live.bleh.xyz"</span>) as ws:
+        await ws.send(json.dumps({
+            <span class="y">"op"</span>: <span class="y">"subscribe"</span>,
+            <span class="y">"kinds"</span>: [<span class="y">"trades"</span>, <span class="y">"book.l3"</span>],
+            <span class="y">"instrument"</span>: <span class="y">"BTC-PERP"</span>,
+        }))
+        async for msg in ws:
+            print(json.loads(msg))   <span class="c"># signed, with provenance on every record</span>
+
+asyncio.run(main())</code></pre>
+    <p class="note">Sketch only. The gateway protocol isn't final and field names will change.</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="up">
+    <h2 class="disp">Good luck taking it <i>down</i></h2>
+    <p class="lede">There is no takedown target, because nothing here belongs to anyone else.</p>
+    <div class="up">
+      <div><h3><small>01 / SOURCES</small>Nobody's licence to pull</h3><p>Our own venue nodes, US public swap dissemination and other on-chain venues. A source only joins if nothing upstream of it carries an exchange data contract.</p></div>
+      <div><h3><small>02 / MIRRORS</small>Copies everywhere</h3><p>Signed blocks any relay can carry. An archive on HTTPS, BitTorrent, IPFS and Arweave. It's CC0, so rehosting it needs nobody's permission, including ours.</p></div>
+      <div><h3><small>03 / ANCHORS</small>Receipts on Bitcoin</h3><p>Manifest hashes are timestamped on-chain. Anyone can prove a file is the one that was published, no matter who handed it to them.</p></div>
+    </div>
+    <p class="honest">Honest label: these are prices for the same economic exposure, discovered in the open. They are not exchange prices or official settlements. Proxies get called proxies around here.</p>
+  </section>
+  <footer>
+    <span>Code Apache-2.0 · Data CC0 1.0 · No token</span>
+    <a href="https://github.com/codeurge/bleh.xyz">github.com/codeurge/bleh.xyz</a>
+  </footer>
+</div>
+<script>
+// Illustrative tape: fixed made-up values, no network requests.
+(function(){
+  var a=[['BTC-PERP','100,000.0','u'],['ETH-PERP','3,000.00','d'],['SOL-PERP','150.00','u'],['HYPE-PERP','30.000','u'],['BTC-PERP','99,999.5','d'],['ETH-PERP','3,000.25','u']],
+      b=['SIGNED PER BLOCK','CC0','NO EMBARGO','SEED IT','VERIFY, DON’T TRUST','NO SALES CALL','PUBLIC DOMAIN'];
+  function fill(id,html){var s='';for(var i=0;i<4;i++)s+=html;document.getElementById(id).innerHTML=s}
+  fill('t1',a.map(function(x){return '<span class="'+x[2]+'">'+x[0]+' '+x[1]+'</span>'}).join(''));
+  fill('t2',b.map(function(x){return '<span>'+x+'</span><span>✕</span>'}).join(''));
+})();
+</script>
+</body>
+</html>

@@ -18,7 +18,6 @@ versions (see [AGENTS.md](AGENTS.md)).
 - ADR 0006 (proposed): service architecture for live and historical data.
 - Admission request ADM-0003: Hyperliquid public archive buckets for
   backfill.
-
 - Independent review applied, with owner decisions: every Hyperliquid
   market published from day one; ADM-0001 and ADM-0003 admitted; two-tier
   raw archive; backfill, Part 43 and SBSR lanes in Phases 1–2; per-block
@@ -27,6 +26,8 @@ versions (see [AGENTS.md](AGENTS.md)).
   compatibility layers; open oracle in Phase 4.
 - ADR 0008: the project is named bleh.xyz (supersedes 0005).
 - ADR 0009: admission policy amendments (open buckets, venue-matched prices).
+- Brand: the tongue-out "e" wordmark, palette and type in `brand/`, with the
+  first concept round and landing-page mocks in `brand/concepts/`.
 
 ### Changed
 

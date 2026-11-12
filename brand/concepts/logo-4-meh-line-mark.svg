@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="bleh.xyz meh price line (mark)" style="color:#16141c">
+<!-- bleh.xyz concept: bleh.xyz meh price line (mark). Square mark, legible at 16px. Wordmark is hand-drawn geometry (strokes/rects), no font needed. Ink uses currentColor. -->
+<title>bleh.xyz meh price line (mark)</title>
+<rect width="64" height="64" rx="16" fill="#4a3aff"/><circle cx="22" cy="23" r="4.5" fill="#fff"/><circle cx="42" cy="23" r="4.5" fill="#fff"/><path d="M11 43l7-6 7 9 6-8 5 5h17" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

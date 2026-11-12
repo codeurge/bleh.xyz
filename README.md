@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-light.svg">
+    <img src="brand/logo.svg" alt="bleh.xyz" width="320">
+  </picture>
+</p>
+
 # bleh.xyz — open market-data mesh
 
 > Status: Phases 0–2 active; live and historical services in development.

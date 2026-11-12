@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>bleh.xyz: open market data (early preview)</title>
+<meta name="description" content="Open, signed, freely redistributable market data built from independent price discovery. Early preview.">
+<link rel="icon" href="logo-3-book-face-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2f5ee;--panel:#fbfdf8;--line:#cdd7ca;--fg:#0d1a13;--dim:#55685c;
+  --grn:#087f45;--red:#c4381c;--amber:#8a6100;--glow:transparent;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#070b09;--panel:#0c1310;--line:#1d2c24;--fg:#d9f5e3;--dim:#7f9c8c;
+  --grn:#2dff8f;--red:#ff6a4d;--amber:#ffc94d;--glow:rgba(45,255,143,.25);
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-x:hidden}
+a{color:var(--grn);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--grn);outline-offset:2px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+.preview{border-bottom:1px dashed var(--line);color:var(--amber);font-size:12.5px;padding:8px 0}
+.preview b{font-weight:700}
+nav{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0}
+.logo{height:34px;width:auto;display:block;color:var(--fg)}
+nav ul{display:flex;gap:20px;list-style:none;margin:0;padding:0;font-size:13.5px}
+nav ul a{color:var(--dim);text-decoration:none}
+nav ul a:hover{color:var(--grn)}
+@media (max-width:560px){nav ul li.opt{display:none}}
+
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:start;padding:36px 0 56px}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr);gap:28px;padding-top:16px}}
+.prompt{color:var(--dim);font-size:13.5px;margin:0 0 14px}
+.prompt span{color:var(--grn)}
+h1{font-size:clamp(2rem,6.4vw,3.7rem);line-height:1.04;letter-spacing:-.035em;margin:0 0 20px;font-weight:800;text-wrap:balance}
+h1 em{font-style:normal;color:var(--grn);text-shadow:0 0 22px var(--glow)}
+.cur{display:inline-block;width:.55em;height:.9em;background:var(--grn);vertical-align:-.08em;margin-left:.08em;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.sub{color:var(--dim);max-width:56ch;margin:0 0 26px;font-size:15.5px}
+.sub strong{color:var(--fg);font-weight:500}
+.cta{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-block;padding:11px 16px;border:1px solid var(--grn);color:var(--grn);text-decoration:none;font-weight:700;font-size:14px}
+.btn.solid{background:var(--grn);color:var(--bg)}
+.btn:hover{box-shadow:0 0 0 3px var(--glow)}
+
+.book{border:1px solid var(--line);background:var(--panel);font-size:12.5px}
+.bar{display:flex;justify-content:space-between;gap:8px;padding:8px 12px;border-bottom:1px solid var(--line);color:var(--dim)}
+.bar b{color:var(--fg);font-weight:700}
+.tag{color:var(--amber)}
+.rows{padding:6px 0}
+.row{position:relative;display:grid;grid-template-columns:9ch 1fr 7ch;gap:10px;align-items:center;padding:2px 12px;height:22px}
+.row .px{font-weight:700}
+.ask .px{color:var(--red)}.bid .px{color:var(--grn)}
+.row .sz{text-align:right;color:var(--dim)}
+.q{display:flex;gap:2px;height:12px;min-width:0;overflow:hidden}
+.q i{display:block;height:100%;flex:0 0 auto;opacity:.85;transition:width .5s}
+.ask .q i{background:var(--red)}.bid .q i{background:var(--grn)}
+.mid{display:flex;justify-content:space-between;padding:6px 12px;border-block:1px dashed var(--line);color:var(--dim)}
+.mid b{color:var(--fg)}
+.cap{font-size:12px;color:var(--dim);padding:8px 12px;border-top:1px solid var(--line)}
+.tape{border:1px solid var(--line);border-top:0;background:var(--panel);font-size:12.5px;height:118px;overflow:hidden;padding:6px 12px}
+.tape div{display:grid;grid-template-columns:8ch 5ch 1fr 7ch;gap:10px;white-space:nowrap}
+.tape .b{color:var(--grn)}.tape .s{color:var(--red)}.tape .t{color:var(--dim)}.tape .z{text-align:right}
+
+section{padding:52px 0;border-top:1px solid var(--line)}
+h2{font-size:1.25rem;margin:0 0 6px;font-weight:800;letter-spacing:-.01em}
+h2::before{content:"## ";color:var(--grn)}
+.lede{color:var(--dim);margin:0 0 26px;max-width:66ch}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);background:var(--panel)}
+.grid>div{padding:18px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);margin:0 -1px -1px 0}
+@media (max-width:860px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}}
+.grid h3{margin:0 0 6px;font-size:14.5px;font-weight:700}
+.grid h3 span{color:var(--grn)}
+.grid p{margin:0;color:var(--dim);font-size:13.5px}
+pre{margin:0;border:1px solid var(--line);background:var(--panel);padding:16px;overflow-x:auto;font:13px/1.65 "JetBrains Mono",ui-monospace,Menlo,monospace;tab-size:2}
+pre .c{color:var(--dim)}pre .g{color:var(--grn)}pre .r{color:var(--red)}pre .a{color:var(--amber)}
+.note{font-size:12.5px;color:var(--dim);margin:10px 0 0}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.steps{grid-template-columns:minmax(0,1fr)}}
+.step{border:1px solid var(--line);background:var(--panel);padding:18px 16px}
+.step .k{color:var(--grn);font-size:12.5px}
+.step h3{margin:4px 0 8px;font-size:15.5px}
+.step p{margin:0;color:var(--dim);font-size:13.5px}
+.honest{margin-top:22px;border-left:3px solid var(--amber);padding:4px 0 4px 14px;color:var(--dim);font-size:13.5px;max-width:74ch}
+footer{border-top:1px solid var(--line);padding:26px 0 44px;color:var(--dim);font-size:13px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}.q i{transition:none}}
+</style>
+</head>
+<body>
+<div class="preview"><div class="wrap"><b>[early preview]</b> Nothing on this page is live yet. Services are in development; details may change.</div></div>
+<div class="wrap">
+<nav aria-label="Main">
+  <a href="#" aria-label="bleh.xyz home"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 78" role="img" aria-label="bleh.xyz order-book tongue-out face lockup" class="logo"><title>bleh.xyz order-book tongue-out face lockup</title><rect width="64" height="64" rx="10" fill="#0a0f0c"/><path fill="#2dff8f" d="M13 12h11v9H13zM40 12h11v9H40zM9 29h46v8H9z"/><path fill="#ff5a3d" d="M30 39h20v8H30zM33 49h14v7H33z"/><path fill="currentColor" d="M88 4h8v8h-8zM88 12h8v8h-8zM88 20h32v8h-32zM88 28h8v8h-8zM120 28h8v8h-8zM88 36h8v8h-8zM120 36h8v8h-8zM88 44h8v8h-8zM120 44h8v8h-8zM88 52h32v8h-32zM136 4h8v8h-8zM136 12h8v8h-8zM136 20h8v8h-8zM136 28h8v8h-8zM136 36h8v8h-8zM136 44h8v8h-8zM136 52h8v8h-8zM160 20h24v8h-24zM152 28h8v8h-8zM184 28h8v8h-8zM152 36h40v8h-40zM152 44h8v8h-8zM160 52h32v8h-32zM200 4h8v8h-8zM200 12h8v8h-8zM200 20h32v8h-32zM200 28h8v8h-8zM232 28h8v8h-8zM200 36h8v8h-8zM232 36h8v8h-8zM200 44h8v8h-8zM232 44h8v8h-8zM200 52h8v8h-8zM232 52h8v8h-8z"/><path fill="currentColor" opacity=".55" d="M248 52h8v8h-8zM264 20h8v8h-8zM296 20h8v8h-8zM272 28h8v8h-8zM288 28h8v8h-8zM280 36h8v8h-8zM272 44h8v8h-8zM288 44h8v8h-8zM264 52h8v8h-8zM296 52h8v8h-8zM312 20h8v8h-8zM344 20h8v8h-8zM312 28h8v8h-8zM344 28h8v8h-8zM312 36h8v8h-8zM344 36h8v8h-8zM312 44h8v8h-8zM344 44h8v8h-8zM320 52h32v8h-32zM344 60h8v8h-8zM320 68h24v8h-24zM360 20h40v8h-40zM384 28h8v8h-8zM376 36h8v8h-8zM368 44h8v8h-8zM360 52h40v8h-40z"/></svg></a>
+  <ul>
+    <li class="opt"><a href="#get">what you get</a></li>
+    <li class="opt"><a href="#code">code</a></li>
+    <li class="opt"><a href="#up">how it stays up</a></li>
+    <li><a href="https://github.com/codeurge/bleh.xyz">github</a></li>
+  </ul>
+</nav>
+
+<header class="hero">
+  <div>
+    <p class="prompt"><span>$</span> cat market-data-invoice.pdf</p>
+    <h1>The market-data bill? <em>bleh</em><span class="cur" aria-hidden="true"></span></h1>
+    <p class="sub">Trades, order-by-order books, bars and order flow, built only from <strong>open, independent price discovery</strong>. Signed block by block. Mirrored everywhere. Public domain. Pipe it wherever you like, and tell the legacy market-data giants we said hi.</p>
+    <div class="cta">
+      <a class="btn solid" href="https://github.com/codeurge/bleh.xyz">git clone the thing</a>
+      <a class="btn" href="#code">show me a socket</a>
+    </div>
+  </div>
+  <div>
+    <div class="book" role="img" aria-label="Illustrative order book with individual orders drawn as segments">
+      <div class="bar"><span><b>BTC-PERP</b> · order-level book</span><span class="tag">illustrative</span></div>
+      <div class="rows" id="asks"></div>
+      <div class="mid"><span>mid <b id="mid">-</b></span><span>each block = one order</span></div>
+      <div class="rows" id="bids"></div>
+      <div class="cap">Made-up numbers, drawn in your browser. Not a live feed.</div>
+    </div>
+    <div class="tape" id="tape" aria-hidden="true"></div>
+  </div>
+</header>
+
+<section id="get">
+  <h2>what you get</h2>
+  <p class="lede">Planned for the first releases. Everything below is in development.</p>
+  <div class="grid">
+    <div><h3><span>01</span> live websocket</h3><p>One stream for trades, books, bars and order-flow analytics, covering every market on the first venue from day one.</p></div>
+    <div><h3><span>02</span> order-level books, no embargo</h3><p>Order-by-order (L3) books read from our own nodes. Depth is derived from them. No delay tier, no "pro" tier.</p></div>
+    <div><h3><span>03</span> history from the start</h3><p>A versioned archive, backfilled to each venue's earliest public data. Download all of it. Keep it.</p></div>
+    <div><h3><span>04</span> signed + verifiable</h3><p>Every block is signed by the node that published it. Manifests are timestamped on Bitcoin, so you can check instead of trust.</p></div>
+    <div><h3><span>05</span> torrent / IPFS / Arweave</h3><p>The same archive over plain HTTPS, BitTorrent, IPFS and Arweave. Content-addressed, so any copy is as good as ours.</p></div>
+    <div><h3><span>06</span> SDKs + compat layers</h3><p>Rust, Python and TypeScript SDKs, plus compatibility layers so existing market-data clients can switch with little change.</p></div>
+  </div>
+</section>
+
+<section id="code">
+  <h2>connect</h2>
+  <p class="lede">No key. No contract. No "contact sales".</p>
+<pre><code><span class="c"># subscribe to trades and the order-level book</span>
+<span class="g">$</span> websocat wss://live.bleh.xyz
+<span class="a">&gt;</span> {"op":"subscribe","kinds":["trades","book.l3"],"instrument":"BTC-PERP"}
+
+<span class="c"># every record carries its source, lineage and a block signature</span>
+<span class="g">&lt;</span> {"kind":"trade","instrument":"BTC-PERP","side":"buy","px":"…","sz":"…",
+   "venue":"hyperliquid","block":…,"sig":"…"}
+<span class="g">&lt;</span> {"kind":"book.l3","action":"add","side":"ask","px":"…","sz":"…","oid":…}</code></pre>
+  <p class="note">Sketch only. The gateway protocol is not final; field names will change.</p>
+</section>
+
+<section id="up">
+  <h2>how it stays up</h2>
+  <p class="lede">There is no takedown target, because there is nothing here that belongs to anyone else.</p>
+  <div class="steps">
+    <div class="step"><div class="k">[1] sources</div><h3>Independent by construction</h3><p>Our own venue nodes, US public swap dissemination and other on-chain venues. A source joins only if nothing upstream of it carries an exchange data contract.</p></div>
+    <div class="step"><div class="k">[2] mirrors</div><h3>Copies you can't count</h3><p>Signed blocks any relay can carry, and an archive on HTTPS, BitTorrent, IPFS and Arweave. The data is CC0, so rehosting it needs nobody's permission.</p></div>
+    <div class="step"><div class="k">[3] anchors</div><h3>Receipts on-chain</h3><p>Manifest hashes are timestamped on Bitcoin. Anyone can prove a file is the one that was published, whoever they got it from.</p></div>
+  </div>
+  <p class="honest">Honest label: these are prices for the same economic exposure, discovered in the open. They are not exchange prices or official settlements, and we will not pretend otherwise.</p>
+</section>
+
+<footer>
+  <span>Code: Apache-2.0 · Data: CC0 1.0 (public domain) · No project token</span>
+  <span><a href="https://github.com/codeurge/bleh.xyz">github.com/codeurge/bleh.xyz</a></span>
+</footer>
+</div>
+<script>
+// Illustrative animation only: random numbers, no network requests.
+(function(){
+  var mid=100000,N=6,asks=document.getElementById('asks'),bids=document.getElementById('bids'),
+      tape=document.getElementById('tape'),midEl=document.getElementById('mid');
+  function fmt(x){return x.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})}
+  function row(side,px){
+    var n=1+Math.floor(Math.random()*6),segs='',tot=0;
+    for(var i=0;i<n;i++){var s=4+Math.random()*26;tot+=s;segs+='<i style="width:'+s.toFixed(0)+'px"></i>'}
+    return '<div class="row '+side+'"><span class="px">'+fmt(px)+'</span><span class="q">'+segs+'</span><span class="sz">'+(tot/40).toFixed(3)+'</span></div>';
+  }
+  function draw(){
+    var a='',b='';
+    for(var i=N;i>=1;i--)a+=row('ask',mid+i*.5);
+    for(var j=1;j<=N;j++)b+=row('bid',mid-j*.5);
+    asks.innerHTML=a;bids.innerHTML=b;midEl.textContent=fmt(mid);
+  }
+  function trade(){
+    var buy=Math.random()>.5,d=document.createElement('div'),t=new Date().toISOString().substr(11,8);
+    d.innerHTML='<span class="t">'+t+'</span><span class="'+(buy?'b':'s')+'">'+(buy?'buy':'sell')+'</span><span>'+fmt(mid+(buy?.5:-.5))+'</span><span class="z">'+(Math.random()*1.5).toFixed(3)+'</span>';
+    tape.insertBefore(d,tape.firstChild);
+    while(tape.children.length>6)tape.removeChild(tape.lastChild);
+  }
+  draw();for(var k=0;k<5;k++)trade();
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  setInterval(function(){mid+=(Math.round(Math.random()*4)-2)*.5;draw()},1300);
+  setInterval(trade,900);
+})();
+</script>
+</body>
+</html>

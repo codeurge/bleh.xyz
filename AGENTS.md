@@ -69,6 +69,7 @@ from it, may ever enter the repository, the archive or the network. Read
 | `.agents/plans/` | Plans with tracked tasks |
 | `scripts/` | Repository checks |
 | `.github/` | CI and templates |
+| `brand/` | Logo, palette and design concepts (see `brand/README.md`) |
 
 The code layout is decided in ADR 0007.
 
