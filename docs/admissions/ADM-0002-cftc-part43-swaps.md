@@ -1,9 +1,9 @@
 # ADM-0002: CFTC Part 43 public swap dissemination
 
-- Status: Requested
+- Status: Admitted
 - Requested: 2026-11-11 by maintainers
-- Reviewers: To be assigned (a maintainer)
-- Decided:
+- Reviewers: Repository owner (engineering review of field lineage)
+- Decided: 2026-11-12 by the repository owner (owner decision, 2026-11-12)
 
 Built as a parallel lane in Phases 1–2 (owner decision, 2026-11-11).
 
@@ -50,3 +50,10 @@ public site or API.
 
 - A repository adds conditions to its site or API.
 - Rule changes to Part 43.
+
+## Decision
+
+Admitted on 2026-11-12 by the repository owner for the fields above, read from
+the repositories' free public dissemination. Repositories operated by an
+exchange group are not used, so every print comes from an independent
+repository.

@@ -1,9 +1,9 @@
 # ADM-0004: SEC Regulation SBSR public dissemination
 
-- Status: Requested
+- Status: Admitted
 - Requested: 2026-11-11 by maintainers
-- Reviewers: To be assigned (a maintainer)
-- Decided:
+- Reviewers: Repository owner (engineering review of field lineage)
+- Decided: 2026-11-12 by the repository owner (owner decision, 2026-11-12)
 
 Built as a parallel lane in Phases 1–2, alongside
 [ADM-0002](ADM-0002-cftc-part43-swaps.md) (owner decision, 2026-11-11).
@@ -48,3 +48,10 @@ online: to verify. Capture starts early so nothing ages out.
 
 - A repository adds conditions to its site or API.
 - Rule changes to Regulation SBSR.
+
+## Decision
+
+Admitted on 2026-11-12 by the repository owner for the fields above, read from
+the repositories' free public dissemination. Repositories operated by an
+exchange group are not used, so every print comes from an independent
+repository.
