@@ -7,7 +7,7 @@
 ## Context
 
 The project's credibility rests on clean lineage and reproducible methods.
-Outsiders, including lawyers and consumers, need to see why each choice was
+Consumers, contributors and node operators need to see why each choice was
 made.
 
 ## Decision

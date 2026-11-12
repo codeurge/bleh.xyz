@@ -1,7 +1,6 @@
 # bleh.xyz — open market-data mesh
 
-> Working name. Status: Phases 0–2 active; live and historical services in
-> development.
+> Status: Phases 0–2 active; live and historical services in development.
 
 An open-source, freely redistributable source of futures-grade market data
 that never touches exchange-licensed feeds.

@@ -1,6 +1,6 @@
 # 0005: "bleh.xyz" is a working name only
 
-- Status: Accepted
+- Status: Superseded by 0008
 - Date: 2026-11-11
 - Deciders: Maintainers
 

@@ -20,7 +20,8 @@ in parallel.
 - [ ] Data model specified as a machine-readable schema in `docs/specs/`
 - [ ] Registry schema, with automatic registration of Hyperliquid markets
       from node metadata, neutral names and a liquidity-grade field
-- [ ] Public name chosen (ADR) and reporting address set
+- [x] Project name: bleh.xyz (ADR 0008)
+- [ ] Reporting address set
 
 ADR 0004 (DBN) is planned for Phase 2 as a compatibility layer, not a
 Phase 0 decision. ADM-0002 and the new ADM-0004 (SBSR) belong to the Part 43
@@ -98,13 +99,12 @@ Phase 3.
      signatures carried alongside. Phases 1–2 core encodings stay JSON and
      Arrow.
 
-8. **public-name**
-   - Status: Ready
+8. **project-name**
+   - Status: Done
    - Owner: Repository owner
    - Dependencies: None
-   - PR: Not opened
-   - Next action: Shortlist names, check each for existing use, record the
-     choice in a new ADR superseding 0005.
+   - PR: Not applicable
+   - Next action: None. The name is bleh.xyz, on the owner's domain (ADR 0008).
 
 9. **reporting-address**
    - Status: Ready

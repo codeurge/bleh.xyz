@@ -34,8 +34,7 @@ policy decides which fields enter, based on their lineage.
    reviewed again when the source's methods or terms change.
 
 Rule 2's open-bucket route and rule 3's wording were set on 2026-11-11
-(owner decision, 2026-11-11). A decision record follows under AGENTS.md
-rule 4.
+(owner decision; see [ADR 0009](decisions/0009-admission-policy-amendments.md)).
 
 ## Contributor rules
 

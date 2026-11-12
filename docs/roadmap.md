@@ -78,4 +78,4 @@ There is no project token.
    repository offer? (ADM-0002, ADM-0004)
 4. Which Ethereum L2 anchors manifests and hosts the registry?
 5. Iceberg or DuckLake for the archive catalog?
-6. Project name, governance body, and hosting funding.
+6. Governance body and hosting funding.

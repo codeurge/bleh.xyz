@@ -1,6 +1,6 @@
 # 0004: DBN-compatible wire format with provenance sidecar
 
-- Status: Proposed
+- Status: Accepted (scope: Phase 2 compatibility layer)
 - Date: 2026-11-11
 - Deciders: Maintainers
 

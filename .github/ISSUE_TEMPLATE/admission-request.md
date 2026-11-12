@@ -15,7 +15,7 @@ labels: admission
 
 ## Why it should pass the admission policy
 
-<!-- See docs/admission-policy.md: original price formation, no contract on the path, clean upstream. Link the terms. -->
+<!-- See docs/admission-policy.md: original price formation, how we read it (own node, mandated dissemination, public data or the operator's open bucket), and why every requested field comes from venue matching. -->
 
 ## Do not attach data
 
