@@ -1,0 +1,33 @@
+# Container alternative to docker compose for one bleh service per unit:
+#
+#   systemctl enable --now bleh@hl-node-reader bleh@archive-capture   (node box)
+#   systemctl enable --now bleh@relay                                 (relay)
+#
+# Each instance reads /etc/bleh/<instance>.env (examples in
+# deploy/systemd/env/), which sets BLEH_IMAGE, BLEH_DOCKER_ARGS (mounts,
+# secrets, published ports) and the service's own variables. Containers use
+# host networking, so listen addresses in the env file must be loopback or
+# the overlay address; the host firewall admits nothing else.
+[Unit]
+Description=bleh %i
+Documentation=file:///opt/bleh/src/deploy/README.md
+After=docker.service wg-quick@bleh0.service
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/bleh/%i.env
+ExecStartPre=-/usr/bin/docker rm -f bleh-%i
+ExecStart=/usr/bin/docker run --rm --name bleh-%i \
+  --network host --read-only --tmpfs /tmp:size=256m \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --log-driver journald --log-opt tag=bleh-%i \
+  --env-file /etc/bleh/%i.env \
+  $BLEH_DOCKER_ARGS $BLEH_IMAGE $BLEH_ARGS
+ExecStop=/usr/bin/docker stop --time 30 bleh-%i
+Restart=always
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

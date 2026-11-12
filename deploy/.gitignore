@@ -1,0 +1,27 @@
+# Real configuration and secrets never enter the repository. Every file
+# here has a committed template whose name contains `.example.`.
+*.env
+!*.example.*
+.env
+compose/.env
+secrets/
+*.secret
+*.pem
+*.key
+*.age
+*.p12
+
+# Terraform and OpenTofu working state.
+terraform/**/.terraform/
+terraform/**/*.tfstate
+terraform/**/*.tfstate.*
+terraform/**/*.tfplan
+terraform/**/crash.log
+terraform/**/*.tfvars
+terraform/**/*.tfvars.json
+terraform/**/backend.hcl
+terraform/**/*.tfvars.hcl
+!terraform/**/*.example.tfvars.hcl
+
+# Build output from deploy/docker/build.sh.
+docker/.build/

@@ -1,0 +1,11 @@
+[Unit]
+Description=bleh: run the archive pipeline for the previous UTC day
+
+[Timer]
+# After hour 00 of the next day is sealed and mirrored.
+OnCalendar=*-*-* 01:15:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

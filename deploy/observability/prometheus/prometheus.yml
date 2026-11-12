@@ -1,0 +1,123 @@
+# Production Prometheus, running on the home-archive server (ADR 0010) in
+# the compose stack (PROMETHEUS_CONFIG points here). It scrapes its own
+# containers by name and every other host over the WireGuard overlay.
+# Overlay addresses are fixed by convention (deploy/README.md):
+#
+#   10.77.0.1   node box A (Tier 1)      10.77.0.3   node box B (Tier 2+)
+#   10.77.0.2   home-archive server      10.77.0.11+ relays
+#
+# Uncomment the node box B targets when the second origin exists; until
+# then they would raise BlehIngestPathDown.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    replica: home
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["10.77.0.1:9100"]
+        labels: {site: a, role: node-box}
+      - targets: ["10.77.0.2:9100"]
+        labels: {site: home, role: home-archive}
+      - targets: ["10.77.0.11:9100"]
+        labels: {site: relay-1, role: relay}
+      - targets: ["10.77.0.12:9100"]
+        labels: {site: relay-2, role: relay}
+      # - targets: ["10.77.0.3:9100"]
+      #   labels: {site: b, role: node-box}
+
+  - job_name: hl-node-reader
+    static_configs:
+      - targets: ["10.77.0.1:9184"]
+        labels: {site: a, path: a}
+      # - targets: ["10.77.0.3:9184"]
+      #   labels: {site: b, path: b}
+
+  - job_name: gateway
+    static_configs:
+      - targets: ["10.77.0.1:8080"]
+        labels: {site: a, mode: live}
+      - targets: ["10.77.0.11:8080"]
+        labels: {site: relay-1, mode: relay}
+      - targets: ["10.77.0.12:8080"]
+        labels: {site: relay-2, mode: relay}
+      # - targets: ["10.77.0.3:8080"]
+      #   labels: {site: b, mode: live}
+
+  # The archive CLI has no HTTP endpoint: capture and the daily pipeline
+  # write bleh_archive_* and archive_* metrics to the textfile collector,
+  # scraped with the node job above.
+
+  - job_name: history-api
+    static_configs:
+      - targets: ["history-api:8081"]
+        labels: {site: home, env: staging}
+      - targets: ["10.77.0.11:8081"]
+        labels: {site: relay-1}
+      - targets: ["10.77.0.12:8081"]
+        labels: {site: relay-2}
+
+  - job_name: swap-pollers
+    static_configs:
+      - targets: ["swap-pollers:9187"]
+        labels: {site: home}
+
+  - job_name: nats
+    static_configs:
+      - targets: ["10.77.0.1:7777"]
+        labels: {site: a}
+      - targets: ["nats-exporter:7777"]
+        labels: {site: home}
+
+  # Public endpoints through the CDN, as users see them.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://live.bleh.xyz/health
+          - https://api.bleh.xyz/health
+          - https://relay-1.bleh.xyz/health
+          - https://relay-2.bleh.xyz/health
+          - https://data.bleh.xyz/hyperliquid-normalized/_manifests/latest.json
+    relabel_configs: &blackbox_relabel
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  - job_name: blackbox-websocket
+    metrics_path: /probe
+    params:
+      module: [websocket_upgrade]
+    static_configs:
+      - targets:
+          - https://live.bleh.xyz/v0/ws
+    relabel_configs: *blackbox_relabel
+
+  # Origin health over the overlay, bypassing the CDN and tunnel.
+  - job_name: blackbox-origin
+    metrics_path: /probe
+    params:
+      module: [http_2xx_internal]
+    static_configs:
+      - targets:
+          - http://10.77.0.1:8080/health
+    relabel_configs: *blackbox_relabel

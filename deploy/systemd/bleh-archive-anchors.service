@@ -1,0 +1,12 @@
+[Unit]
+Description=bleh: upgrade manifest anchors (OpenTimestamps, L2) and re-publish
+Documentation=file:///opt/bleh/src/docs/operations/archive.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/bleh/archive.env
+ExecStart=/opt/bleh/src/deploy/scripts/archive-pipeline.sh anchors 3
+TimeoutStartSec=1h
+Nice=10

@@ -1,0 +1,503 @@
+# Alert rules for bleh.xyz. Each alert names its runbook section in
+# docs/operations/incident.md or observability.md. Severity:
+#   page     wake someone (availability or integrity at risk now)
+#   ticket   fix within a working day
+#   info     visible on the dashboard, no notification
+groups:
+  - name: bleh-ingest
+    rules:
+      - alert: BlehAllIngestPathsDown
+        expr: sum(up{job="hl-node-reader"}) == 0 or absent(up{job="hl-node-reader"})
+        for: 1m
+        labels: {severity: page}
+        annotations:
+          summary: No Hyperliquid ingest path is up
+          runbook: docs/operations/incident.md#both-ingest-paths-down
+
+      - alert: BlehIngestPathDown
+        expr: up{job="hl-node-reader"} == 0
+        for: 3m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader {{ $labels.instance }} (site {{ $labels.site }}) is down"
+          runbook: docs/operations/incident.md#one-ingest-path-down
+
+      - alert: BlehNodeBehindChain
+        # Now minus block time of each node's last block (reader label).
+        # Hyperliquid produces blocks continuously, so more than 10 s means
+        # the node is not applying blocks (peer loss, upgrade, crash).
+        expr: hl_reader_block_lag_seconds > 10
+        for: 2m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node {{ $labels.reader }} on {{ $labels.site }} is {{ $value | humanizeDuration }} behind the chain"
+          runbook: docs/operations/node.md#node-not-applying-blocks
+
+      - alert: BlehNodeStalled
+        expr: hl_output_block_lag_seconds > 120
+        for: 1m
+        labels: {severity: page}
+        annotations:
+          summary: "Reader on {{ $labels.site }} has published no block for 2 minutes"
+          runbook: docs/operations/node.md#node-not-applying-blocks
+
+      - alert: BlehReaderIngestLagHigh
+        # Reader receive time minus node local write time; part of the
+        # 50 ms end-to-end budget.
+        expr: bleh:reader_ingest_lag_seconds:p99_5m > 0.025
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader {{ $labels.reader }} on {{ $labels.site }}: p99 emit lag {{ $value | humanizeDuration }} (> 25 ms)"
+          runbook: docs/operations/observability.md#latency-budget
+
+      - alert: BlehPathBehind
+        expr: bleh:dedupe_path_blocks_behind > 50
+        for: 2m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node {{ $labels.reader }} is {{ $value }} blocks behind the leading node"
+          runbook: docs/operations/incident.md#one-ingest-path-down
+
+      - alert: BlehIntegrityMismatch
+        # The two nodes' copies of a block differ (reader merge).
+        expr: increase(hl_merge_mismatches_total[5m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Integrity mismatch between the two nodes on {{ $labels.site }}"
+          runbook: docs/operations/incident.md#node-divergence
+
+      - alert: BlehOneSidedGap
+        # One node lacked blocks the other delivered; output is complete.
+        expr: increase(hl_merge_one_sided_gap_blocks_total[10m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node {{ $labels.missing }} on {{ $labels.site }} is missing blocks the other node had"
+          runbook: docs/operations/incident.md#one-ingest-path-down
+
+      - alert: BlehIncompleteBlocks
+        # Blocks released without every stream (a stream stalled).
+        expr: increase(hl_reader_incomplete_blocks_total[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }} released blocks without every stream"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehReaderCheckpointErrors
+        expr: increase(hl_checkpoint_writes_total{result="error"}[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }} cannot write its checkpoint"
+          runbook: docs/operations/incident.md#both-ingest-paths-down
+
+      - alert: BlehSeqGaps
+        expr: bleh:reader_seq_gaps:rate10m * 600 > 3
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }}: more than 3 gaps per 10 minutes"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehResnapshotRateHigh
+        expr: sum by (site) (bleh:gateway_resnapshots:rate10m) * 600 > 10
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Gateway {{ $labels.site }}: more than 10 forced re-snapshots per 10 minutes"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehBookReconcileMismatch
+        expr: increase(bleh_book_reconcile_mismatch_total[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Book reconciliation against the node L4 snapshot failed on {{ $labels.site }}"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehRegistryRefreshFailing
+        # Node metadata (info server) unreachable: new markets cannot register.
+        expr: increase(hl_registry_refreshes_total{result="error"}[30m]) > 2
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }} cannot refresh market metadata from the info server"
+          runbook: docs/operations/node.md#info-server
+
+  - name: bleh-schema-drift
+    rules:
+      - alert: BlehSchemaDriftLive
+        # Lines the reader cannot parse, or blocks it rejects, usually mean
+        # the node's output changed (hl-visor upgrades hl-node without notice).
+        expr: increase(hl_reader_parse_errors_total[10m]) > 0 or increase(hl_reader_rejected_blocks_total[10m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Reader on {{ $labels.site }} rejects node output: possible schema drift"
+          runbook: docs/operations/upgrades.md#schema-drift
+
+      - alert: BlehSchemaDriftCheckFailed
+        # Scheduled comparison of node output against the format spec
+        # (deploy/scripts/schema-drift-check.sh).
+        expr: bleh_schema_drift_ok == 0
+        labels: {severity: page}
+        annotations:
+          summary: "Scheduled schema check found drift on {{ $labels.instance }}"
+          runbook: docs/operations/upgrades.md#schema-drift
+
+      - alert: BlehSchemaDriftCheckStale
+        expr: time() - bleh_schema_drift_last_run_timestamp_seconds > 7200
+        labels: {severity: ticket}
+        annotations:
+          summary: "Schema drift check has not run for 2 hours on {{ $labels.instance }}"
+          runbook: docs/operations/upgrades.md#schema-drift
+
+      - alert: BlehNodeBinaryChanged
+        # hl-visor installed a new hl-node. Not an error: a prompt to watch
+        # drift alerts and to note the upgrade on the status page.
+        expr: time() - bleh_hl_node_binary_changed_timestamp_seconds < 3600
+        labels: {severity: info}
+        annotations:
+          summary: "hl-node binary changed on {{ $labels.instance }}"
+          runbook: docs/operations/upgrades.md#hl-visor-upgrades
+
+  - name: bleh-gateway
+    rules:
+      - alert: BlehPublishLatencyP99High
+        expr: bleh:gateway_publish_latency_seconds:p99_5m > 0.05
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Gateway {{ $labels.site }}: p99 publish latency {{ $value | humanizeDuration }} exceeds 50 ms"
+          runbook: docs/operations/observability.md#latency-budget
+
+      - alert: BlehPublishLatencyP99Critical
+        expr: bleh:gateway_publish_latency_seconds:p99_5m > 0.25
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "Gateway {{ $labels.site }}: p99 publish latency {{ $value | humanizeDuration }}"
+          runbook: docs/operations/observability.md#latency-budget
+
+      - alert: BlehGatewayDown
+        expr: up{job="gateway"} == 0
+        for: 2m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Gateway {{ $labels.instance }} is down"
+          runbook: docs/operations/incident.md#gateway-down
+
+      - alert: BlehAllGatewaysDown
+        expr: sum(up{job="gateway"}) == 0 or absent(up{job="gateway"})
+        for: 1m
+        labels: {severity: page}
+        annotations:
+          summary: No gateway is up
+          runbook: docs/operations/incident.md#gateway-down
+
+      - alert: BlehGatewayStalled
+        # No block closed for a minute (the protocol calls a stream stalled
+        # after 2 s; /health turns 503 after 5 s).
+        expr: increase(gateway_blocks_total[1m]) == 0
+        for: 1m
+        labels: {severity: page}
+        annotations:
+          summary: "Gateway {{ $labels.site }} has closed no block for over a minute"
+          runbook: docs/operations/incident.md#gateway-down
+
+      - alert: BlehGatewayUpstreamLost
+        expr: relay_connected == 0
+        for: 2m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Relay {{ $labels.site }} has no upstream connection"
+          runbook: docs/operations/incident.md#one-ingest-path-down
+
+      - alert: BlehSlowConsumerCloses
+        expr: sum by (site) (rate(gateway_slow_consumer_disconnects_total[10m])) * 600 > 100
+        for: 15m
+        labels: {severity: info}
+        annotations:
+          summary: "Gateway {{ $labels.site }}: many slow-consumer disconnects"
+          runbook: docs/operations/observability.md#clients
+
+      - alert: BlehRelayStreamsRejected
+        # A relay dropped streams whose commitments did not verify: wrong
+        # signer list, tampering upstream, or a signing fault at the origin.
+        expr: increase(relay_streams_rejected_total[10m]) > 10
+        labels: {severity: ticket}
+        annotations:
+          summary: "Relay {{ $labels.site }} rejected {{ $value }} unverifiable streams in 10 minutes"
+          runbook: docs/operations/keys.md#signing-failures
+
+      - alert: BlehGatewayHubLagged
+        # Internal fan-out fell behind (gateway.md: alert on any increase).
+        expr: increase(gateway_hub_lagged_total[10m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Gateway {{ $labels.site }} hub lagged"
+          runbook: docs/operations/observability.md#latency-budget
+
+  - name: bleh-availability
+    rules:
+      - alert: BlehProbeFailing
+        # Three of the last five one-minute probes failed.
+        expr: bleh:probe_success:ratio_5m < 0.6
+        for: 2m
+        labels: {severity: page}
+        annotations:
+          summary: "External probe {{ $labels.target }} is failing"
+          runbook: docs/operations/incident.md#public-endpoint-unavailable
+
+      - alert: BlehAvailabilityFastBurn
+        # 99.9% over 30 days leaves a 0.1% error budget. A 14.4x burn over
+        # 1 h (confirmed over 5 m) spends 2% of the month's budget per hour.
+        expr: |
+          (1 - bleh:probe_success:ratio_1h) > (14.4 * 0.001)
+            and
+          (1 - bleh:probe_success:ratio_5m) > (14.4 * 0.001)
+        labels: {severity: page}
+        annotations:
+          summary: "Availability budget burning fast for {{ $labels.target }}"
+          runbook: docs/operations/incident.md#public-endpoint-unavailable
+
+      - alert: BlehAvailabilitySlowBurn
+        expr: |
+          (1 - bleh:probe_success:ratio_6h) > (6 * 0.001)
+            and
+          (1 - bleh:probe_success:ratio_30m) > (6 * 0.001)
+        labels: {severity: ticket}
+        annotations:
+          summary: "Availability budget burning for {{ $labels.target }}"
+          runbook: docs/operations/incident.md#public-endpoint-unavailable
+
+      - alert: BlehAvailabilityBelowTarget
+        expr: bleh:probe_success:ratio_30d < 0.999
+        labels: {severity: ticket}
+        annotations:
+          summary: "30-day availability for {{ $labels.target }} is {{ $value | humanizePercentage }} (< 99.9%)"
+          runbook: docs/operations/observability.md#availability
+
+      - alert: BlehProbeStale
+        expr: time() - bleh_probe_last_run_timestamp_seconds > 300
+        labels: {severity: ticket}
+        annotations:
+          summary: "External probe {{ $labels.target }} has not reported for 5 minutes"
+          runbook: docs/operations/observability.md#availability
+
+      - alert: BlehHttpEndpointDown
+        expr: probe_success{job=~"blackbox-.*"} == 0
+        for: 3m
+        labels: {severity: ticket}
+        annotations:
+          summary: "{{ $labels.instance }} fails its blackbox check"
+          runbook: docs/operations/incident.md#public-endpoint-unavailable
+
+      - alert: BlehCertificateExpiring
+        expr: probe_ssl_earliest_cert_expiry - time() < 14 * 86400
+        labels: {severity: ticket}
+        annotations:
+          summary: "Certificate for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+          runbook: docs/operations/keys.md#tls-certificates
+
+  - name: bleh-archive
+    rules:
+      - alert: BlehRawUploadStale
+        # archive capture rewrites its --metrics-out file as it seals and
+        # uploads hours; a file older than two hours means capture stopped.
+        # Node files rotate hourly and the pruner keeps uncaptured hours.
+        expr: time() - node_textfile_mtime_seconds{file=~".*bleh_archive_capture.prom"} > 7200
+        labels: {severity: page}
+        annotations:
+          summary: "Raw capture on {{ $labels.instance }} has not reported for 2 hours"
+          runbook: docs/operations/incident.md#archive-capture-stalled
+
+      - alert: BlehArchiveWriteConflict
+        # A write-once upload found a different object at the same path.
+        expr: increase(archive_store_put_conflict_total[1h]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Archive upload conflict on {{ $labels.instance }}: an existing object differs"
+          runbook: docs/operations/incident.md#node-divergence
+
+      - alert: BlehArchiveDailyStale
+        expr: time() - bleh_archive_daily_last_run_timestamp_seconds > 26 * 3600
+        labels: {severity: ticket}
+        annotations:
+          summary: The daily archive pipeline has not run for 26 hours
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehManifestOverdue
+        expr: time() - bleh_archive_manifest_last_success_timestamp_seconds > 26 * 3600
+        labels: {severity: page}
+        annotations:
+          summary: "No signed manifest for {{ $labels.archive }} in 26 hours"
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehArchiveStepFailed
+        # Replay, manifest, anchor or publish step of the pipeline failed
+        # (deploy/scripts/archive-pipeline.sh).
+        expr: bleh_archive_step_ok{step!="verify"} == 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Archive step {{ $labels.step }} failed for {{ $labels.archive }}"
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehArchiveVerifyFailed
+        # Published files did not verify as a mirror would see them.
+        expr: bleh_archive_step_ok{step="verify"} == 0
+        labels: {severity: page}
+        annotations:
+          summary: "Published {{ $labels.archive }} failed verification"
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehAnchorOverdue
+        # OpenTimestamps proofs complete after Bitcoin confirmation, so the
+        # window is longer than a day.
+        expr: time() - bleh_archive_anchor_last_success_timestamp_seconds > 36 * 3600
+        labels: {severity: ticket}
+        annotations:
+          summary: "No {{ $labels.anchor }} anchor for {{ $labels.archive }} in 36 hours"
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehSigningFailures
+        expr: increase(bleh_signing_failures_total[10m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Signing failures in {{ $labels.job }} on {{ $labels.instance }}"
+          runbook: docs/operations/keys.md#signing-failures
+
+      - alert: BlehSwapPollStale
+        # Part 43 repositories keep only a year online; capture is
+        # time-critical (docs/operations/swap-pollers.md).
+        expr: time() - swap_last_successful_poll_timestamp_seconds > 600
+        labels: {severity: ticket}
+        annotations:
+          summary: "Swap poller listing {{ $labels.listing }} has not succeeded for 10 minutes"
+          runbook: docs/operations/incident.md#swap-pollers-stalled
+
+      - alert: BlehSwapRawPersistErrors
+        expr: increase(swap_raw_persist_errors_total[15m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Swap poller cannot persist raw files ({{ $labels.store }})"
+          runbook: docs/operations/incident.md#swap-pollers-stalled
+
+      - alert: BlehSwapUnknownColumns
+        expr: increase(swap_unknown_columns_total[1h]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Swap dissemination layout changed: unknown column {{ $labels.column }} in {{ $labels.bucket }}"
+          runbook: docs/operations/incident.md#swap-pollers-stalled
+
+      - alert: BlehHistoryApiDown
+        expr: up{job="history-api"} == 0
+        for: 5m
+        labels: {severity: ticket}
+        annotations:
+          summary: "history-api {{ $labels.instance }} is down (static history is unaffected)"
+          runbook: docs/operations/incident.md#public-endpoint-unavailable
+
+  - name: bleh-hosts
+    rules:
+      - alert: BlehNodeDiskLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/srv/hl"}
+            / node_filesystem_size_bytes{mountpoint="/srv/hl"} < 0.20
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node data disk on {{ $labels.instance }} below 20% free"
+          runbook: docs/operations/node.md#disk-and-pruning
+
+      - alert: BlehNodeDiskCritical
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/srv/hl"}
+            / node_filesystem_size_bytes{mountpoint="/srv/hl"} < 0.10
+        for: 5m
+        labels: {severity: page}
+        annotations:
+          summary: "Node data disk on {{ $labels.instance }} below 10% free"
+          runbook: docs/operations/node.md#disk-and-pruning
+
+      - alert: BlehNodeDiskFillsIn24h
+        expr: predict_linear(node_filesystem_avail_bytes{mountpoint="/srv/hl"}[6h], 86400) < 0
+        for: 30m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node data disk on {{ $labels.instance }} fills within 24 hours at the current rate"
+          runbook: docs/operations/node.md#disk-and-pruning
+
+      - alert: BlehDiskLow
+        expr: |
+          node_filesystem_avail_bytes{fstype=~"ext4|xfs",mountpoint!="/srv/hl"}
+            / node_filesystem_size_bytes{fstype=~"ext4|xfs",mountpoint!="/srv/hl"} < 0.15
+        for: 15m
+        labels: {severity: ticket}
+        annotations:
+          summary: "{{ $labels.mountpoint }} on {{ $labels.instance }} below 15% free"
+          runbook: docs/operations/observability.md#hosts
+
+      - alert: BlehPrunerFailing
+        expr: bleh_hl_prune_ok == 0 or time() - bleh_hl_prune_last_run_timestamp_seconds > 3 * 3600
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node pruner failing or not running on {{ $labels.instance }}"
+          runbook: docs/operations/node.md#disk-and-pruning
+
+      - alert: BlehPrunerBlockedByCapture
+        # Files older than the retention window are kept because the
+        # archive has not confirmed them; disk will fill.
+        expr: bleh_hl_prune_uncaptured_files > 0
+        for: 2h
+        labels: {severity: ticket}
+        annotations:
+          summary: "{{ $value }} node files past retention are waiting for archive capture on {{ $labels.instance }}"
+          runbook: docs/operations/incident.md#archive-capture-stalled
+
+      - alert: BlehClockOffsetHigh
+        expr: abs(node_timex_offset_seconds) > 0.005
+        for: 5m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Clock offset on {{ $labels.instance }} is {{ $value | humanizeDuration }} (> 5 ms)"
+          runbook: docs/operations/observability.md#time-sync
+
+      - alert: BlehClockUnsynchronised
+        expr: node_timex_sync_status == 0
+        for: 10m
+        labels: {severity: page}
+        annotations:
+          summary: "Clock on {{ $labels.instance }} is not synchronised"
+          runbook: docs/operations/observability.md#time-sync
+
+      - alert: BlehHostExporterDown
+        expr: up{job="node"} == 0
+        for: 5m
+        labels: {severity: ticket}
+        annotations:
+          summary: "node_exporter on {{ $labels.instance }} is down"
+          runbook: docs/operations/observability.md#hosts
+
+      - alert: BlehMemoryPressure
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.08
+        for: 10m
+        labels: {severity: ticket}
+        annotations:
+          summary: "{{ $labels.instance }} has less than 8% memory available"
+          runbook: docs/operations/observability.md#hosts
+
+      - alert: BlehRebootRequired
+        expr: bleh_reboot_required == 1
+        for: 7d
+        labels: {severity: info}
+        annotations:
+          summary: "{{ $labels.instance }} has needed a reboot for security updates for 7 days"
+          runbook: docs/operations/upgrades.md#host-os-updates
+
+  - name: bleh-meta
+    rules:
+      - alert: Watchdog
+        # Always firing. Route it to a dead man's switch so that a silent
+        # Prometheus or Alertmanager is itself noticed.
+        expr: vector(1)
+        labels: {severity: none}
+        annotations:
+          summary: Alerting pipeline heartbeat
+          runbook: docs/operations/observability.md#alert-routing

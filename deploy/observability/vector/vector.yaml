@@ -1,0 +1,65 @@
+# Log shipping. Every host runs Vector reading the systemd journal (Docker
+# uses the journald log driver, so container logs arrive here too) and
+# ships to the Loki on its site's services host over the overlay.
+#
+# Environment (from /etc/bleh/host.env):
+#   BLEH_SITE   a | b | probe
+#   BLEH_ROLE   node | services | probe
+#   LOKI_URL    for example http://10.77.0.12:3100
+#
+# Node output files (~100 GB/day) are data, not logs, and are never shipped.
+# Hyperliquid's own node_logs and visor_child_stderr are shipped at warning
+# level and above only.
+data_dir: /var/lib/vector
+
+sources:
+  journal:
+    type: journald
+    current_boot_only: false
+    exclude_units: [vector.service]
+
+  hl_visor_stderr:
+    type: file
+    include:
+      - /srv/hl/hl/data/visor_child_stderr/**/*
+    read_from: end
+    ignore_older_secs: 86400
+
+transforms:
+  shape:
+    type: remap
+    inputs: [journal, hl_visor_stderr]
+    source: |
+      .site = get_env_var("BLEH_SITE") ?? "unknown"
+      .role = get_env_var("BLEH_ROLE") ?? "unknown"
+      .unit = .SYSLOG_IDENTIFIER || ._SYSTEMD_UNIT || .CONTAINER_NAME || "file"
+      .container = .CONTAINER_NAME || ""
+      parsed, err = parse_json(.message)
+      if err == null && is_object(parsed) {
+        . = merge(., object!(parsed))
+      }
+      .level = downcase(string(.level || .PRIORITY || "info") ?? "info")
+
+  # Drop debug noise; keep everything at info and above.
+  drop_debug:
+    type: filter
+    inputs: [shape]
+    condition: '!includes(["debug", "trace", "7"], .level)'
+
+sinks:
+  loki:
+    type: loki
+    inputs: [drop_debug]
+    endpoint: "${LOKI_URL}"
+    encoding:
+      codec: json
+    labels:
+      site: "{{ site }}"
+      role: "{{ role }}"
+      host: "{{ host }}"
+      unit: "{{ unit }}"
+    out_of_order_action: accept
+    buffer:
+      type: disk
+      max_size: 1073741824
+      when_full: drop_newest

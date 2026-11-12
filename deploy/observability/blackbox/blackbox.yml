@@ -1,0 +1,42 @@
+# Blackbox exporter modules. The full availability probe (subscribe and
+# wait for a block heartbeat) is deploy/observability/prober/ws-probe.sh;
+# these modules cover HTTP health, TLS expiry and the websocket handshake.
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200]
+      fail_if_not_ssl: true
+      follow_redirects: false
+
+  http_2xx_internal:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      valid_status_codes: [200]
+
+  # Checks that the edge and origin accept a websocket upgrade (101). It
+  # does not read frames.
+  websocket_upgrade:
+    prober: http
+    timeout: 10s
+    http:
+      method: GET
+      preferred_ip_protocol: ip4
+      valid_status_codes: [101]
+      fail_if_not_ssl: true
+      headers:
+        Connection: Upgrade
+        Upgrade: websocket
+        Sec-WebSocket-Version: "13"
+        Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+        Sec-WebSocket-Protocol: bleh.v0.json
+
+  tcp_connect:
+    prober: tcp
+    timeout: 5s

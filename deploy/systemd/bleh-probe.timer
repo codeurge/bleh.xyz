@@ -1,0 +1,9 @@
+[Unit]
+Description=bleh: run the availability probe once a minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target
