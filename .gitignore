@@ -1,0 +1,29 @@
+# OS and editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Local checks
+.check-denylist
+
+# Market data never lives in the repository outside fixtures/
+/data/
+/archive/
+*.dbn
+*.dbn.zst
+*.parquet
+!fixtures/**/*.parquet
+!fixtures/**/*.dbn
+!fixtures/**/*.dbn.zst
+
+# Build output (added as code lands)
+/target/
+/node_modules/
+/dist/

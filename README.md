@@ -58,10 +58,28 @@ execution-grade marks for positions held at an exchange. See
 | [docs/coverage.md](docs/coverage.md) | Expected coverage by asset class |
 | [docs/roadmap.md](docs/roadmap.md) | Phases, exit criteria, open questions |
 
+## Project records
+
+| Record | Contents |
+|---|---|
+| [docs/decisions/](docs/decisions/) | Decision records (ADRs) |
+| [docs/admissions/](docs/admissions/) | Source admission register; no source is admitted yet |
+| [.agents/plans/](.agents/plans/) | Tracked plans; Phase 0 is active |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes |
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Changes
+go through pull requests, and commits need a DCO sign-off. Never contribute
+exchange-licensed data in any form. Report suspected contamination privately,
+as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
-To be decided. The proposal is Apache-2.0 for code and CC0 for data and
-methods, so that downstream users carry no obligations.
+Code is licensed under [Apache-2.0](LICENSE). Data, registry entries and
+method documents are dedicated to the public domain under
+[CC0 1.0](LICENSE-DATA). See [ADR 0002](docs/decisions/0002-licensing.md);
+counsel confirms this before the first public release.
 
 ## Not legal advice
 

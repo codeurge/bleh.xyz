@@ -1,0 +1,72 @@
+# AGENTS.md
+
+Canonical instructions for every contributor to this repository, human or
+agent. `CLAUDE.md` points here.
+
+## What this project is
+
+An open, freely redistributable market-data mesh. Its value depends on one
+property: **clean lineage**. No exchange-licensed data, and nothing derived
+from it, may ever enter the repository, the archive or the network. Read
+[docs/admission-policy.md](docs/admission-policy.md) before touching sources.
+
+## Hard rules
+
+1. **No exchange data, ever.** Do not commit, paste, quote, fixture or test
+   against data from an exchange feed, an exchange-data vendor, a broker
+   screen or an oracle network. This includes small samples and "just for a
+   test". Test fixtures must be synthetic or come from an admitted source,
+   with the admission ID recorded next to the fixture.
+2. **Sources need an admission record first.** Code that ingests a source may
+   merge only after its admission record in [docs/admissions/](docs/admissions/)
+   reaches `Admitted`, and only for the admitted fields.
+3. **No private details.** Do not name or describe private consumers,
+   companies or individuals beyond what they have agreed to make public.
+   Requirements from consumers are written generically.
+4. **Decisions are recorded.** Anything that changes the data model, the
+   wire format, the admission policy, a method (composites, conversions,
+   settlement), the license or governance needs a decision record in
+   [docs/decisions/](docs/decisions/).
+5. **Methods are versioned.** A change to a published method gets a new
+   version. Old versions stay documented and reproducible.
+
+## Workflow
+
+- `main` is protected. All changes go through a branch and a pull request.
+  Never commit directly to `main`.
+- Branch names: `<type>/<short-slug>`, where type is one of `feat`, `fix`,
+  `docs`, `chore`, `adr`, `admission`, `method`.
+- Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
+  and carry a DCO `Signed-off-by:` line (`git commit -s`). See
+  [CONTRIBUTING.md](CONTRIBUTING.md).
+- One concern per pull request. Admission records and the code using them go
+  in separate pull requests, with the admission merged first.
+- Track work in [.agents/plans/](.agents/plans/). Update the owning plan's
+  task status in the same pull request as the work.
+- Update [CHANGELOG.md](CHANGELOG.md) under `Unreleased` for any change a
+  consumer or contributor would notice.
+
+## Layout
+
+| Path | Purpose |
+|---|---|
+| `docs/` | Design documents |
+| `docs/decisions/` | Decision records (ADRs) |
+| `docs/admissions/` | One record per source admission decision |
+| `.agents/plans/` | Plans with tracked tasks |
+| `scripts/` | Repository checks |
+| `.github/` | CI and templates |
+
+Code directories are added when Phase 1 starts. Their layout is a decision
+record.
+
+## Checks
+
+Run before opening a pull request:
+
+```bash
+scripts/check.sh
+```
+
+CI runs the same checks: markdown lint, link check, forbidden-content scan
+and data-file guard.

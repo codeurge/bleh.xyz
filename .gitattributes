@@ -1,0 +1,5 @@
+* text=auto eol=lf
+*.sh text eol=lf
+*.dbn binary
+*.zst binary
+*.parquet binary
