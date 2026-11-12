@@ -10,6 +10,11 @@ publish.workspace = true
 
 [dependencies]
 mesh-types.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [lints]
 workspace = true

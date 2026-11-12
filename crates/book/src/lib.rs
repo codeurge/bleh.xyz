@@ -1,5 +1,18 @@
-//! Order-level book builder and bar builder for the bleh.xyz mesh.
-//!
-//! Skeleton. Builds L4 order books from a snapshot plus book events, derives L2 levels and top of book, reconciles against fresh node snapshots, and builds deterministic bars (and later footprints and volume profiles) from trades.
-//!
-//! Owned by one build lane; see `docs/decisions/0007-code-layout.md`.
+//! Order-level books, bars and order-flow analytics for the bleh.xyz mesh.
+
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![warn(missing_docs)]
+
+pub mod book;
+pub mod checkpoint;
+pub mod error;
+pub mod fixed;
+pub mod inputs;
+pub mod methods;
+pub mod reconcile;
+#[cfg(test)]
+mod testutil;
+
+pub use book::{OrderBook, OrderView, TopOfBook};
+pub use error::{BookError, InputError, ProcessError};
+pub use reconcile::{ReconcileOptions, ReconcileReport, reconcile, resync};
