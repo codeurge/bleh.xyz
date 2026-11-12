@@ -1,5 +1,19 @@
 //! Raw archive, partition writer, replay and manifests for the bleh.xyz mesh.
 //!
-//! Skeleton. Captures filtered raw node output, writes deterministic daily Parquet partitions in the archive layout, replays raw files into partitions, and builds, signs, anchors and verifies daily manifests.
-//!
-//! Owned by one build lane; see `docs/decisions/0007-code-layout.md`.
+//! Owned by the archive lane; see `docs/decisions/0007-code-layout.md`.
+//! The layout is specified in `docs/specs/archive-layout-v0.md` and the
+//! manifests in `docs/specs/manifest-v0.md`; operations are documented in
+//! `docs/operations/archive.md`.
+
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+#![warn(missing_docs)]
+
+pub mod digest;
+pub mod error;
+pub mod hex;
+pub mod ipfs;
+pub mod layout;
+pub mod torrent;
+
+pub use error::{BoxError, Error, Result};
+pub use layout::Day;
