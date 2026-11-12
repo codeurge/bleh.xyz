@@ -58,9 +58,9 @@ excludes. `HL_ALLOW_FLAG_OVERRIDE=1` exists for local experiments only.
    endpoint) at every start. To pin peers, set `HL_ROOT_NODE_IPS` (comma
    separated) in `deploy/compose/.env`; the node README lists
    community-run roots.
-5. **Secrets and start:** install `secrets/signing-key.hex` and
-   `secrets/tunnel-token.txt` ([keys.md](keys.md)), fill R2 settings in
-   `.env`, then `deploy/up.sh node-box`.
+5. **Secrets and start:** install `secrets/signing-key.hex`
+   ([keys.md](keys.md)), fill R2 settings in `.env`, then
+   `deploy/up.sh node-box`.
 
 Catching up takes a while; `docker compose logs -f hl-node` shows
 `applied block N` lines once it streams live, and `BlehNodeBehindChain`

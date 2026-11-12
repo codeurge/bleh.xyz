@@ -528,7 +528,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(bleh_history_http_request_duration_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(bleh_history_request_seconds_bucket[5m])))",
           "legendFormat": "{{route}}"
         }
       ]
@@ -577,14 +577,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (status) (rate(bleh_history_http_request_duration_seconds_count[5m]))",
+          "expr": "sum by (status) (rate(bleh_history_request_seconds_count[5m]))",
           "legendFormat": "{{status}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Query timeouts",
+      "title": "Query latency p99 and rate limiting",
       "id": 13,
       "datasource": {
         "type": "prometheus",
@@ -599,7 +599,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "unit": "short",
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 10,
@@ -626,8 +626,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(bleh_history_query_timeouts_total[5m]))",
-          "legendFormat": "timeouts"
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(bleh_history_query_seconds_bucket[5m])))",
+          "legendFormat": "query p99"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(bleh_history_rate_limited_total[5m]))",
+          "legendFormat": "rate limited /s"
         }
       ]
     }

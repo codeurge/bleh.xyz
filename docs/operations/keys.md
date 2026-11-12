@@ -14,8 +14,8 @@ scans for key-like strings.
 | Manifest key | archive-process on the home-archive server (one signed manifest per archive per day) | A few per day | Hardware: YubiHSM 2 on the home server, or a cloud KMS key; file only for staging | Yearly |
 | Root identity key | People, rarely: signs attestations that list the current signer addresses | A few per year | Hardware wallet, offline, with a written backup in two places | Only on compromise |
 | L2 anchor key | archive-process (sends the daily anchor transaction) | Daily | File on the home server; wallet holds only a few weeks of gas | Yearly or when drained |
-| Cloudflare Tunnel tokens | `cloudflared` on each node box and the home server | — | `secrets/tunnel-token.txt`; created by the edge stack | On host change |
-| Relay Access service token | relays (`CF-Access-Client-Id/Secret` to the origin) | — | `secrets/upstream-headers.txt` on each relay | 8760 h lifetime: rotate at 11 months |
+| Cloudflare Tunnel token | `cloudflared` on the home server | — | `secrets/tunnel-token.txt`; created by the edge stack | On host change |
+| WireGuard keys | every host (`bleh0`) | — | `/etc/wireguard/bleh0.key` (0600), generated on the host; public keys in the peers file | On host change or suspicion |
 | R2 API tokens | archive (write), relays and mirror (read) | — | `.env` on each host (0600); one token per role, scoped to the buckets it needs | 90 days |
 | Requester-pays AWS key | hl-backfill | — | `.env` on the home server; IAM user with `s3:GetObject` and `s3:ListBucket` only | 90 days; disable between backfills |
 | Cloudflare API token | Terraform (edge) | — | Operator workstation environment (`CLOUDFLARE_API_TOKEN`), never on hosts | 90 days |
@@ -74,7 +74,8 @@ Clients and relays accept a signature only from a published address.
 
 1. **Gateway `hello`.** `signers` lists the active block-signing addresses
    (protocol § 1). Relays are configured with the same list
-   (`BLEH_SIGNERS`) and drop anything else.
+   (`BLEH_SIGNER_1`, `BLEH_SIGNER_2`, passed as `--signer`) and drop
+   anything else.
 2. **Signed key list.** `https://data.bleh.xyz/keys/signers.json`, signed
    with the root identity key: per key the address, role (`block`,
    `manifest`, `anchor`), ingest path, `valid_from`, `valid_until`,
@@ -97,7 +98,8 @@ Block-signing key for path `a`:
    (`deploy/up.sh node-box restart hl-node-reader`) after `valid_from`.
 4. Mark the old key `retired` with `valid_until` set to the switch time.
    Records it signed stay verifiable for that window.
-5. Update `BLEH_SIGNERS` on the relays.
+5. Update `BLEH_SIGNER_1`/`_2` on the relays (keep the old address as the
+   second signer until the switch is done).
 
 The manifest key rotates the same way, with the next manifest signed by the
 new key and the old key retired after it. Tokens and API keys: create the
@@ -128,7 +130,7 @@ Full incident steps: [incident.md](incident.md#key-compromise).
 | `live`, `api`, `data`, tunnel hostnames at the Cloudflare edge | Cloudflare edge certificates | Automatic |
 | `live`, `api` on each relay (origin side, SSL mode Full (strict)) | Cloudflare Origin CA certificate from the edge stack (`origin_cert_pem`, `origin_key_pem` outputs), or from the dashboard so the key never enters Terraform state | 15 years; replace on compromise |
 | `relay-N` (direct, DNS-only) | Let's Encrypt via Caddy (HTTP-01 on port 80) | Automatic; `BlehCertificateExpiring` watches it |
-| Node box and home server | None: published only through tunnels | — |
+| Node box and home server | None: the gateway is reached over the overlay, Grafana through the tunnel | — |
 
 Install the Origin CA files on a relay:
 
@@ -154,7 +156,7 @@ commitments missing and can verify later from the archive.
 - Hosts: `deploy/compose/.env` (0600) and `deploy/compose/secrets/` (0700),
   both git-ignored; systemd alternatives read `/etc/bleh/*.env` (0600) and
   `/etc/bleh/secrets/`.
-- Terraform state holds tunnel tokens, the service token and the Origin CA
+- Terraform state holds the tunnel token and the Origin CA
   key: keep it in the private state bucket (`deploy/terraform/backend.example.hcl`)
   and limit that token to operators.
 - CI: registry access uses the workflow's own token; the deploy SSH key and

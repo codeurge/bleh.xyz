@@ -4,27 +4,28 @@ groups:
   - name: bleh-latency
     interval: 30s
     rules:
-      # p99 of ts_publish - ts_node (gateway send time minus node local
-      # write time). Target: <= 50 ms (docs/requirements.md, R9).
+      # p99 of gateway send time minus node local write time
+      # (gateway_send_latency_seconds, docs/operations/gateway.md).
+      # Target: <= 50 ms (docs/requirements.md, R9).
       - record: bleh:gateway_publish_latency_seconds:p99_5m
         expr: |
           histogram_quantile(0.99,
-            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[5m])))
+            sum by (le, site) (rate(gateway_send_latency_seconds_bucket[5m])))
       - record: bleh:gateway_publish_latency_seconds:p50_5m
         expr: |
           histogram_quantile(0.50,
-            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[5m])))
+            sum by (le, site) (rate(gateway_send_latency_seconds_bucket[5m])))
       - record: bleh:gateway_publish_latency_seconds:p99_1h
         expr: |
           histogram_quantile(0.99,
-            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[1h])))
+            sum by (le, site) (rate(gateway_send_latency_seconds_bucket[1h])))
       # Share of records published within the 50 ms budget (needs a 0.05
       # bucket boundary in the histogram).
       - record: bleh:gateway_publish_within_50ms:ratio_1h
         expr: |
-          sum by (site) (rate(bleh_gateway_publish_latency_seconds_bucket{le="0.05"}[1h]))
+          sum by (site) (rate(gateway_send_latency_seconds_bucket{le="0.05"}[1h]))
             /
-          sum by (site) (rate(bleh_gateway_publish_latency_seconds_count[1h]))
+          sum by (site) (rate(gateway_send_latency_seconds_count[1h]))
       # Reader latency: now minus the node's local_time when a block is
       # emitted. The reader exports it as a gauge, so p99 is taken over
       # scrape samples.
@@ -62,7 +63,7 @@ groups:
             - on (instance) group_right
           hl_reader_last_block
       - record: bleh:gateway_resnapshots:rate10m
-        expr: sum by (site, reason) (rate(bleh_gateway_resnapshots_total[10m]))
+        expr: sum by (site) (rate(gateway_forced_snapshots_sent_total[10m]))
       - record: bleh:reader_seq_gaps:rate10m
         expr: sum by (site) (rate(hl_output_gaps_total[10m]))
       # Node data disk growth, bytes per day, from the last 6 hours.

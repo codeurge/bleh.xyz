@@ -644,8 +644,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "bleh_gateway_block_lag_seconds",
-          "legendFormat": "gateway site {{site}}"
+          "expr": "hl_output_block_lag_seconds",
+          "legendFormat": "published ({{site}})"
         }
       ]
     },
@@ -969,8 +969,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site, reason) (increase(bleh_gateway_resnapshots_total[10m]))",
-          "legendFormat": "resnapshot {{site}} {{reason}}"
+          "expr": "sum by (site) (increase(gateway_forced_snapshots_sent_total[10m]))",
+          "legendFormat": "forced snapshots {{site}}"
         },
         {
           "refId": "C",
@@ -1156,14 +1156,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site) (bleh_gateway_connections)",
+          "expr": "sum by (site) (gateway_connections)",
           "legendFormat": "site {{site}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Subscriptions",
+      "title": "Messages sent",
       "id": 22,
       "datasource": {
         "type": "prometheus",
@@ -1178,7 +1178,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "ops",
           "custom": {
             "lineWidth": 1,
             "fillOpacity": 10,
@@ -1205,7 +1205,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site) (bleh_gateway_subscriptions)",
+          "expr": "sum by (site) (rate(gateway_messages_sent_total[5m]))",
           "legendFormat": "site {{site}}"
         }
       ]
@@ -1254,7 +1254,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site) (rate(bleh_gateway_bytes_sent_total[5m]))",
+          "expr": "sum by (site) (rate(gateway_bytes_sent_total[5m]))",
           "legendFormat": "site {{site}}"
         }
       ]
@@ -1303,8 +1303,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site) (rate(bleh_gateway_slow_consumer_closes_total[5m]))",
-          "legendFormat": "slow close {{site}}"
+          "expr": "sum by (site) (rate(gateway_slow_consumer_disconnects_total[5m]))",
+          "legendFormat": "slow-consumer disconnects {{site}}"
         },
         {
           "refId": "B",
@@ -1312,14 +1312,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site) (rate(bleh_gateway_rate_limited_total[5m]))",
+          "expr": "sum by (site) (rate(gateway_rate_limited_total[5m]))",
           "legendFormat": "rate limited {{site}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Upstreams",
+      "title": "Relay upstreams and rejected streams",
       "id": 25,
       "datasource": {
         "type": "prometheus",
@@ -1361,8 +1361,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "bleh_gateway_upstream_connected",
-          "legendFormat": "{{site}} -> {{upstream}}"
+          "expr": "relay_connected",
+          "legendFormat": "connected {{site}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (site) (increase(relay_streams_rejected_total[10m]))",
+          "legendFormat": "rejected {{site}}"
         }
       ]
     },

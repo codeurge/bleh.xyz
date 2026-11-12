@@ -27,9 +27,9 @@ scrape_configs:
 
   - job_name: gateway
     static_configs:
-      - targets: ["gateway:9102"]
+      - targets: ["gateway:8080"]
         labels: {site: local}
-      - targets: ["relay:9102"]
+      - targets: ["relay:8080"]
         labels: {site: local-relay, mode: relay}
 
   - job_name: archive
@@ -39,7 +39,7 @@ scrape_configs:
 
   - job_name: history-api
     static_configs:
-      - targets: ["history-api:9104"]
+      - targets: ["history-api:8081"]
         labels: {site: local}
 
   - job_name: nats

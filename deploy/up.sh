@@ -117,7 +117,6 @@ if uses synthetic; then
 fi
 if uses node-box; then
   need_secret signing-key.hex "block-signing key for this ingest path"
-  need_secret tunnel-token.txt "Cloudflare Tunnel token for origin-a.bleh.xyz"
   [[ -n "$(get_env HL_DATA_DIR)" ]] || note "HL_DATA_DIR is empty: node data goes to a Docker volume, not /srv/hl (run deploy/scripts/host-bootstrap.sh)"
   [[ "$(get_env S3_ENDPOINT)" != http://minio:9000 ]] || die "set S3_ENDPOINT and R2 credentials in $env_file for node-box"
 fi
@@ -130,13 +129,12 @@ if uses home-archive; then
   [[ "$(get_env S3_ENDPOINT)" != http://minio:9000 ]] || die "set S3_ENDPOINT and R2 credentials in $env_file for home-archive"
 fi
 if uses relay; then
-  need_secret upstream-headers.txt "Cloudflare Access service-token headers for the origin"
-  [[ -n "$(get_env BLEH_SIGNERS)" ]] || note "BLEH_SIGNERS is empty: the relay cannot verify upstream signatures"
+  [[ -n "$(get_env BLEH_SIGNER_1)" ]] || die "set BLEH_SIGNER_1 (a published signer address) in $env_file; relays accept nothing else"
   [[ -s "$secrets/origin-ca/origin.pem" ]] || note "no Origin CA certificate in secrets/origin-ca: live.$(get_env BLEH_DOMAIN) will not serve TLS"
 fi
 [[ -s "$secrets/grafana-admin-password.txt" ]] || { openssl rand -base64 24 > "$secrets/grafana-admin-password.txt"; note "generated the Grafana admin password in secrets/"; }
 # Compose wants every declared secret file to exist; unused ones stay empty.
-for f in signing-key.hex manifest-key.hex anchor-key.hex tunnel-token.txt upstream-headers.txt \
+for f in signing-key.hex manifest-key.hex anchor-key.hex tunnel-token.txt \
          alertmanager/page_webhook_url alertmanager/ticket_webhook_url alertmanager/deadman_webhook_url; do
   placeholder "$f"
 done
@@ -145,7 +143,7 @@ done
 targets_for() {
   case "$1" in
     synthetic) echo "hl-node-reader gateway archive history-api" ;;
-    node-box) echo "hl-node hl-node-reader gateway archive" ;;
+    node-box) echo "hl-node hl-node-reader archive" ;;
     home-archive) echo "archive history-api swap-pollers hl-backfill tools" ;;
     relay) echo "gateway history-api tools" ;;
   esac
@@ -171,6 +169,21 @@ case "$cmd" in
     "${dc[@]}" up -d --remove-orphans "$@"
     if uses synthetic; then
       port=$(get_env CADDY_HTTPS_PORT)
+      # The demo relay must be told the demo gateway's signer address,
+      # which only exists once the gateway runs: read it from /signers.
+      signer=""
+      for _ in $(seq 1 60); do
+        signer=$(curl -fsSk --max-time 3 --resolve "live.localhost:${port}:127.0.0.1" \
+          "https://live.localhost:${port}/signers" 2>/dev/null | grep -oE '0x[0-9a-fA-F]{40}' | head -n 1 || true)
+        [[ -n "$signer" ]] && break
+        sleep 2
+      done
+      if [[ -n "$signer" ]]; then
+        set_env BLEH_DEMO_SIGNER "$signer"
+        "${dc[@]}" --profile synthetic-relay up -d relay-demo
+      else
+        note "could not read the demo signer from /signers; relay-demo not started"
+      fi
       cat <<EOF
 bleh synthetic stack is up:
   gateway   wss://live.localhost:${port}/v0/ws   (relay: wss://relay.localhost:${port}/v0/ws)

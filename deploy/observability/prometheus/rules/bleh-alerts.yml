@@ -192,29 +192,47 @@ groups:
           runbook: docs/operations/incident.md#gateway-down
 
       - alert: BlehGatewayStalled
-        # The protocol calls a stream stalled after 2 s without a block.
-        expr: bleh_gateway_block_lag_seconds > 5
+        # No block closed for a minute (the protocol calls a stream stalled
+        # after 2 s; /health turns 503 after 5 s).
+        expr: increase(gateway_blocks_total[1m]) == 0
         for: 1m
         labels: {severity: page}
         annotations:
-          summary: "Gateway {{ $labels.site }} has sent no block for {{ $value | humanizeDuration }}"
+          summary: "Gateway {{ $labels.site }} has closed no block for over a minute"
           runbook: docs/operations/incident.md#gateway-down
 
       - alert: BlehGatewayUpstreamLost
-        expr: bleh_gateway_upstream_connected == 0
+        expr: relay_connected == 0
         for: 2m
         labels: {severity: ticket}
         annotations:
-          summary: "Gateway {{ $labels.site }} lost upstream {{ $labels.upstream }}"
+          summary: "Relay {{ $labels.site }} has no upstream connection"
           runbook: docs/operations/incident.md#one-ingest-path-down
 
       - alert: BlehSlowConsumerCloses
-        expr: sum by (site) (rate(bleh_gateway_slow_consumer_closes_total[10m])) * 600 > 100
+        expr: sum by (site) (rate(gateway_slow_consumer_disconnects_total[10m])) * 600 > 100
         for: 15m
         labels: {severity: info}
         annotations:
           summary: "Gateway {{ $labels.site }}: many slow-consumer disconnects"
           runbook: docs/operations/observability.md#clients
+
+      - alert: BlehRelayStreamsRejected
+        # A relay dropped streams whose commitments did not verify: wrong
+        # signer list, tampering upstream, or a signing fault at the origin.
+        expr: increase(relay_streams_rejected_total[10m]) > 10
+        labels: {severity: ticket}
+        annotations:
+          summary: "Relay {{ $labels.site }} rejected {{ $value }} unverifiable streams in 10 minutes"
+          runbook: docs/operations/keys.md#signing-failures
+
+      - alert: BlehGatewayHubLagged
+        # Internal fan-out fell behind (gateway.md: alert on any increase).
+        expr: increase(gateway_hub_lagged_total[10m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Gateway {{ $labels.site }} hub lagged"
+          runbook: docs/operations/observability.md#latency-budget
 
   - name: bleh-availability
     rules:

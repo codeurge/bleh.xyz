@@ -15,8 +15,9 @@ relays = {
   relay-2 = "192.0.2.12"
 }
 
-# Tier 1: one node box. Tier 2+: ["a", "b"].
-node_boxes = ["a"]
+# Relays reach node boxes over the WireGuard overlay; origin tunnels are
+# optional (for example for debugging through Access).
+node_boxes = []
 
 home_tunnel     = true
 operator_emails = ["ops@example.org"]

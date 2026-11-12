@@ -1,12 +1,12 @@
 # Edge stack (every tier): R2 archive buckets and data.<domain>, relay DNS,
-# rate limits and cache rules, one Cloudflare Tunnel per node box (origin
-# gateway for relays), the home-archive tunnel (staging API, Grafana), the
-# relays' Access service token and their Origin CA certificate.
+# rate limits and cache rules, the home-archive tunnel (staging API,
+# Grafana) and the relays' Origin CA certificate. Optionally, an
+# Access-gated tunnel per node box (node_boxes); relays do not need it,
+# because they reach origins over the WireGuard overlay.
 #
-#   Tier 0 archive-only:  relays = {}, node_boxes = []
+#   Tier 0 archive-only:  relays = {}
 #   Tier 1 (ADR 0010):    relays from envs/relays-oci or envs/relays-hcloud,
-#                         node_boxes = ["a"], home_tunnel = true
-#   Tier 2/3:             node_boxes = ["a", "b"]
+#                         home_tunnel = true
 #
 # Credentials: CLOUDFLARE_API_TOKEN in the environment (docs/operations/keys.md).
 

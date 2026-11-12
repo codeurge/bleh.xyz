@@ -16,12 +16,12 @@ no-autoupdate: true
 metrics: 0.0.0.0:2000
 
 ingress:
-  # --- node-box -------------------------------------------------------
+  # --- node-box (optional; relays use the WireGuard overlay) -----------
   # The gateway, for relays only (Access: service token). Relays fan out to
   # users, so the origin's upload is a few relay connections, not every
   # client.
   - hostname: origin-a.bleh.xyz
-    service: http://gateway:8080
+    service: http://host.docker.internal:8080   # the reader-embedded gateway (host network)
     originRequest:
       connectTimeout: 10s
       keepAliveTimeout: 2m

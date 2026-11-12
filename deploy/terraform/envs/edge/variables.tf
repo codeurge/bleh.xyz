@@ -45,9 +45,9 @@ variable "relays" {
 }
 
 variable "node_boxes" {
-  description = "Node box site labels; each gets a tunnel published as origin-<site>.<domain>."
+  description = "Optional: node box site labels to publish as Access-gated tunnel hostnames origin-<site>.<domain>. Relays reach origins over the WireGuard overlay and do not need this."
   type        = list(string)
-  default     = ["a"]
+  default     = []
 }
 
 variable "home_tunnel" {

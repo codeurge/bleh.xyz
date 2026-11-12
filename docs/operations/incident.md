@@ -87,8 +87,8 @@ Find the broken layer from the inside out:
 
 1. Origin health over the overlay (`blackbox-origin` job, or `curl
    http://10.77.0.1:8080/health` from the home server).
-2. Tunnel: `up.sh node-box logs cloudflared`; the Cloudflare dashboard's
-   tunnel status.
+2. Overlay: `wg show bleh0` on a relay (latest handshake within two
+   minutes) and `curl http://10.77.0.1:8080/health` from the relay.
 3. Relays: `https://relay-1.bleh.xyz/health` directly (bypasses the CDN).
 4. CDN: `https://live.bleh.xyz/health`. If only this fails, check the
    Cloudflare status page and the zone's rules (a rate-limit rule that is
@@ -179,7 +179,7 @@ Steps for a domain loss:
 
 A node box provider ending service (for example under an acceptable-use
 policy) is a node-box loss: bring up a replacement elsewhere (hosting.md,
-provider table; deploy.md, "Re-originate"), move the tunnel token, publish
+provider table; deploy.md, "Re-originate"), give it the overlay address, publish
 the new path's signing key. The gap is recorded; fills can be backfilled.
 
 ## Home server down

@@ -1,6 +1,7 @@
 # Container alternative to docker compose for one bleh service per unit:
 #
-#   systemctl enable --now bleh@gateway bleh@hl-node-reader bleh@archive-capture
+#   systemctl enable --now bleh@hl-node-reader bleh@archive-capture   (node box)
+#   systemctl enable --now bleh@relay                                 (relay)
 #
 # Each instance reads /etc/bleh/<instance>.env (examples in
 # deploy/systemd/env/), which sets BLEH_IMAGE, BLEH_DOCKER_ARGS (mounts,

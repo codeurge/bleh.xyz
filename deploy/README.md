@@ -58,8 +58,9 @@ Addresses are fixed by convention:
 | 10.77.0.3 | node box b (Tier 2+) |
 | 10.77.0.11–19 | relays |
 
-Metrics, Loki and the inter-origin reader stream use the overlay; nothing
-else is exposed. Public ports: node box 4001-4002 (gossip); relays 80/443;
+Metrics, Loki, the relays' upstream connections to origin gateways
+(`ws://10.77.0.x:8080/v0/ws`) and, in Tier 2, the second node's data use
+the overlay; nothing else is exposed. Public ports: node box 4001-4002 (gossip); relays 80/443;
 home server none (optional 6881 and 4101 forwards for seeding).
 
 ## Service contract
@@ -81,13 +82,13 @@ Every service:
   cleanly on SIGTERM within 30 s;
 - labels nothing with a site: Prometheus adds `site` (and `path` where useful).
 
-Object storage settings use the `object_store` conventions: `AWS_ENDPOINT`,
-`AWS_REGION` (`auto` for R2), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`AWS_ALLOW_HTTP` (MinIO only), plus `BLEH_PUBLIC_BUCKET` and
-`BLEH_PRIVATE_BUCKET`. Common: `BLEH_SITE`, `BLEH_NATS_URL`,
-`BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64 hex characters,
-optional `0x` and trailing newline), `BLEH_SIGNERS` (comma-separated
-addresses to accept).
+For services not yet built (archive), object storage settings use the
+`object_store` conventions: `AWS_ENDPOINT`, `AWS_REGION` (`auto` for R2),
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ALLOW_HTTP` (MinIO only),
+plus `BLEH_PUBLIC_BUCKET` and `BLEH_PRIVATE_BUCKET`; also `BLEH_SITE`,
+`BLEH_NATS_URL` and `BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64
+hex characters, optional `0x` and trailing newline). Merged services keep
+their own names, mapped from the same `.env` values in compose.
 
 ### hl-node-reader (node-reader lane, merged)
 
@@ -103,14 +104,18 @@ configurations here use:
 | Metrics used by rules and dashboards | `hl_reader_last_block`, `hl_reader_block_lag_seconds`, `hl_reader_emit_lag_seconds`, `hl_reader_parse_errors_total`, `hl_reader_rejected_blocks_total`, `hl_reader_incomplete_blocks_total`, `hl_output_last_block`, `hl_output_block_lag_seconds`, `hl_output_gaps_total`, `hl_merge_mismatches_total`, `hl_merge_one_sided_gap_blocks_total`, `hl_registry_refreshes_total`, `hl_checkpoint_writes_total` |
 | Still requested | (1) A network output the gateway can consume (`--output tcp://0.0.0.0:7400` or equivalent; the compose file reserves 7400 on the overlay); stdout JSON lines are not a production transport. (2) Live filtered and unfiltered raw capture (today `--write-filtered` exists only with `--replay`). (3) With archive-capture, the watermark file `<raw dir>/.captured-through` holding the last UTC hour (`YYYY-MM-DDTHH`) whose node files are fully read and whose raw is in object storage; `hl-prune.sh` deletes node output only up to it. (4) Block signing with `BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64 hex characters) and `bleh_signing_failures_total`. (5) A histogram for emit lag, so p99 does not depend on scrape sampling. (6) `hl_reader_snapshot_failures_total`, so failed `fileSnapshot` requests alert |
 
-### gateway (bus, gateway and client lane)
+### gateway (bus, gateway and client lane, merged)
+
+Implemented; reference in [gateway.md](../docs/operations/gateway.md). The
+binary takes flags, not environment variables; compose passes them.
 
 | | |
 |---|---|
-| Ports | `GATEWAY_LISTEN` (8080): `/v0/ws`, `/health`, `/freshness` (docs/protocol/gateway-v0.md); `BLEH_METRICS_ADDR` (9102) |
-| Variables | `GATEWAY_MODE` `live` (upstream readers), `relay` (upstream gateways; verify every commitment against `BLEH_SIGNERS` and re-serve unchanged) or `demo` (synthetic records, signed with `BLEH_SIGNING_KEY_FILE`); `GATEWAY_UPSTREAMS` (comma-separated reader outputs such as `tcp://host:7400`, or `ws(s)://.../v0/ws` gateways, in preference order with failover; the reader already merges and deduplicates two nodes); `GATEWAY_UPSTREAM_HEADERS_FILE` (relay: HTTP headers, one `Name: value` per line, sent on the upstream websocket handshake; carries the Cloudflare Access service token); `GATEWAY_TRUSTED_PROXIES` (CIDRs) and `GATEWAY_CLIENT_IP_HEADER` (`X-Real-IP` behind Caddy, `CF-Connecting-IP` behind the tunnel) for per-IP limits; protocol limits overridable as `GATEWAY_MAX_CONNECTIONS_PER_IP` etc. |
-| Health | `/health` 200 only when connected upstream and fresh, else 503 (relays and update-host.sh rely on it) |
-| Metrics | `bleh_gateway_publish_latency_seconds` (histogram of `ts_publish − ts_node`; buckets must include 0.005, 0.01, 0.025, 0.05, 0.1, 0.25), `bleh_gateway_block_lag_seconds`, `bleh_gateway_last_block_number`, `bleh_gateway_connections`, `bleh_gateway_subscriptions`, `bleh_gateway_bytes_sent_total`, `bleh_gateway_resnapshots_total{reason}`, `bleh_gateway_slow_consumer_closes_total`, `bleh_gateway_rate_limited_total`, `bleh_gateway_upstream_connected{upstream}`; the book builder (book lane library, run in the gateway or reader process) adds `bleh_book_reconcile_mismatch_total` |
+| Origin | "Library" mode: the gateway runs inside the reader process. The configurations expect it on `0.0.0.0:8080` of the node box (host network; overlay-only by firewall) serving `/v0/ws`, `/health`, `/freshness`, `/signers`, `/proof` and `/metrics` |
+| Relay | `gateway relay --listen=0.0.0.0:8080 --trust-forwarded-for --upstream=ws://10.77.0.1:8080/v0/ws --signer=0x...` (compose: `RELAY_UPSTREAM_1/2`, `BLEH_SIGNER_1/2`); Caddy in front sets `X-Forwarded-For` and hides `/metrics` |
+| Demo | `gateway demo --listen=0.0.0.0:8080 --signing-key=k1=file:/run/secrets/signing_key --nats-url=nats://nats:4222` |
+| Metrics used | `gateway_send_latency_seconds` (histogram; the 50 ms target), `gateway_blocks_total`, `gateway_connections`, `gateway_messages_sent_total`, `gateway_bytes_sent_total`, `gateway_forced_snapshots_sent_total`, `gateway_slow_consumer_disconnects_total`, `gateway_rate_limited_total`, `gateway_hub_lagged_total`, `relay_connected`, `relay_streams_rejected_total` |
+| Still requested | (1) The reader lane wiring the gateway into `hl-node-reader` (listen address flag, signing key from `BLEH_SIGNING_KEY_FILE` or `--signing-key`). (2) Optional: environment variables for the flags, so systemd templates need no `BLEH_ARGS`. (3) Book reconciliation metric `bleh_book_reconcile_mismatch_total` from wherever the book builder runs |
 
 ### archive (archive lane)
 
@@ -121,14 +126,16 @@ configurations here use:
 | Requests | Publish `<archive>/_manifests/latest.json` (pointer to the newest manifest; probed by blackbox, cached 60 s at the edge); a KMS or HSM signer behind the manifest-key interface later (keys.md) |
 | Metrics | `bleh_archive_raw_upload_last_success_timestamp_seconds{tier,stream}`, `bleh_archive_upload_failures_total{tier}`, `bleh_archive_manifest_last_success_timestamp_seconds{archive}`, `bleh_archive_manifest_failures_total{archive}`, `bleh_archive_anchor_last_success_timestamp_seconds{archive,anchor}`, `bleh_archive_anchor_failures_total{archive,anchor}` (`anchor` is `ots` or `l2`), `bleh_archive_content_hash_mismatch_total`, `bleh_signing_failures_total` |
 
-### history-api (historical API lane)
+### history-api (historical API lane, merged)
+
+Implemented; reference in [history-api.md](../docs/operations/history-api.md).
 
 | | |
 |---|---|
-| Ports | `HISTORY_LISTEN` (8081) with `/health`; `BLEH_METRICS_ADDR` (9104) |
-| Variables | `HISTORY_DATA_URL` (`s3://bucket` or `https://data.bleh.xyz`), `HISTORY_QUERY_TIMEOUT`, `HISTORY_MEMORY_LIMIT`, `HISTORY_TRUSTED_PROXIES`, `HISTORY_CLIENT_IP_HEADER` |
-| Notes | Runs on arm64 relays: the image must build for linux/arm64 |
-| Metrics | `bleh_history_http_request_duration_seconds{route,status}` (histogram), `bleh_history_query_timeouts_total` |
+| Ports | `HISTORY_API_BIND` (8081 here): API, `/health`, `/metrics`, `/mcp` |
+| Variables set | `HISTORY_API_ARCHIVE` (`https://data.bleh.xyz` in production, the MinIO bucket locally), `HISTORY_API_TRUST_FORWARDED_FOR`, `HISTORY_API_MCP_ALLOWED_HOSTS`, `HISTORY_API_QUERY_TIMEOUT_MS`, `HISTORY_API_MEMORY_LIMIT_MB`, `HISTORY_API_LOG_FORMAT=json`; a writable `$HOME` (tmpfs) for DuckDB's `httpfs` extension, or `HISTORY_API_EXTENSION_DIR` for offline images |
+| Notes | Runs on arm64 relays: the image must build for linux/arm64 (the deploy workflow does) |
+| Metrics used | `bleh_history_request_seconds{route,status}`, `bleh_history_query_seconds`, `bleh_history_rate_limited_total` |
 
 ### swap-pollers (swap-pollers lane, merged)
 
@@ -153,11 +160,12 @@ Implemented; reference in [backfill.md](../docs/operations/backfill.md).
 
 ### mesh-client (client lane)
 
+Merged ([client.md](../docs/operations/client.md)). Requested: a
 `mesh-client probe --url URL --instrument ID --kind KIND --timeout 5s`
-printing one JSON line `{"ok":bool,"first_block_seconds":f,"block_time_ms":n}`
-lets the probe run from the `tools` image (`PROBE_CLIENT=docker`) instead of
-websocat. `mesh-client keys address --key-file F` printing the address of a
-signing key would remove the need for Foundry in keys.md.
+mode printing one JSON line `{"ok":bool,"first_block_seconds":f,"block_time_ms":n}`,
+so the availability probe can run from the `tools` image
+(`PROBE_CLIENT=docker`) instead of websocat; and `mesh-client keys address
+--key-file F`, so keys.md needs no Foundry.
 
 ## Validation status
 

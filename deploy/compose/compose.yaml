@@ -3,10 +3,10 @@
 # up.sh from env.example.conf. Default production layout (ADR 0010):
 #
 #   node-box      rented box (16+ modern cores, 128 GB RAM free for the node,
-#                 NVMe): Hyperliquid non-validating node, reader (book and
-#                 block signer in process), gateway, raw capture to R2, NATS
-#                 side tap. Publishes the gateway to relays through a
-#                 Cloudflare Tunnel; no inbound HTTP ports.
+#                 NVMe): Hyperliquid non-validating node, reader with the
+#                 origin gateway, book builder and block signer in process,
+#                 raw capture to R2, NATS side tap. Relays reach the gateway
+#                 over the WireGuard overlay; no inbound HTTP ports.
 #   home-archive  self-hosted home or LAN server: archive processing
 #                 (replay, partitions, manifests, anchors), full archive
 #                 mirror, BitTorrent seeder, IPFS pinning, backfill, swap
@@ -129,7 +129,7 @@ services:
   # configuration (deploy/terraform/modules/cloudflare-tunnel) or, for a
   # locally managed tunnel, in cloudflared/config.example.yml.
   cloudflared:
-    profiles: [node-box, home-archive]
+    profiles: [home-archive]
     image: docker.io/cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
     restart: unless-stopped
     read_only: true
@@ -191,6 +191,11 @@ services:
       # signing and live raw capture are pending lane work (deploy/README.md,
       # "Service contract"); until then nothing consumes the records.
       HL_OUTPUT: ${HL_OUTPUT:-none}
+      # The production origin gateway runs inside this process ("Library"
+      # mode in docs/operations/gateway.md) once the reader lane wires it;
+      # it is expected on 0.0.0.0:8080 (/v0/ws, /health, /metrics), which
+      # the host firewall admits only on the overlay. Relays connect to
+      # ws://<overlay ip>:8080/v0/ws.
       BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
       BLEH_NATS_URL: nats://127.0.0.1:4222
     volumes:
@@ -201,30 +206,9 @@ services:
     secrets: [signing_key]
     depends_on: [hl-node, nats]
 
-  gateway:
-    <<: *bleh-service
-    profiles: [node-box]
-    image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
-    environment:
-      RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: ${BLEH_SITE:-a}
-      BLEH_METRICS_ADDR: 0.0.0.0:9102
-      BLEH_NATS_URL: nats://nats:4222
-      GATEWAY_MODE: live
-      GATEWAY_LISTEN: 0.0.0.0:8080
-      # Comma-separated reader outputs in preference order. The reader merges
-      # and deduplicates two nodes itself; a second origin's reader can be
-      # listed for failover: tcp://10.77.0.3:7400.
-      GATEWAY_UPSTREAMS: ${GATEWAY_UPSTREAMS:-tcp://host.docker.internal:7400}
-      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
-      GATEWAY_CLIENT_IP_HEADER: CF-Connecting-IP
-    ports:
-      - "${BLEH_OVERLAY_IP:-127.0.0.1}:8080:8080"
-      - "${BLEH_OVERLAY_IP:-127.0.0.1}:9102:9102"
-    depends_on: [hl-node-reader, nats]
-
   # Raw capture: ships the reader's hourly filtered and unfiltered raw files
-  # to R2 and marks them captured so the pruner may delete node output.
+  # to R2 and advances the capture watermark the pruner obeys (pending
+  # reader and archive work; deploy/README.md).
   archive-capture:
     <<: *bleh-service
     profiles: [node-box]
@@ -374,19 +358,22 @@ services:
     <<: *bleh-service
     profiles: [synthetic, home-archive, relay]
     image: ${BLEH_REGISTRY:-bleh}/history-api:${BLEH_TAG:-local}
+    # Flags and variables: docs/operations/history-api.md.
+    command: ["serve"]
     environment:
-      <<: *s3-env
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: ${BLEH_SITE:-local}
-      BLEH_METRICS_ADDR: 0.0.0.0:9104
-      HISTORY_LISTEN: 0.0.0.0:8081
-      HISTORY_DATA_URL: ${HISTORY_DATA_URL:-s3://bleh-archive}
-      HISTORY_QUERY_TIMEOUT: ${HISTORY_QUERY_TIMEOUT:-10s}
-      HISTORY_MEMORY_LIMIT: ${HISTORY_MEMORY_LIMIT:-2GiB}
-      HISTORY_TRUSTED_PROXIES: 172.16.0.0/12
-      HISTORY_CLIENT_IP_HEADER: X-Real-IP
-    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9104:9104"]
-    tmpfs: ["/tmp:size=2g"]
+      HISTORY_API_LOG_FORMAT: json
+      # Synthetic: the MinIO bucket; production: https://data.bleh.xyz.
+      HISTORY_API_ARCHIVE: ${HISTORY_API_ARCHIVE:-https://data.bleh.xyz}
+      HISTORY_API_BIND: 0.0.0.0:8081
+      HISTORY_API_TRUST_FORWARDED_FOR: "true"
+      HISTORY_API_MCP_ALLOWED_HOSTS: ${HISTORY_API_MCP_ALLOWED_HOSTS:-localhost,api.localhost}
+      HISTORY_API_QUERY_TIMEOUT_MS: ${HISTORY_API_QUERY_TIMEOUT_MS:-10000}
+      HISTORY_API_MEMORY_LIMIT_MB: ${HISTORY_API_MEMORY_LIMIT_MB:-1024}
+    # /metrics is served on the same port; published on the overlay only.
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:8081:8081"]
+    # DuckDB installs its httpfs extension under $HOME on first start.
+    tmpfs: ["/tmp:size=2g", "/home/nonroot:size=512m,uid=65532,gid=65532"]
 
   # ==================================================================
   # relay: public fan-out
@@ -395,21 +382,23 @@ services:
     <<: *bleh-service
     profiles: [relay]
     image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    # Flags: docs/operations/gateway.md ("Relay setup"). Upstreams are the
+    # origins' gateways over the WireGuard overlay, in preference order;
+    # every commitment is verified against the published signers before it
+    # is re-served. Duplicated flags are harmless when there is one origin
+    # or one signer.
+    command:
+      - relay
+      - --listen=0.0.0.0:8080
+      - --trust-forwarded-for
+      - --upstream=${RELAY_UPSTREAM_1:-ws://10.77.0.1:8080/v0/ws}
+      - --upstream=${RELAY_UPSTREAM_2:-ws://10.77.0.1:8080/v0/ws}
+      - --signer=${BLEH_SIGNER_1:-0x0000000000000000000000000000000000000000}
+      - --signer=${BLEH_SIGNER_2:-${BLEH_SIGNER_1}}
     environment:
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: ${BLEH_SITE:-relay}
-      BLEH_METRICS_ADDR: 0.0.0.0:9102
-      GATEWAY_MODE: relay
-      GATEWAY_LISTEN: 0.0.0.0:8080
-      # Origins in preference order. Relays verify every commitment
-      # signature against BLEH_SIGNERS before re-serving.
-      GATEWAY_UPSTREAMS: ${RELAY_UPSTREAMS:-wss://origin-a.bleh.xyz/v0/ws}
-      GATEWAY_UPSTREAM_HEADERS_FILE: /run/secrets/upstream_headers
-      BLEH_SIGNERS: ${BLEH_SIGNERS:-}
-      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
-      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
-    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9102:9102"]
-    secrets: [upstream_headers]
+    # /metrics on the listen port, published on the overlay for Prometheus.
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:8080:8080"]
 
   # ==================================================================
   # Edge (synthetic and relay) and monitoring (synthetic, home-archive)
@@ -585,39 +574,37 @@ services:
     <<: *bleh-service
     profiles: [synthetic]
     image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    command:
+      - demo
+      - --listen=0.0.0.0:8080
+      - --trust-forwarded-for
+      - --signing-key=k1=file:/run/secrets/signing_key
+      - --nats-url=nats://nats:4222
     environment:
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: local
-      BLEH_METRICS_ADDR: 0.0.0.0:9102
-      BLEH_NATS_URL: nats://nats:4222
-      BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
-      GATEWAY_MODE: demo
-      GATEWAY_LISTEN: 0.0.0.0:8080
-      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
-      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
     secrets: [signing_key]
     networks:
       bleh:
         aliases: [gateway]
     depends_on: [nats]
 
+  # Started by up.sh in a second step (profile synthetic-relay), after it has
+  # read the demo gateway's signer address from /signers.
   relay-demo:
     <<: *bleh-service
-    profiles: [synthetic]
+    profiles: [synthetic-relay]
     image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    command:
+      - relay
+      - --listen=0.0.0.0:8080
+      - --trust-forwarded-for
+      - --upstream=ws://gateway:8080/v0/ws
+      - --signer=${BLEH_DEMO_SIGNER:-0x0000000000000000000000000000000000000000}
     environment:
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: local-relay
-      BLEH_METRICS_ADDR: 0.0.0.0:9102
-      GATEWAY_MODE: relay
-      GATEWAY_LISTEN: 0.0.0.0:8080
-      GATEWAY_UPSTREAMS: ws://gateway:8080/v0/ws
-      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
-      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
     networks:
       bleh:
         aliases: [relay]
-    depends_on: [gateway-demo]
 
   archive-demo:
     <<: *bleh-service
@@ -679,8 +666,6 @@ secrets:
     file: ./secrets/grafana-admin-password.txt
   tunnel_token:
     file: ./secrets/tunnel-token.txt
-  upstream_headers:
-    file: ./secrets/upstream-headers.txt
 
 networks:
   bleh:

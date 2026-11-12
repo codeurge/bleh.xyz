@@ -33,9 +33,10 @@ healthy() {
   local ip url
   ip=$(get_env BLEH_OVERLAY_IP); ip=${ip:-127.0.0.1}
   case "$profile" in
-    node-box|origin) url="http://${ip}:8080/health" ;;
-    relay) url="http://${ip}:9102/metrics" ;;
-    home-archive) url="http://${ip}:9104/metrics" ;;
+    # The reader's health (the origin gateway runs inside it once wired).
+    node-box|origin) url="http://${ip}:9184/health" ;;
+    relay) url="http://${ip}:8080/health" ;;
+    home-archive) url="http://${ip}:8081/health" ;;
   esac
   for _ in $(seq 1 60); do
     curl -fsS --max-time 3 "$url" >/dev/null 2>&1 && return 0

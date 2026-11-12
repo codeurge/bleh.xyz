@@ -15,10 +15,10 @@ tier. Prices are in [costs.md](costs.md); deployment steps in
                  Hyperliquid peers (gossip, TCP 4001-4002)
                               │
    ┌──────────── node box (rented, Europe) ─────────────┐
-   │ hl-node → hl-node-reader (book, signer) → gateway  │── raw capture ──▶ R2 (private + public)
+   │ hl-node → hl-node-reader (book, signer, gateway)   │── raw capture ──▶ R2 (private + public)
    │            NATS side tap, node exporter, pruner    │                     │
    └──────────────┬─────────────────────────────────────┘                     │ CDN: data.bleh.xyz
-                  │ Cloudflare Tunnel (outbound only; Access service token)  │ torrents, IPFS
+                  │ WireGuard overlay (relays verify every signature)        │ torrents, IPFS
                   ▼                                                           │
    relay-1, relay-2 (free ARM VMs): gateway in relay mode, history API ◀─ users: live.bleh.xyz, api.bleh.xyz
                                                                               │
@@ -31,10 +31,10 @@ tier. Prices are in [costs.md](costs.md); deployment steps in
 
 | Piece | Runs | Deploy profile |
 |---|---|---|
-| Node box | Hyperliquid non-validating node, reader with book builder and block signer, gateway, raw capture to R2, NATS | `deploy/up.sh node-box` |
+| Node box | Hyperliquid non-validating node, reader with the origin gateway, book builder and block signer in one process, raw capture to R2, NATS | `deploy/up.sh node-box` |
 | Home-archive server | Archive processing, mirror, seeder, IPFS, backfill, swap pollers, staging history API, Prometheus, Alertmanager, Grafana, Loki | `deploy/up.sh home-archive` |
 | Relays (2) | Gateway in relay mode (verifies signatures), public history API, Caddy | `deploy/up.sh relay` |
-| Edge | R2 buckets, `data.bleh.xyz`, DNS, rate limits, tunnels | `deploy/terraform/envs/edge` |
+| Edge | R2 buckets, `data.bleh.xyz`, DNS, rate limits, the home tunnel | `deploy/terraform/envs/edge` |
 
 Why this shape: the latency target is gateway send minus node local write,
 so a European node meets it (lag behind block time is reported, not gated).
@@ -47,7 +47,7 @@ server. Node outages show as flagged gaps, never filled.
 | Tier | What runs where | Delivers | Monthly (estimate, Nov 2026) |
 |---|---|---|---|
 | **0: archive-first** | No node. Home server (or occasional spot VM) runs backfill from Hyperliquid's public buckets (ADM-0003) into R2; static archive behind the CDN, torrents, IPFS | Historical trades and book snapshots back to the earliest available date; no live stream | **$5–40** |
-| **0.5: self-hosted origin** | A home server that qualifies to run the node runs node-box and home-archive together (`deploy/up.sh origin`), published through Cloudflare Tunnel to free relays | Everything, with home-grade uptime | **$35–80** including electricity |
+| **0.5: self-hosted origin** | A home server that qualifies to run the node runs node-box and home-archive together (`deploy/up.sh origin`); free relays reach it over the overlay, which it dials out to | Everything, with home-grade uptime | **$35–80** including electricity |
 | **1: lean live (default)** | Rented node box + home-archive server + free relays + R2 | Everything; one ingest path | **$230–300** including home electricity; $145–195 with the stretch node box below |
 | **2: two origins** | Second node box at another provider, both feeding every relay; health-checked load balancing | Active-active ingest, the path-agreement integrity check | **$435–575** |
 | **3: Tokyo active-active** | Two node boxes in Tokyo on AWS and Vultr (`deploy/terraform/envs/tokyo`) | ADR 0006 as written: lowest lag behind block time | **$1,700–1,850** |
@@ -93,21 +93,22 @@ meets the node requirements above.
 
 ### No inbound ports
 
-Both roles publish through Cloudflare Tunnel: `cloudflared` dials out to
-Cloudflare and carries requests back in, so no router port is opened for
-HTTP and the home address is not published in DNS. Each tunnel hostname
-has a Cloudflare Access policy:
+Nothing at home accepts inbound connections for the stream or the tools:
 
-- `origin-<site>.bleh.xyz` (a node box or self-hosted origin): Access
-  service token only. Relays send it as `CF-Access-Client-Id` and
-  `CF-Access-Client-Secret` headers
-  (`deploy/compose/secrets/upstream-headers.txt`).
-- `grafana.bleh.xyz`, `api-staging.bleh.xyz` (home-archive): operator email
-  login.
+- **Live stream:** relays connect to the origin gateway at
+  `ws://10.77.0.x:8080/v0/ws` over the WireGuard overlay. A home server has
+  no WireGuard endpoint of its own; it dials out to the relays and node box
+  and keeps the tunnel open (`PersistentKeepalive`), so no router port is
+  needed and the home address appears in no DNS record.
+- **Grafana and the staging API:** published through Cloudflare Tunnel
+  (`cloudflared` dials out). `grafana.bleh.xyz` and `api-staging.bleh.xyz`
+  sit behind Cloudflare Access with operator email login.
 
-The edge stack creates the tunnels, DNS records, policies and tokens
+The edge stack creates the tunnel, DNS records and Access policies
 (`deploy/terraform/modules/cloudflare-tunnel`); a locally managed
-alternative is `deploy/compose/cloudflared/config.example.yml`.
+alternative is `deploy/compose/cloudflared/config.example.yml`. The module
+can also publish a node box's gateway as an Access-gated `origin-<site>`
+hostname, but relays do not need it.
 
 Two exceptions, both optional: the BitTorrent seeder (6881) and IPFS (4101)
 work without a port forward but reach more peers with one; a self-hosted
@@ -144,7 +145,7 @@ home-archive role alone needs a few Mbit/s.
   short cuts and lets the host shut down cleanly; Docker restarts the stack
   on boot.
 - **ISP terms:** many residential plans prohibit servers or cap upload. The
-  tunnel keeps the setup outbound-only, but check the contract for traffic
+  overlay and the tunnel keep the setup outbound-only, but check the contract for traffic
   caps and acceptable use, and prefer a static or slow-changing address for
   the gossip port forward.
 - **Uptime expectation:** a home connection typically gives 99–99.5%, below
@@ -165,7 +166,7 @@ home-archive role alone needs a few Mbit/s.
   array is one disk failure from loss. Use a redundant array (RAID 6, ZFS
   raidz2) and keep the newest 30 days in the private R2 bucket as well.
 - **Home address exposure:** gossip on a self-hosted origin reveals the
-  home IP to Hyperliquid peers; the tunnel does not hide that. The
+  home IP to Hyperliquid peers; the overlay does not hide that. The
   home-archive role exposes nothing.
 
 ### Moving to rented hardware
@@ -177,9 +178,10 @@ Nothing changes but the host:
 2. Copy `deploy/compose/.env` and `deploy/compose/secrets/` from the old
    host, or issue a new signing key (keys.md: a new ingest path can have its
    own key; publish it before switching).
-3. Point the tunnel at the new host: install the same tunnel token there
-   and stop `cloudflared` on the old host. Relays reconnect to the same
-   `origin-a` hostname.
+3. Give the new host the old overlay address (`wg-mesh.sh` with its new
+   public key and endpoint in the peers file, applied on every host) and
+   stop the node box roles on the old host. Relays reconnect to the same
+   `ws://10.77.0.x:8080/v0/ws`.
 4. `deploy/up.sh node-box`; the old host keeps its home-archive role.
 
 ## Providers

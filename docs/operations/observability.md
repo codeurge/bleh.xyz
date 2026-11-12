@@ -38,9 +38,10 @@ in the repository, not in the UI):
 
 ## Latency budget
 
-The measured quantity is `ts_publish − ts_node` per record, exported by the
-gateway as the histogram `bleh_gateway_publish_latency_seconds` (buckets
-must include 0.05). Its parts:
+The measured quantity is gateway send time minus node local write time
+per record, exported by the gateway as the histogram
+`gateway_send_latency_seconds` (gateway.md; its buckets include 0.05). Its
+parts:
 
 | Segment | Metric | Budget |
 |---|---|---|
@@ -57,7 +58,8 @@ Alerts: `BlehReaderIngestLagHigh` (p99 > 25 ms for 10 min),
 `BlehPublishLatencyP99Critical` (> 250 ms for 5 min). When latency rises,
 check in order: disk IO on the node volume (output is unbuffered), CPU
 saturation from the node, send-buffer backlog from slow consumers in the
-gateway (`bleh_gateway_slow_consumer_closes_total`), clock offset.
+gateway (`gateway_slow_consumer_disconnects_total`), internal fan-out lag
+(`gateway_hub_lagged_total`), clock offset.
 
 ## Availability
 
@@ -88,10 +90,10 @@ so it stays up when the live path does not.
 
 ## Clients
 
-`bleh_gateway_connections`, `bleh_gateway_subscriptions`,
-`bleh_gateway_bytes_sent_total` per site (origin and each relay),
-`bleh_gateway_slow_consumer_closes_total` and
-`bleh_gateway_rate_limited_total`. Relays carry users, so relay egress is
+`gateway_connections`, `gateway_messages_sent_total`,
+`gateway_bytes_sent_total` per site (origin and each relay),
+`gateway_slow_consumer_disconnects_total`, `gateway_rate_limited_total`,
+and on relays `relay_connected` and `relay_streams_rejected_total`. Relays carry users, so relay egress is
 the number to compare with the Oracle 10 TB/month allowance
 ([costs.md](costs.md), assumption A5).
 
