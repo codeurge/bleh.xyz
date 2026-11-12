@@ -9,10 +9,20 @@
 //!     --upstream wss://b.example/v0/ws --signer 0x...
 //! ```
 //!
+//! Every flag can also be set with an environment variable named
+//! `BLEH_GATEWAY_<FLAG>` (`--send-buffer-ms` is `BLEH_GATEWAY_SEND_BUFFER_MS`;
+//! repeatable flags take a comma-separated list). `BLEH_GATEWAY_MODE`
+//! (`demo` or `relay`) supplies the mode when no argument is given, so a
+//! service can be configured from the environment alone. Flags win over
+//! the environment.
+//!
 //! In production the gateway runs in the same process as the node reader
 //! and block signer (library use: `bus::BlockPublisher` feeding
 //! `gateway::Gateway`); see `docs/operations/gateway.md`.
 
+#![cfg_attr(test, allow(clippy::unwrap_used))]
+
+use std::ffi::OsString;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -26,8 +36,15 @@ use gateway::{Gateway, GatewayConfig, RelayConfig, Signers, UpstreamStatus};
 use mesh_client::{Encoding, Limits};
 use mesh_types::{EthAddress, Registry};
 
+/// Environment variable that supplies the mode when no argument is given.
+const MODE_ENV: &str = "BLEH_GATEWAY_MODE";
+
 #[derive(Debug, Parser)]
-#[command(version, about = "bleh.xyz public websocket gateway")]
+#[command(
+    version,
+    about = "bleh.xyz public websocket gateway",
+    after_help = "Every flag can also be set as BLEH_GATEWAY_<FLAG> (comma-separated for repeatable flags); BLEH_GATEWAY_MODE=demo|relay supplies the mode when no argument is given."
+)]
 struct Cli {
     #[command(subcommand)]
     mode: Mode,
@@ -40,40 +57,48 @@ enum Mode {
         #[command(flatten)]
         common: Common,
         /// Signing key `ID=file:PATH` or `ID=env:VAR`; repeat for rotation.
-        #[arg(long = "signing-key")]
+        #[arg(
+            long = "signing-key",
+            env = "BLEH_GATEWAY_SIGNING_KEY",
+            value_delimiter = ','
+        )]
         signing_keys: Vec<KeySpec>,
         /// ID of the key that signs (default: the last one).
-        #[arg(long)]
+        #[arg(long, env = "BLEH_GATEWAY_ACTIVE_KEY")]
         active_key: Option<String>,
         /// Use a random key that lives only in memory (demo only).
-        #[arg(long, conflicts_with = "signing_keys")]
+        #[arg(
+            long,
+            conflicts_with = "signing_keys",
+            env = "BLEH_GATEWAY_EPHEMERAL_KEY"
+        )]
         ephemeral_key: bool,
         /// hl-synth seed.
-        #[arg(long, default_value_t = hl_synth::DEFAULT_SEED)]
+        #[arg(long, default_value_t = hl_synth::DEFAULT_SEED, env = "BLEH_GATEWAY_SEED")]
         seed: u64,
         /// hl-synth blocks per cycle (at least 45).
-        #[arg(long, default_value_t = hl_synth::DEFAULT_BLOCKS)]
+        #[arg(long, default_value_t = hl_synth::DEFAULT_BLOCKS, env = "BLEH_GATEWAY_BLOCKS")]
         blocks: u64,
         /// Milliseconds between blocks.
-        #[arg(long, default_value_t = 100)]
+        #[arg(long, default_value_t = 100, env = "BLEH_GATEWAY_INTERVAL_MS")]
         interval_ms: u64,
         /// Book checkpoint every N blocks.
-        #[arg(long, default_value_t = 10)]
+        #[arg(long, default_value_t = 10, env = "BLEH_GATEWAY_CHECKPOINT_EVERY")]
         checkpoint_every: u64,
         /// Withhold one book batch every N blocks (exercise re-snapshots).
-        #[arg(long)]
+        #[arg(long, env = "BLEH_GATEWAY_GAP_EVERY")]
         gap_every: Option<u64>,
         /// NATS URL for the JetStream side tap (replayed on start).
-        #[arg(long)]
+        #[arg(long, env = "BLEH_GATEWAY_NATS_URL")]
         nats_url: Option<String>,
         /// JetStream stream name.
-        #[arg(long, default_value = "BLEH_V0")]
+        #[arg(long, default_value = "BLEH_V0", env = "BLEH_GATEWAY_NATS_STREAM")]
         nats_stream: String,
         /// Side tap replay window, seconds.
-        #[arg(long, default_value_t = 600)]
+        #[arg(long, default_value_t = 600, env = "BLEH_GATEWAY_REPLAY_WINDOW_SECS")]
         replay_window_secs: u64,
         /// NATS credentials file.
-        #[arg(long)]
+        #[arg(long, env = "BLEH_GATEWAY_NATS_CREDENTIALS")]
         nats_credentials: Option<PathBuf>,
     },
     /// Re-serve an upstream gateway after verifying every commitment.
@@ -81,16 +106,26 @@ enum Mode {
         #[command(flatten)]
         common: Common,
         /// Upstream websocket URL; repeat for fallbacks.
-        #[arg(long = "upstream", required = true)]
+        #[arg(
+            long = "upstream",
+            required = true,
+            env = "BLEH_GATEWAY_UPSTREAM",
+            value_delimiter = ','
+        )]
         upstreams: Vec<String>,
         /// Accepted signer address; repeatable. Required.
-        #[arg(long = "signer", required = true)]
+        #[arg(
+            long = "signer",
+            required = true,
+            env = "BLEH_GATEWAY_SIGNER",
+            value_delimiter = ','
+        )]
         signers: Vec<EthAddress>,
         /// Seed books from upstream snapshots, which are not signed.
-        #[arg(long)]
+        #[arg(long, env = "BLEH_GATEWAY_TRUST_UPSTREAM_SNAPSHOTS")]
         trust_upstream_snapshots: bool,
         /// Upstream encoding: json or cbor.
-        #[arg(long, default_value = "json")]
+        #[arg(long, default_value = "json", env = "BLEH_GATEWAY_UPSTREAM_ENCODING")]
         upstream_encoding: Encoding,
     },
 }
@@ -98,44 +133,52 @@ enum Mode {
 #[derive(Debug, Args)]
 struct Common {
     /// Listen address.
-    #[arg(long, default_value = "127.0.0.1:8080")]
+    #[arg(long, default_value = "127.0.0.1:8080", env = "BLEH_GATEWAY_LISTEN")]
     listen: SocketAddr,
     /// Registry JSON (`{"instruments": [...]}`); unknown exact instruments
     /// are refused.
-    #[arg(long)]
+    #[arg(long, env = "BLEH_GATEWAY_REGISTRY")]
     registry: Option<PathBuf>,
     /// Blocks of proofs to keep per stream.
-    #[arg(long, default_value_t = 100_000)]
+    #[arg(
+        long,
+        default_value_t = 100_000,
+        env = "BLEH_GATEWAY_PROOF_RETENTION_BLOCKS"
+    )]
     proof_retention_blocks: u64,
     /// Connections per client IP.
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = 10, env = "BLEH_GATEWAY_CONNECTIONS_PER_IP")]
     connections_per_ip: u32,
     /// Channels per connection.
-    #[arg(long, default_value_t = 200)]
+    #[arg(
+        long,
+        default_value_t = 200,
+        env = "BLEH_GATEWAY_CHANNELS_PER_CONNECTION"
+    )]
     channels_per_connection: u32,
     /// Channels per client IP.
-    #[arg(long, default_value_t = 2000)]
+    #[arg(long, default_value_t = 2000, env = "BLEH_GATEWAY_CHANNELS_PER_IP")]
     channels_per_ip: u32,
     /// Client messages per second.
-    #[arg(long, default_value_t = 20)]
+    #[arg(long, default_value_t = 20, env = "BLEH_GATEWAY_MESSAGES_PER_SECOND")]
     messages_per_second: u32,
     /// Client message burst.
-    #[arg(long, default_value_t = 50)]
+    #[arg(long, default_value_t = 50, env = "BLEH_GATEWAY_MESSAGE_BURST")]
     message_burst: u32,
     /// Proof requests per second.
-    #[arg(long, default_value_t = 50)]
+    #[arg(long, default_value_t = 50, env = "BLEH_GATEWAY_PROOFS_PER_SECOND")]
     proofs_per_second: u32,
     /// Send buffer, bytes.
-    #[arg(long, default_value_t = 8 * 1024 * 1024)]
+    #[arg(long, default_value_t = 8 * 1024 * 1024, env = "BLEH_GATEWAY_SEND_BUFFER_BYTES")]
     send_buffer_bytes: u64,
     /// Send buffer, milliseconds behind the newest block.
-    #[arg(long, default_value_t = 2000)]
+    #[arg(long, default_value_t = 2000, env = "BLEH_GATEWAY_SEND_BUFFER_MS")]
     send_buffer_ms: u64,
     /// Largest client message, bytes.
-    #[arg(long, default_value_t = 64 * 1024)]
+    #[arg(long, default_value_t = 64 * 1024, env = "BLEH_GATEWAY_MAX_MESSAGE_BYTES")]
     max_message_bytes: u64,
     /// Take client IPs from X-Forwarded-For (only behind a trusted proxy).
-    #[arg(long)]
+    #[arg(long, env = "BLEH_GATEWAY_TRUST_FORWARDED_FOR")]
     trust_forwarded_for: bool,
 }
 
@@ -170,6 +213,18 @@ impl Common {
     }
 }
 
+/// The command line, with the mode taken from [`MODE_ENV`] when no
+/// argument was given.
+fn command_line(args: impl IntoIterator<Item = OsString>, mode: Option<OsString>) -> Vec<OsString> {
+    let mut args: Vec<OsString> = args.into_iter().collect();
+    if args.len() <= 1
+        && let Some(m) = mode.filter(|m| !m.is_empty())
+    {
+        args.push(m);
+    }
+    args
+}
+
 fn ephemeral_key() -> anyhow::Result<mesh_types::SigningKey> {
     use std::io::Read;
     let mut f = std::fs::File::open("/dev/urandom").context("open /dev/urandom")?;
@@ -197,7 +252,10 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
-    let cli = Cli::parse();
+    let cli = Cli::parse_from(command_line(
+        std::env::args_os(),
+        std::env::var_os(MODE_ENV),
+    ));
     match cli.mode {
         Mode::Demo {
             common,
@@ -335,4 +393,76 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn every_flag_has_an_environment_variable() {
+        let cmd = Cli::command();
+        let mut names = std::collections::HashSet::new();
+        for sub in cmd.get_subcommands() {
+            for arg in sub.get_arguments() {
+                let id = arg.get_id().as_str();
+                if matches!(id, "help" | "version") {
+                    continue;
+                }
+                let long = arg
+                    .get_long()
+                    .unwrap_or_else(|| panic!("{id} has no long flag"));
+                let env = arg
+                    .get_env()
+                    .unwrap_or_else(|| panic!("--{long} has no environment variable"))
+                    .to_string_lossy()
+                    .into_owned();
+                let want = format!("BLEH_GATEWAY_{}", long.to_uppercase().replace('-', "_"));
+                assert_eq!(env, want, "--{long}");
+                names.insert((sub.get_name().to_owned(), env));
+            }
+        }
+        assert!(names.len() > 25, "{names:?}");
+    }
+
+    #[test]
+    fn mode_comes_from_the_environment_only_without_arguments() {
+        let os = |v: &[&str]| v.iter().map(OsString::from).collect::<Vec<_>>();
+        assert_eq!(
+            command_line(os(&["gateway"]), Some("relay".into())),
+            os(&["gateway", "relay"])
+        );
+        assert_eq!(
+            command_line(os(&["gateway", "demo"]), Some("relay".into())),
+            os(&["gateway", "demo"])
+        );
+        assert_eq!(
+            command_line(os(&["gateway"]), Some("".into())),
+            os(&["gateway"])
+        );
+        assert_eq!(command_line(os(&["gateway"]), None), os(&["gateway"]));
+    }
+
+    #[test]
+    fn repeatable_flags_split_on_commas() {
+        let addr = "0x0000000000000000000000000000000000000001";
+        let cli = Cli::try_parse_from([
+            "gateway",
+            "relay",
+            "--upstream",
+            "ws://a/v0/ws,ws://b/v0/ws",
+            "--signer",
+            addr,
+        ])
+        .unwrap();
+        let Mode::Relay {
+            upstreams, signers, ..
+        } = cli.mode
+        else {
+            panic!("not relay")
+        };
+        assert_eq!(upstreams, vec!["ws://a/v0/ws", "ws://b/v0/ws"]);
+        assert_eq!(signers.len(), 1);
+    }
 }

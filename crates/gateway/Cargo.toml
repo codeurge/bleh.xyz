@@ -14,7 +14,7 @@ axum = { workspace = true, default-features = false, features = ["http1", "json"
 bus = { path = "../bus" }
 bytes.workspace = true
 ciborium = "0.2.2"
-clap.workspace = true
+clap = { workspace = true, features = ["env"] }
 futures.workspace = true
 hl-synth = { path = "../../tools/hl-synth" }
 hyper = { version = "1", features = ["server", "http1"] }

@@ -22,6 +22,61 @@ cargo run -p gateway -- relay --listen 0.0.0.0:8080 \
   --signer 0x<published signer address>
 ```
 
+### Configuration from the environment
+
+Every flag of `gateway demo` and `gateway relay` can also be set with an
+environment variable: `BLEH_GATEWAY_` followed by the flag name in upper
+case with `-` as `_` (`--send-buffer-ms` is `BLEH_GATEWAY_SEND_BUFFER_MS`).
+Repeatable flags take a comma-separated list; switches take `true` or
+`false`. A flag on the command line wins over its variable.
+`BLEH_GATEWAY_MODE` (`demo` or `relay`) supplies the mode when the binary
+gets no argument at all, so a systemd unit needs no `BLEH_ARGS`:
+
+```bash
+# /etc/bleh/relay.env
+BLEH_GATEWAY_MODE=relay
+BLEH_GATEWAY_LISTEN=0.0.0.0:8080
+BLEH_GATEWAY_TRUST_FORWARDED_FOR=true
+BLEH_GATEWAY_UPSTREAM=wss://a.example/v0/ws,wss://b.example/v0/ws
+BLEH_GATEWAY_SIGNER=0x<published signer address>
+```
+
+| Variable | Flag | Modes |
+|---|---|---|
+| `BLEH_GATEWAY_MODE` | (the subcommand) | both |
+| `BLEH_GATEWAY_LISTEN` | `--listen` | both |
+| `BLEH_GATEWAY_REGISTRY` | `--registry` | both |
+| `BLEH_GATEWAY_PROOF_RETENTION_BLOCKS` | `--proof-retention-blocks` | both |
+| `BLEH_GATEWAY_CONNECTIONS_PER_IP` | `--connections-per-ip` | both |
+| `BLEH_GATEWAY_CHANNELS_PER_CONNECTION` | `--channels-per-connection` | both |
+| `BLEH_GATEWAY_CHANNELS_PER_IP` | `--channels-per-ip` | both |
+| `BLEH_GATEWAY_MESSAGES_PER_SECOND` | `--messages-per-second` | both |
+| `BLEH_GATEWAY_MESSAGE_BURST` | `--message-burst` | both |
+| `BLEH_GATEWAY_PROOFS_PER_SECOND` | `--proofs-per-second` | both |
+| `BLEH_GATEWAY_SEND_BUFFER_BYTES` | `--send-buffer-bytes` | both |
+| `BLEH_GATEWAY_SEND_BUFFER_MS` | `--send-buffer-ms` | both |
+| `BLEH_GATEWAY_MAX_MESSAGE_BYTES` | `--max-message-bytes` | both |
+| `BLEH_GATEWAY_TRUST_FORWARDED_FOR` | `--trust-forwarded-for` | both |
+| `BLEH_GATEWAY_SIGNING_KEY` | `--signing-key` (list) | demo |
+| `BLEH_GATEWAY_ACTIVE_KEY` | `--active-key` | demo |
+| `BLEH_GATEWAY_EPHEMERAL_KEY` | `--ephemeral-key` | demo |
+| `BLEH_GATEWAY_SEED` | `--seed` | demo |
+| `BLEH_GATEWAY_BLOCKS` | `--blocks` | demo |
+| `BLEH_GATEWAY_INTERVAL_MS` | `--interval-ms` | demo |
+| `BLEH_GATEWAY_CHECKPOINT_EVERY` | `--checkpoint-every` | demo |
+| `BLEH_GATEWAY_GAP_EVERY` | `--gap-every` | demo |
+| `BLEH_GATEWAY_NATS_URL` | `--nats-url` | demo |
+| `BLEH_GATEWAY_NATS_STREAM` | `--nats-stream` | demo |
+| `BLEH_GATEWAY_REPLAY_WINDOW_SECS` | `--replay-window-secs` | demo |
+| `BLEH_GATEWAY_NATS_CREDENTIALS` | `--nats-credentials` | demo |
+| `BLEH_GATEWAY_UPSTREAM` | `--upstream` (list) | relay |
+| `BLEH_GATEWAY_SIGNER` | `--signer` (list) | relay |
+| `BLEH_GATEWAY_TRUST_UPSTREAM_SNAPSHOTS` | `--trust-upstream-snapshots` | relay |
+| `BLEH_GATEWAY_UPSTREAM_ENCODING` | `--upstream-encoding` | relay |
+
+Signing keys are still given as `ID=file:PATH` or `ID=env:VAR`; never put
+key material itself in these variables.
+
 The demo feed replays hl-synth's ground-truth trades and book events with
 current timestamps, inserts a reset block (cancel everything) between
 cycles, offsets order IDs per cycle, and publishes L4 `book_snapshot`
