@@ -1,17 +1,29 @@
 //! The field filter: raw archive lines in, filtered raw lines out.
 //!
-//! [`RawLineFilter`] is the seam the integrator fills with the node
-//! reader's ADM-0001 filter. [`LocalFilter`] is this crate's own
-//! implementation, written from `docs/specs/hyperliquid-archive-buckets.md`
-//! § 4, used by tests and usable until the real one is wired.
+//! [`RawLineFilter`] is the seam. Three implementations:
+//!
+//! - [`NodeReaderFilter`]: the node reader's ADM-0001 filter
+//!   ([`hl_node_reader::filter_line`]), for objects in the node's
+//!   `--batch-by-block` fills format (see [`is_by_block`]). Its output is
+//!   the node reader's filtered raw: the same block lines with only
+//!   admitted fields, bare fill objects, no spot events and no fill groups
+//!   that are not book trades; byte for byte what live capture writes for
+//!   the same lines (sorted keys, no whitespace).
+//! - [`LocalFilter`]: this crate's own filter, written from
+//!   `docs/specs/hyperliquid-archive-buckets.md` § 4, for the bucket
+//!   formats the node reader cannot read (`node_trades`, `market_data` L2
+//!   snapshots, bare `node_fills` lines).
+//! - [`DefaultFilter`]: what the binary and [`crate::process`] use; it
+//!   sends each object to [`NodeReaderFilter`] when [`is_by_block`] holds
+//!   and to [`LocalFilter`] otherwise.
 //!
 //! Every filter output line is canonical JSON (sorted keys, no
 //! whitespace) and holds only fields on an explicit keep-list, so unknown
-//! or excluded fields can never pass. Shapes:
+//! or excluded fields can never pass. [`LocalFilter`] shapes:
 //!
 //! | Dataset | Raw line | Filtered line |
 //! |---|---|---|
-//! | `node_fills_by_block`, batched `node_fills` | `{local_time, block_time, block_number, events: [[user, fill]...]}` | same envelope, `events: [fill...]` with book-matched fills only |
+//! | batched fills (tests only; the default sends these to the node reader) | `{local_time, block_time, block_number, events: [[user, fill]...]}` | same envelope, `events: [fill...]` with book-matched fills only |
 //! | bare `node_fills` | `[user, fill]` | `fill`, book-matched (paired within the file) |
 //! | `node_trades` | `{coin, side, time, px, sz, hash, trade_dir_override, side_info}` | `{coin, side, time, px, sz, oids: [oid, oid]}` (`side_info` holds owner addresses and is a denylisted name, so only its two `oid`s are kept, under `oids`) |
 //! | `market_data` | `{time, ver_num, raw: {channel, data: {coin, time, levels}}}` | same, with only those fields and level fields `px`, `sz`, `n` |
@@ -20,6 +32,9 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use hl_node_reader::raw::Stream;
+use serde::Deserialize;
+use serde::de::IgnoredAny;
 use serde_json::{Map, Value};
 
 use crate::buckets::Dataset;
@@ -50,6 +65,30 @@ pub enum FilterError {
     /// The dataset is replay input only; its raw lines are never published.
     #[error("{0} is replay input only and has no filtered raw form")]
     NotPublished(Dataset),
+    /// The object is not in the node's `--batch-by-block` format, so the
+    /// node reader's filter cannot read it.
+    #[error("{0} object is not in the node's batch-by-block format")]
+    NotByBlock(Dataset),
+}
+
+/// True if an object of `dataset` with these lines is in the node's
+/// `--batch-by-block` fills format, which the node reader reads:
+/// `node_fills_by_block` always (`hyperliquid-archive-buckets.md` § 4.1),
+/// and `node_fills` when its lines are block objects rather than bare
+/// `[user, fill]` pairs (§ 4.2: batching is unverified, so it is decided
+/// per object from the first non-blank line). Every other dataset has its
+/// own format.
+#[must_use]
+pub fn is_by_block<S: AsRef<str>>(dataset: Dataset, lines: &[S]) -> bool {
+    match dataset {
+        Dataset::NodeFillsByBlock => true,
+        Dataset::NodeFills => lines
+            .iter()
+            .map(|l| l.as_ref().trim_start())
+            .find(|l| !l.is_empty())
+            .is_some_and(|l| l.starts_with('{')),
+        _ => false,
+    }
 }
 
 /// Counts from filtering one object.
@@ -87,6 +126,76 @@ pub trait RawLineFilter: Send + Sync {
     ///
     /// Fails if any line cannot be understood.
     fn filter_lines(&self, dataset: Dataset, lines: &[&str]) -> Result<Filtered, FilterError>;
+}
+
+/// The node reader's filter, for objects where [`is_by_block`] holds.
+///
+/// Each line goes through [`hl_node_reader::filter_line`] for the fills
+/// stream, unchanged: unknown fields fail (schema drift), spot events and
+/// fill groups that are not book trades are removed, and malformed groups
+/// (an unmatched fill) keep their admitted fields so the node reader's
+/// parser flags them, exactly as in live capture.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct NodeReaderFilter;
+
+/// Only the event count of a block line (other fields are skipped).
+#[derive(Deserialize)]
+struct EventCount {
+    events: Vec<IgnoredAny>,
+}
+
+fn event_count(n: usize, line: &str) -> Result<u64, FilterError> {
+    serde_json::from_str::<EventCount>(line)
+        .map(|c| c.events.len() as u64)
+        .map_err(|e| FilterError::Json {
+            line: n,
+            reason: e.to_string(),
+        })
+}
+
+impl RawLineFilter for NodeReaderFilter {
+    fn filter_lines(&self, dataset: Dataset, lines: &[&str]) -> Result<Filtered, FilterError> {
+        if !is_by_block(dataset, lines) {
+            return Err(FilterError::NotByBlock(dataset));
+        }
+        let mut out = Filtered::default();
+        for (i, line) in lines.iter().enumerate() {
+            let n = i + 1;
+            out.stats.lines_in += 1;
+            if line.trim().is_empty() {
+                continue;
+            }
+            let filtered = hl_node_reader::filter_line(Stream::Fills, line)
+                .map_err(|e| shape(n, e.to_string()))?;
+            let (before, after) = (event_count(n, line)?, event_count(n, &filtered)?);
+            out.stats.events_kept += after;
+            out.stats.events_dropped += before.saturating_sub(after);
+            out.lines.push(filtered);
+        }
+        out.stats.lines_out = out.lines.len() as u64;
+        Ok(out)
+    }
+}
+
+/// The filter the binary and the pipeline use: [`NodeReaderFilter`] for
+/// by-block objects ([`is_by_block`]), [`LocalFilter`] for every other
+/// bucket format.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DefaultFilter {
+    /// For by-block objects.
+    pub node: NodeReaderFilter,
+    /// For the other bucket formats.
+    pub local: LocalFilter,
+}
+
+impl RawLineFilter for DefaultFilter {
+    fn filter_lines(&self, dataset: Dataset, lines: &[&str]) -> Result<Filtered, FilterError> {
+        if is_by_block(dataset, lines) {
+            self.node.filter_lines(dataset, lines)
+        } else {
+            self.local.filter_lines(dataset, lines)
+        }
+    }
 }
 
 /// This crate's own filter (see the module docs).
@@ -563,5 +672,104 @@ pub(crate) mod tests {
             .unwrap();
         assert!(!out.lines[0].contains("extra") && !out.lines[0].contains("\"x\""));
         assert!(out.lines[0].starts_with("{\"raw\":{\"channel\":\"l2Book\""));
+    }
+
+    /// A synthetic fill with the fields the node writes (no `cloid`, which
+    /// the node format does not have). Values are invented.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn node_fill(
+        coin: &str,
+        px: &str,
+        sz: &str,
+        side: &str,
+        crossed: bool,
+        tid: u64,
+        oid: u64,
+        time: u64,
+    ) -> Value {
+        let mut f = fill(coin, px, sz, side, crossed, tid, oid, time);
+        if let Some(o) = f[1].as_object_mut() {
+            o.remove("cloid");
+        }
+        f
+    }
+
+    #[test]
+    fn by_block_objects_are_detected() {
+        let block = block_line(1, "2025-07-27T00:00:01.000", vec![]);
+        let bare = node_fill("BTC", "1", "1", "B", true, 1, 1, 1).to_string();
+        assert!(is_by_block(Dataset::NodeFillsByBlock, &[bare.as_str()]));
+        assert!(is_by_block(Dataset::NodeFills, &["", block.as_str()]));
+        assert!(!is_by_block(Dataset::NodeFills, &[bare.as_str()]));
+        assert!(!is_by_block(Dataset::NodeTrades, &[block.as_str()]));
+        assert!(!is_by_block::<&str>(Dataset::NodeFills, &[]));
+    }
+
+    #[test]
+    fn node_reader_filter_is_the_live_filter() {
+        let mut backstop = node_fill("BTC", "100.0", "1", "A", false, 7, 70, 1000);
+        backstop[1]["liquidation"] = serde_json::json!({
+            "liquidatedUser": "0x02", "markPx": "99.0", "method": "backstop"});
+        let line = block_line(
+            10,
+            "2025-07-27T00:00:01.000",
+            vec![
+                node_fill("BTC", "100.5", "0.1", "B", true, 1, 11, 1000),
+                node_fill("BTC", "100.5", "0.1", "A", false, 1, 12, 1000),
+                node_fill("BTC", "100.0", "1", "B", true, 7, 71, 1000),
+                backstop,
+                // Spot: outside ADM-0001.
+                node_fill("@4", "1", "1", "B", true, 3, 31, 1000),
+                node_fill("@4", "1", "1", "A", false, 3, 32, 1000),
+                // Unmatched: kept for the parser to flag.
+                node_fill("ETH", "10", "1", "B", true, 5, 51, 1000),
+            ],
+        );
+        let empty = block_line(11, "2025-07-27T00:00:01.500", vec![]);
+        let lines = [line.as_str(), empty.as_str()];
+        let out = NodeReaderFilter
+            .filter_lines(Dataset::NodeFillsByBlock, &lines)
+            .unwrap();
+        assert_eq!(
+            out.lines,
+            [
+                hl_node_reader::filter_line(Stream::Fills, &line).unwrap(),
+                hl_node_reader::filter_line(Stream::Fills, &empty).unwrap()
+            ]
+        );
+        assert_eq!(out.stats.lines_out, 2, "empty blocks are kept");
+        assert_eq!((out.stats.events_kept, out.stats.events_dropped), (3, 4));
+        assert_clean(&out.lines);
+        assert_eq!(
+            DefaultFilter::default().filter_lines(Dataset::NodeFillsByBlock, &lines),
+            Ok(out)
+        );
+
+        // A field outside the node format is schema drift: the object fails.
+        let drift = block_line(
+            12,
+            "2025-07-27T00:00:02.000",
+            vec![fill("BTC", "1", "1", "B", true, 9, 1, 1000)],
+        );
+        assert!(
+            NodeReaderFilter
+                .filter_lines(Dataset::NodeFillsByBlock, &[drift.as_str()])
+                .is_err()
+        );
+        assert_eq!(
+            NodeReaderFilter.filter_lines(Dataset::MarketData, &[empty.as_str()]),
+            Err(FilterError::NotByBlock(Dataset::MarketData))
+        );
+    }
+
+    #[test]
+    fn default_filter_keeps_the_local_filter_for_other_formats() {
+        let a = fill("SOL", "20", "2", "B", true, 5, 1, 1000).to_string();
+        let b = fill("SOL", "20", "2", "A", false, 5, 2, 1000).to_string();
+        let lines = [a.as_str(), b.as_str()];
+        assert_eq!(
+            DefaultFilter::default().filter_lines(Dataset::NodeFills, &lines),
+            LocalFilter.filter_lines(Dataset::NodeFills, &lines)
+        );
     }
 }

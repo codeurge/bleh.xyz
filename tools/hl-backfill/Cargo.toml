@@ -20,6 +20,7 @@ anyhow.workspace = true
 bytes.workspace = true
 clap = { workspace = true, features = ["env"] }
 futures.workspace = true
+hl-node-reader = { path = "../../crates/hl-node-reader" }
 lz4_flex = { version = "0.11", default-features = false, features = ["frame", "std"] }
 mesh-types.workspace = true
 object_store = { workspace = true, features = ["aws", "fs"] }
@@ -30,10 +31,11 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-zstd = "0.13"
+zstd = "0.14"
 
 [dev-dependencies]
 async-trait = "0.1"
+hl-synth = { path = "../../tools/hl-synth" }
 
 [lints]
 workspace = true

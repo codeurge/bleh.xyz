@@ -1,12 +1,18 @@
 //! Filtered raw lines to records.
 //!
-//! [`RecordParser`] is the seam for the node reader's parser.
-//! [`LocalParser`] is this crate's implementation for the filtered shapes
-//! [`LocalFilter`](crate::filter::LocalFilter) writes:
+//! [`RecordParser`] is the seam. Three implementations:
 //!
-//! - fills (batched or bare) to `trade` records, one per book-matched pair;
-//! - `node_trades` lines to `trade` records;
-//! - `market_data` lines to L2 `book_snapshot` records.
+//! - [`NodeReaderParser`]: the node reader's live code path for by-block
+//!   fills objects ([`is_by_block`]): each filtered line is parsed by
+//!   [`hl_node_reader::raw::ParsedLine`], normalized by
+//!   [`hl_node_reader::normalize()`] and sequenced by
+//!   [`hl_node_reader::Sequencer`], then re-stamped as backfill.
+//! - [`LocalParser`]: this crate's parser for the filtered shapes
+//!   [`LocalFilter`](crate::filter::LocalFilter) writes: bare fills to
+//!   `trade` records, `node_trades` lines to `trade` records and
+//!   `market_data` lines to L2 `book_snapshot` records.
+//! - [`DefaultParser`]: what the binary and [`crate::process`] use; the
+//!   node reader's path for by-block objects, [`LocalParser`] otherwise.
 //!
 //! Every record gets admission `ADM-0003`, flag `backfill` (snapshots also
 //! `low_resolution`) and the instrument's default flags from the registry.
@@ -19,7 +25,11 @@
 //! fixed so replays are reproducible; it is not the venue's `tid`.
 
 use std::collections::BTreeMap;
+use std::sync::Mutex;
 
+use hl_node_reader::normalize::JoinedBlock;
+use hl_node_reader::raw::{ParsedLine, Stream};
+use hl_node_reader::sequence::{Sequencer, SequencerState};
 use mesh_types::{
     AdmissionId, AggressorSide, Flag, Flags, InstrumentId, Level, Price, Provenance, Record,
     Registry, Seq, Size, SnapshotDepth, Trade, TradeId, UnixMillis, UnixNanos, VenueId,
@@ -29,6 +39,7 @@ use sha2::{Digest, Sha256};
 
 use crate::buckets::Dataset;
 use crate::clock::BlockClock;
+use crate::filter::is_by_block;
 
 /// Errors from parsing. Any error rejects the object.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -44,6 +55,10 @@ pub enum ParseError {
     /// The dataset is not a record source.
     #[error("{0} does not produce records")]
     NotARecordSource(Dataset),
+    /// The object is not in the node's `--batch-by-block` format, so the
+    /// node reader's parser cannot read it.
+    #[error("{0} object is not in the node's batch-by-block format")]
+    NotByBlock(Dataset),
 }
 
 /// Counts from parsing one object.
@@ -457,6 +472,162 @@ impl RecordParser for LocalParser {
     }
 }
 
+/// The node reader's parser, for by-block fills objects
+/// ([`is_by_block`]), so backfilled trades come from exactly the live code
+/// path.
+///
+/// Each filtered line is parsed as a fills line
+/// ([`ParsedLine::parse`]), joined into a block with no order-status or
+/// book-diff line, normalized ([`hl_node_reader::normalize()`]) and
+/// sequenced ([`Sequencer`]); the records are then re-stamped with
+/// admission `ADM-0003` and flag `backfill`. Everything else, including
+/// `seq`, times, trade IDs, instrument flags and `gap_before`, is the node
+/// reader's.
+///
+/// Two adaptations to the buckets, which carry only the fills stream:
+///
+/// - Normalization marks a block without order-status and book-diff lines
+///   incomplete, which would flag a gap on every block. Trades need only
+///   the fills line, so the flag is cleared; `gap_before` then comes, as
+///   in live reading, from block-number jumps (inside an object and
+///   between consecutive objects of a dataset) and from malformed fill
+///   groups.
+/// - A rejected block (bad time, a pair whose fills disagree, ...) fails
+///   the object, as any parse error does in this pipeline, instead of
+///   being skipped with a gap.
+///
+/// Sequencer state is kept per dataset across objects (the pipeline
+/// processes objects in hour order) and committed only when an object
+/// parses.
+#[derive(Debug)]
+pub struct NodeReaderParser {
+    registry: Registry,
+    admission: AdmissionId,
+    sequencers: Mutex<BTreeMap<Dataset, SequencerState>>,
+}
+
+impl NodeReaderParser {
+    /// A parser that resolves coins through `registry`.
+    ///
+    /// # Panics
+    ///
+    /// Never: the admission ID is a constant.
+    #[must_use]
+    pub fn new(registry: Registry) -> Self {
+        Self {
+            registry,
+            admission: AdmissionId::new(crate::ADMISSION).unwrap_or_else(|_| unreachable!()),
+            sequencers: Mutex::default(),
+        }
+    }
+}
+
+impl RecordParser for NodeReaderParser {
+    fn parse(
+        &self,
+        dataset: Dataset,
+        lines: &[String],
+        _clock: &dyn BlockClock,
+    ) -> Result<Parsed, ParseError> {
+        if !is_by_block(dataset, lines) {
+            return Err(ParseError::NotByBlock(dataset));
+        }
+        let poisoned = |_| shape(0, "sequencer state lock poisoned");
+        let state = self
+            .sequencers
+            .lock()
+            .map_err(poisoned)?
+            .get(&dataset)
+            .cloned()
+            .unwrap_or_default();
+        let mut sequencer = Sequencer::new(state);
+        let mut out = Parsed::default();
+        for (i, line) in lines.iter().enumerate() {
+            let n = i + 1;
+            if line.trim().is_empty() {
+                continue;
+            }
+            let ParsedLine::Fills(fills) =
+                ParsedLine::parse(Stream::Fills, line).map_err(|e| shape(n, e.to_string()))?
+            else {
+                return Err(shape(n, "not a fills line"));
+            };
+            let joined = JoinedBlock {
+                block_number: fills.block_number,
+                fills: Some(fills),
+                statuses: None,
+                diffs: None,
+            };
+            let mut block = hl_node_reader::normalize(&joined, &self.registry);
+            if let Some(why) = &block.rejected {
+                return Err(shape(
+                    n,
+                    format!("block {} rejected: {why}", block.block_number),
+                ));
+            }
+            block.incomplete = false;
+            out.stats.unknown_coin += block.stats.unknown_coins.len() as u64;
+            let number = block.block_number;
+            let Some(output) = sequencer.sequence(block) else {
+                return Err(shape(
+                    n,
+                    format!("block {number} is not after the last block sequenced"),
+                ));
+            };
+            for batch in output.batches {
+                for mut r in batch.records {
+                    let p = r.prov_mut();
+                    p.admission = self.admission.clone();
+                    p.flags.insert(Flag::Backfill);
+                    out.records.push(r);
+                }
+            }
+        }
+        self.sequencers
+            .lock()
+            .map_err(poisoned)?
+            .insert(dataset, sequencer.state().clone());
+        Ok(out)
+    }
+}
+
+/// The parser the binary and the pipeline use: [`NodeReaderParser`] for
+/// by-block objects ([`is_by_block`]), [`LocalParser`] for every other
+/// bucket format.
+#[derive(Debug)]
+pub struct DefaultParser {
+    /// For by-block objects.
+    pub node: NodeReaderParser,
+    /// For the other bucket formats.
+    pub local: LocalParser,
+}
+
+impl DefaultParser {
+    /// A parser that resolves coins through `registry`.
+    #[must_use]
+    pub fn new(registry: Registry) -> Self {
+        Self {
+            node: NodeReaderParser::new(registry.clone()),
+            local: LocalParser::new(registry),
+        }
+    }
+}
+
+impl RecordParser for DefaultParser {
+    fn parse(
+        &self,
+        dataset: Dataset,
+        lines: &[String],
+        clock: &dyn BlockClock,
+    ) -> Result<Parsed, ParseError> {
+        if is_by_block(dataset, lines) {
+            self.node.parse(dataset, lines, clock)
+        } else {
+            self.local.parse(dataset, lines, clock)
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -662,5 +833,134 @@ pub(crate) mod tests {
         for r in &p.records {
             mesh_types::allowlist::check_record(r).unwrap();
         }
+    }
+
+    /// A trade in hl-synth's `expected.json` shape.
+    pub(crate) fn trade_shape(r: &Record) -> Value {
+        let Record::Trade(t) = r else {
+            panic!("not a trade: {r:?}")
+        };
+        serde_json::json!({
+            "seq": [t.prov.seq.block_number, t.prov.seq.event_index],
+            "ts_source_ms": t.prov.ts_source_ms.0,
+            "trade_id": t.trade_id.0,
+            "price": t.price.to_string(),
+            "size": t.size.to_string(),
+            "aggressor": t.aggressor.as_str(),
+        })
+    }
+
+    /// Filters and parses hl-synth's two hourly fills files of `scenario`
+    /// as two `node_fills_by_block` objects, with the default stages.
+    fn synth_records(
+        files: &hl_synth::FileSet,
+        scenario: &str,
+        registry: &Registry,
+    ) -> Vec<Record> {
+        let parser = DefaultParser::new(registry.clone());
+        let mut out = Vec::new();
+        for hour in ["0", "1"] {
+            let key = format!("{scenario}/node_fills_by_block/hourly/20260101/{hour}");
+            let text = String::from_utf8(files[&key].clone()).unwrap();
+            let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+            let f = crate::filter::DefaultFilter::default()
+                .filter_lines(Dataset::NodeFillsByBlock, &lines)
+                .unwrap();
+            let p = parser
+                .parse(Dataset::NodeFillsByBlock, &f.lines, &TableClock::default())
+                .unwrap();
+            out.extend(p.records);
+        }
+        out
+    }
+
+    #[test]
+    fn node_reader_path_reproduces_the_synthetic_ground_truth() {
+        let files = hl_synth::generate(hl_synth::Config::default()).unwrap();
+        let registry: Registry = serde_json::from_slice(&files["markets.json"]).unwrap();
+        for scenario in ["base", "gap"] {
+            let expected: Value =
+                serde_json::from_slice(&files[&format!("{scenario}/expected.json")]).unwrap();
+            let records = synth_records(&files, scenario, &registry);
+            let mut by_coin: BTreeMap<String, Vec<Value>> = BTreeMap::new();
+            let mut flagged: Vec<(InstrumentId, Seq)> = Vec::new();
+            for r in &records {
+                let p = r.prov();
+                assert_eq!(p.admission.as_str(), "ADM-0003");
+                assert!(p.flags.contains(Flag::Backfill));
+                r.validate().unwrap();
+                mesh_types::allowlist::check_record(r).unwrap();
+                let spec = registry.get(&p.instrument).unwrap();
+                assert_eq!(
+                    p.flags.contains(Flag::OracleAnchoredVenue),
+                    spec.flags.contains(Flag::OracleAnchoredVenue)
+                );
+                if p.flags.contains(Flag::GapBefore) {
+                    flagged.push((p.instrument.clone(), p.seq));
+                }
+                by_coin
+                    .entry(spec.venue_symbol.clone())
+                    .or_default()
+                    .push(trade_shape(r));
+            }
+            let coins = expected["coins"].as_object().unwrap();
+            assert_eq!(coins.len(), by_coin.len(), "{scenario}");
+            for (coin, c) in coins {
+                assert_eq!(
+                    &by_coin[coin],
+                    c["trades"].as_array().unwrap(),
+                    "{scenario} {coin}"
+                );
+            }
+            match expected["missing_blocks"][0].as_u64() {
+                None => assert!(flagged.is_empty(), "{flagged:?}"),
+                Some(missing) => {
+                    // The first trade of each market after the missing
+                    // block carries gap_before, and no other.
+                    assert!(!flagged.is_empty());
+                    for (id, seq) in &flagged {
+                        let first_after = records
+                            .iter()
+                            .filter(|r| &r.prov().instrument == id)
+                            .map(|r| r.prov().seq)
+                            .find(|s| s.block_number > missing)
+                            .unwrap();
+                        assert_eq!(*seq, first_after);
+                    }
+                    let ids: std::collections::BTreeSet<_> =
+                        flagged.iter().map(|(id, _)| id).collect();
+                    assert_eq!(ids.len(), flagged.len());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn node_reader_parser_keeps_sequencer_state_per_dataset() {
+        let reg = registry();
+        let p = NodeReaderParser::new(reg.clone());
+        let bare = vec![fill("SOL", "20.5", "1", "B", true, 1, 1, 1_000_100).to_string()];
+        assert_eq!(
+            p.parse(Dataset::NodeFills, &bare, &TableClock::default()),
+            Err(ParseError::NotByBlock(Dataset::NodeFills))
+        );
+        let line = |b: u64| {
+            serde_json::json!({"block_number": b, "block_time": "2025-07-27T00:00:01.000",
+                "events": [], "local_time": "2025-07-27T00:00:01.000000001"})
+            .to_string()
+        };
+        let clock = TableClock::default();
+        p.parse(Dataset::NodeFillsByBlock, &[line(5)], &clock)
+            .unwrap();
+        // A block at or below the last one sequenced fails the object and
+        // leaves the state unchanged.
+        assert!(
+            p.parse(Dataset::NodeFillsByBlock, &[line(5)], &clock)
+                .is_err()
+        );
+        // State is per dataset.
+        p.parse(Dataset::NodeFills, &[line(5)], &clock).unwrap();
+        p.parse(Dataset::NodeFillsByBlock, &[line(6)], &clock)
+            .unwrap();
     }
 }
