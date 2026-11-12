@@ -14,7 +14,7 @@
 # Commands (default: up):
 #   up            build images if needed, then start the profile detached
 #   down          stop the profile (volumes kept)
-#   ps | logs | config | pull | restart   passed to docker compose
+#   stop | start | ps | logs | config | pull | restart   passed to docker compose
 #   backfill ARGS run a one-off hl-backfill job with ARGS
 #
 # Options (before the profile):
@@ -186,7 +186,7 @@ EOF
   backfill)
     "${dc[@]}" --profile backfill run --rm hl-backfill "$@"
     ;;
-  down|ps|logs|config|pull|restart)
+  down|stop|start|ps|logs|config|pull|restart)
     "${dc[@]}" "$cmd" "$@"
     ;;
   *) die "unknown command '$cmd'" ;;
