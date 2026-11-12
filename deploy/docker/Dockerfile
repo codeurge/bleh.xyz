@@ -10,7 +10,7 @@
 #   gateway         demo and relay modes
 #   archive         archive CLI with the reader's filters and parser wired in
 #                   (built from crates/origin)
-#   history-api  swap-pollers  hl-backfill
+#   history-api  swap-pollers  reference-pollers  hl-backfill
 #   mesh-client     tools (mesh-client + hl-synth)
 #
 # Build through deploy/docker/build.sh, which feeds `git archive` of a commit
@@ -38,7 +38,7 @@ FROM ${RUST_IMAGE} AS build
 # the live mirrors (faster, not reproducible).
 ARG DEBIAN_SNAPSHOT=20261110T000000Z
 ARG SOURCE_DATE_EPOCH=0
-ARG BINS="origin hl-node-reader gateway archive history-api swap-pollers hl-backfill mesh-client hl-synth"
+ARG BINS="origin hl-node-reader gateway archive history-api swap-pollers reference-pollers hl-backfill mesh-client hl-synth"
 
 ENV CARGO_INCREMENTAL=0 \
     CARGO_TERM_COLOR=never \
@@ -154,6 +154,12 @@ LABEL org.opencontainers.image.title="bleh swap-pollers"
 COPY --from=build /out/swap-pollers /usr/local/bin/swap-pollers
 EXPOSE 9187
 ENTRYPOINT ["/usr/local/bin/swap-pollers"]
+
+FROM runtime AS reference-pollers
+LABEL org.opencontainers.image.title="bleh reference-pollers"
+COPY --from=build /out/reference-pollers /usr/local/bin/reference-pollers
+EXPOSE 9188
+ENTRYPOINT ["/usr/local/bin/reference-pollers"]
 
 FROM runtime AS hl-backfill
 LABEL org.opencontainers.image.title="bleh hl-backfill"

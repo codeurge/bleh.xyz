@@ -70,6 +70,48 @@ const fn default_rates_max_age() -> u32 {
     3
 }
 
+/// Overnight series emitted by the reference pollers (`crates/reference-pollers`):
+/// the New York Fed's SOFR, tenor `ON`, simple act/360 (ADM-0007).
+pub const POLLER_OVERNIGHT: &str = "nyfed:ref:SOFR";
+/// Treasury bill rates, coupon equivalent, with each bill's maturity
+/// (ADM-0006): the short end of the reference-poller curve.
+pub const POLLER_BILLS: &str = "us-treasury:ref:bill_rates_coupon_equivalent";
+/// Treasury par yield curve, semi-annual par yields by tenor (ADM-0006):
+/// the long end of the reference-poller curve.
+pub const POLLER_PAR: &str = "us-treasury:ref:par_yield_curve";
+
+impl CurveConfig {
+    /// The rate curve from the records the reference pollers emit:
+    /// SOFR as the overnight node and fixings, then Treasury bill rates
+    /// (coupon equivalent, simple act/365 to each bill's maturity, 52-week
+    /// semi-annual), then the Treasury par curve beyond the longest bill
+    /// (bootstrapped from semi-annual par yields). Revisions are applied
+    /// as published: the highest `revision` for a date and tenor wins.
+    #[must_use]
+    pub fn reference_pollers() -> Self {
+        let id = |s: &str| InstrumentId::new(s).ok();
+        Self {
+            overnight: id(POLLER_OVERNIGHT).unwrap_or_else(unreachable_instrument),
+            sets: vec![
+                CurveSet::Series {
+                    name: "treasury bills (reference pollers)".into(),
+                    series: id(POLLER_BILLS).into_iter().collect(),
+                },
+                CurveSet::Series {
+                    name: "treasury par curve (reference pollers)".into(),
+                    series: id(POLLER_PAR).into_iter().collect(),
+                },
+            ],
+            max_age_business_days: default_rates_max_age(),
+        }
+    }
+}
+
+fn unreachable_instrument() -> InstrumentId {
+    // The constant above is a valid ID; keep a total fallback.
+    InstrumentId::new("nyfed:ref:SOFR").unwrap_or_else(|_| unreachable_instrument())
+}
+
 /// One set of curve points.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -288,6 +330,18 @@ impl Registry {
         Ok(r)
     }
 
+    /// The registry with its curve replaced by `curve` (spot, carry and
+    /// anchor entries unchanged), checked again.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the result does not check.
+    pub fn with_curve(mut self, curve: CurveConfig) -> Result<Self, Error> {
+        self.curve = curve;
+        self.check()?;
+        Ok(self)
+    }
+
     /// The calendar `id` with its configured exceptions.
     #[must_use]
     pub fn calendar(&self, id: CalendarId) -> Calendar {
@@ -408,6 +462,24 @@ mod tests {
         assert_eq!(s.max_age_secs, 120);
         assert_eq!(s.sources[0].multiplier.to_string(), "1");
         assert_eq!(r.curve.max_age_business_days, 3);
+    }
+
+    #[test]
+    fn reference_poller_curve_preset() {
+        let r = Registry::from_json(MIN)
+            .unwrap()
+            .with_curve(CurveConfig::reference_pollers())
+            .unwrap();
+        assert_eq!(r.curve.overnight.as_str(), POLLER_OVERNIGHT);
+        assert_eq!(r.curve.sets.len(), 2);
+        assert!(
+            matches!(&r.curve.sets[0], CurveSet::Series { series, .. } if series[0].as_str() == POLLER_BILLS)
+        );
+        assert!(
+            matches!(&r.curve.sets[1], CurveSet::Series { series, .. } if series[0].as_str() == POLLER_PAR)
+        );
+        // Spot entries are untouched.
+        assert_eq!(r.exposures[0].spot.as_ref().unwrap().sources.len(), 1);
     }
 
     #[test]

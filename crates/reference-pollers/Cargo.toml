@@ -1,0 +1,45 @@
+[package]
+name = "reference-pollers"
+description = "Pollers and history backfill for admitted public reference sources (rates, settlement anchors, Commitments of Traders)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "reference-pollers"
+path = "src/main.rs"
+
+[dependencies]
+mesh-types.workspace = true
+archive.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+bytes.workspace = true
+clap = { workspace = true, features = ["env"] }
+csv = "1.4"
+fastrand = "2.3"
+httpdate = "1.0"
+quick-xml = "0.41"
+reqwest = { workspace = true, features = ["rustls", "http2"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zip = { version = "9", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+synthetic = { path = "../synthetic" }
+tempfile.workspace = true
+wiremock = "0.6"
+
+[lints]
+workspace = true

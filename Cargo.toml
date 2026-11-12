@@ -13,6 +13,7 @@ members = [
     "crates/origin",
     "crates/swap-pollers",
     "crates/synthetic",
+    "crates/reference-pollers",
     "tools/hl-synth",
     "tools/mesh-client",
     "tools/hl-backfill",

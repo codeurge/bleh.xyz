@@ -199,17 +199,20 @@ struct PartitionDirArgs {
     /// Directory of daily record files laid out as `date=YYYY-MM-DD/<file>`.
     #[arg(long, env = "BLEH_PARTITION_DIR_RECORDS")]
     records_dir: PathBuf,
-    /// Record file name inside each day directory.
+    /// Record file name inside each day directory; repeatable (the variable
+    /// takes a comma-separated list).
     #[arg(
-        long,
+        long = "file",
         env = "BLEH_PARTITION_DIR_FILE",
+        value_delimiter = ',',
         default_value = "swap_print.jsonl"
     )]
-    file: String,
+    files: Vec<String>,
     /// Normalized archive root.
     #[arg(long, env = "BLEH_PARTITION_DIR_OUT")]
     out: PathBuf,
-    /// Directory for per-day markers [default: <out>/.partition-dir/<file>].
+    /// Directory for markers, `<state>/<file>/<day>.sha256`
+    /// [default: <out>/.partition-dir].
     #[arg(long, env = "BLEH_PARTITION_DIR_STATE")]
     state_dir: Option<PathBuf>,
     /// Partition a day only once it is this many whole days before today (UTC).
@@ -801,12 +804,12 @@ fn partition_cmd(a: &PartitionArgs) -> Result<ExitCode> {
 async fn partition_dir_cmd(a: &PartitionDirArgs) -> Result<ExitCode> {
     let opts = crate::partition_dir::PartitionDir {
         records_dir: a.records_dir.clone(),
-        file: a.file.clone(),
+        files: a.files.clone(),
         out: a.out.clone(),
         state_dir: a
             .state_dir
             .clone()
-            .unwrap_or_else(|| a.out.join(".partition-dir").join(&a.file)),
+            .unwrap_or_else(|| a.out.join(".partition-dir")),
         settle_days: a.settle_days,
     };
     if a.follow {
@@ -815,11 +818,11 @@ async fn partition_dir_cmd(a: &PartitionDirArgs) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     let r = crate::partition_dir::scan(&opts, crate::partition_dir::today_utc())?;
-    for day in &r.written {
-        println!("{day} written");
+    for (day, file) in &r.written {
+        println!("{day} {file} written");
     }
-    for day in &r.changed {
-        println!("{day} changed after partitioning (left alone)");
+    for (day, file) in &r.changed {
+        println!("{day} {file} changed after partitioning (left alone)");
     }
     println!(
         "{} written, {} unchanged, {} changed, {} pending",

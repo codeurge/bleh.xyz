@@ -429,6 +429,49 @@ services:
       - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized
       - partition-state:/var/lib/bleh/partition-state
 
+  reference-pollers:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/reference-pollers:${BLEH_TAG:-local}
+    # Admitted public reference sources (ADM-0005 to ADM-0013): rates,
+    # settlement anchors, Commitments of Traders. Flags and variables:
+    # docs/operations/reference-pollers.md.
+    command: ["run"]
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      REFERENCE_POLLERS_LOG_JSON: "true"
+      REFERENCE_POLLERS_LISTEN: 0.0.0.0:9188
+      REFERENCE_POLLERS_RAW_DIR: /var/lib/bleh/reference/raw
+      REFERENCE_POLLERS_STATE_DIR: /var/lib/bleh/reference/state
+      REFERENCE_POLLERS_OUT_DIR: /var/lib/bleh/reference/records
+      REFERENCE_POLLERS_USER_AGENT: ${REFERENCE_USER_AGENT:-bleh.xyz reference-pollers}
+      REFERENCE_POLLERS_SOURCES: ${REFERENCE_SOURCES:-}
+      REFERENCE_POLLERS_ERCOT_PRODUCTS: ${REFERENCE_ERCOT_PRODUCTS:-12331,12329,12301,24898}
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9188:9188"]
+    volumes:
+      - reference-data:/var/lib/bleh/reference
+
+  # Partitions settled days of reference records into the same normalized
+  # archive. The settle period covers the New York Fed's 10-day revision
+  # window; later revisions are reported, not rewritten
+  # (docs/operations/archive.md, "Daily record files").
+  reference-partition:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    command: ["partition-dir", "--follow", "--log-format", "json"]
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_PARTITION_DIR_RECORDS: /var/lib/bleh/reference/records
+      BLEH_PARTITION_DIR_FILE: reference_value.jsonl,positioning.jsonl
+      BLEH_PARTITION_DIR_OUT: /srv/normalized
+      BLEH_PARTITION_DIR_STATE: /var/lib/bleh/partition-state/reference
+      BLEH_PARTITION_DIR_SETTLE_DAYS: ${REFERENCE_PARTITION_SETTLE_DAYS:-12}
+    volumes:
+      - reference-data:/var/lib/bleh/reference:ro
+      - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized
+      - partition-state:/var/lib/bleh/partition-state
+
   # ==================================================================
   # History API: staging on home-archive, public on relays
   # ==================================================================
@@ -716,6 +759,27 @@ services:
       - ${BACKFILL_SCRATCH_DIR:-backfill-work}:/var/lib/bleh/backfill
     tmpfs: ["/tmp:size=4g"]
 
+  # One-off history import of the reference sources into the
+  # reference-backfill archive (docs/operations/reference-pollers.md):
+  #   docker compose --profile backfill run --rm reference-backfill \
+  #     backfill --archive-root /var/lib/bleh/reference/archive/reference-backfill
+  reference-backfill:
+    <<: *bleh-service
+    profiles: [backfill]
+    restart: "no"
+    image: ${BLEH_REGISTRY:-bleh}/reference-pollers:${BLEH_TAG:-local}
+    command: ["backfill", "--archive-root", "/var/lib/bleh/reference/archive/reference-backfill"]
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      REFERENCE_POLLERS_LOG_JSON: "true"
+      REFERENCE_POLLERS_STATE_DIR: /var/lib/bleh/reference/state
+      REFERENCE_POLLERS_RAW_DIR: /var/lib/bleh/reference/raw
+      REFERENCE_POLLERS_USER_AGENT: ${REFERENCE_USER_AGENT:-bleh.xyz reference-pollers}
+      REFERENCE_POLLERS_SOURCES: ${REFERENCE_SOURCES:-}
+    volumes:
+      - reference-data:/var/lib/bleh/reference
+    tmpfs: ["/tmp:size=1g"]
+
 secrets:
   signing_key:
     file: ./secrets/signing-key.hex
@@ -739,6 +803,7 @@ volumes:
   swap-data:
   normalized:
   partition-state:
+  reference-data:
   reader-state:
   archive-work:
   archive-mirror:

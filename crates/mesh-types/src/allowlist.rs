@@ -363,6 +363,21 @@ const REFERENCE_VALUE: &[&str] = &[
     "currency",
     "as_of_date",
     "revision",
+    "period_start_ms",
+    "period_end_ms",
+];
+
+const POSITIONING: &[&str] = &[
+    "report",
+    "combined",
+    "contract_market_code",
+    "as_of_date",
+    "category",
+    "long",
+    "short",
+    "spreading",
+    "open_interest",
+    "revision",
 ];
 
 const SYNTHETIC_MONTH: &[&str] = &[
@@ -439,6 +454,7 @@ pub const fn kind_paths(kind: RecordKind) -> &'static [&'static str] {
         RecordKind::Coverage => COVERAGE,
         RecordKind::ReferenceValue => REFERENCE_VALUE,
         RecordKind::SyntheticMonth => SYNTHETIC_MONTH,
+        RecordKind::Positioning => POSITIONING,
     }
 }
 
@@ -575,6 +591,7 @@ mod tests {
         .chain(analytics_samples())
         .chain(crate::reference::tests::samples())
         .chain(crate::synthetic::tests::samples())
+        .chain(crate::positioning::tests::samples())
         .collect()
     }
 

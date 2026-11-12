@@ -171,6 +171,30 @@ swap-pollers` for HTTP errors (format change, blocking, rate limits); a
 format change needs the swap-pollers lane and possibly the admission record
 (ADM-0002, ADM-0004).
 
+## Reference pollers stalled
+
+`BlehReferencePollStale` (ERCOT), `BlehReferenceSourceStale`,
+`BlehReferenceUnknownFields`, `BlehReferenceParseErrors` or
+`BlehReferenceStaleReport`. ERCOT keeps real-time files listed for only
+seven days and day-ahead files for 31, so an ERCOT stall is data at risk
+after a few days; the other sources keep history and can be backfilled.
+
+1. `docker compose logs reference-pollers` (or `journalctl -u
+   bleh@reference-pollers`): HTTP status per source, `undocumented field`
+   warnings, `unreadable response` errors.
+2. An unknown field or a parse error means the source changed its layout.
+   The body is kept under `raw/<source>/<date>/`; nothing undocumented is
+   emitted. Update `docs/specs/reference-sources.md` and the reader, check
+   the admission record still covers the field, then replay the raw file
+   with `reference-pollers parse FILE`.
+3. Repeated `403` or `429`: back off (raise the source's interval through
+   `--sources` on a separate instance, or stop it); never switch to a
+   channel the admission does not cover (the ERCOT API, MyMarketNews,
+   treasurydirect.gov, FRED).
+4. A stale feeder-cattle file is expected while AMS lags; see the runbook.
+
+Runbook: [reference-pollers.md](reference-pollers.md).
+
 ## Key compromise
 
 Any suspicion that a signing key, tunnel token, service token or API token

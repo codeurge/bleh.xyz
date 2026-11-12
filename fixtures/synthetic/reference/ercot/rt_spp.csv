@@ -1,0 +1,9 @@
+DeliveryDate,DeliveryHour,DeliveryInterval,SettlementPointName,SettlementPointType,SettlementPointPrice,DSTFlag,ExampleNewColumn
+03/10/2026,14,1,HB_NORTH,HU,31.00,N,x
+03/10/2026,14,1,LZ_WEST,LZ,32.00,N,x
+03/10/2026,14,2,HB_NORTH,HU,32.00,N,x
+03/10/2026,14,2,LZ_WEST,LZ,33.00,N,x
+03/10/2026,14,3,HB_NORTH,HU,33.00,N,x
+03/10/2026,14,3,LZ_WEST,LZ,34.00,N,x
+03/10/2026,14,4,HB_NORTH,HU,34.00,N,x
+03/10/2026,14,4,LZ_WEST,LZ,35.00,N,x

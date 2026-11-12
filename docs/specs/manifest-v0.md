@@ -47,6 +47,7 @@ so it is published over HTTPS and IPFS beside it.
 | `web_seeds` | array of URLs | HTTPS base URLs, each ending in `/` (§ 5.1) |
 | `signer` | address | Ethereum address of the signing key |
 | `next_signer` | address, optional | Key that may sign the next manifest instead (§ 3.2) |
+| `notices` | array, optional | Source notices (§ 2.3); omitted when empty |
 
 A day with no files has no manifest. A gap in dates is allowed; a gap in
 `sequence` is not.
@@ -84,6 +85,27 @@ day's torrent has the same name and root, so a client that seeds several
 days shares one directory tree. With
 these fixed parameters anyone can rebuild the torrent from the files and
 get the same infohash.
+
+### 2.3 Source notices
+
+Sources admitted under the open-terms route (admission policy rule 2,
+[ADR 0012](../decisions/0012-open-terms-route-for-public-bodies-and-market-operators.md),
+decision 5) may require a notice to travel with their data, for example
+the New York Fed's reference-rates notice. The manifest carries them, so
+the notice is signed and distributed with every day of the archive.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `admission` | AdmissionId | Admission of the records the notice covers |
+| `source` | VenueId | The records' `prov.venue` |
+| `notice` | string | The notice text as the admission record requires it, 1 to 4096 bytes, no control characters |
+
+Entries are sorted by `admission`, then `source`, and unique. The list is
+omitted when empty, so manifests of archives with no such source keep
+their encoding. The archive builder reads the list from `_notices.json` at
+the archive root (a JSON array of these objects), which the pollers that
+fill the archive write; files whose path has a segment starting with `_`
+are never data files.
 
 ## 3. Signature
 

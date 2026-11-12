@@ -1,6 +1,6 @@
 //! Partition a directory of daily record files, once per closed day.
 //!
-//! Pollers such as swap-pollers write records as
+//! Pollers such as swap-pollers and reference-pollers write records as
 //! `<records-dir>/date=YYYY-MM-DD/<file>`. This module writes each day's
 //! file into the normalized archive once the day has settled (it is at least
 //! `settle_days` whole days before today, UTC), and remembers what it wrote
@@ -25,11 +25,12 @@ use crate::partition::{self, Existing, PartitionOptions};
 pub struct PartitionDir {
     /// Directory holding `date=YYYY-MM-DD/<file>` subdirectories.
     pub records_dir: PathBuf,
-    /// Record file name inside each day directory.
-    pub file: String,
+    /// Record file names inside each day directory (for example
+    /// `swap_print.jsonl`, or `reference_value.jsonl` and `positioning.jsonl`).
+    pub files: Vec<String>,
     /// Normalized archive root.
     pub out: PathBuf,
-    /// Directory for per-day markers.
+    /// Directory for markers (`<state_dir>/<file>/<day>.sha256`).
     pub state_dir: PathBuf,
     /// Whole days a day must be in the past before it is partitioned.
     pub settle_days: u32,
@@ -38,29 +39,37 @@ pub struct PartitionDir {
 /// What one scan did.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ScanReport {
-    /// Days written this scan.
-    pub written: Vec<Day>,
-    /// Days already partitioned with an unchanged file.
+    /// Day files written this scan.
+    pub written: Vec<(Day, String)>,
+    /// Day files already partitioned and unchanged.
     pub unchanged: usize,
-    /// Days whose file changed after partitioning (left alone).
-    pub changed: Vec<Day>,
-    /// Days not settled yet.
+    /// Day files that changed after partitioning (left alone).
+    pub changed: Vec<(Day, String)>,
+    /// Day files not settled yet.
     pub pending: usize,
 }
 
 /// Scan once, partitioning every settled day that has no marker.
 pub fn scan(opts: &PartitionDir, today: Day) -> Result<ScanReport> {
     let mut report = ScanReport::default();
-    let mut days = list_days(&opts.records_dir, &opts.file)?;
+    let mut days = Vec::new();
+    for file in &opts.files {
+        let state = opts.state_dir.join(file);
+        std::fs::create_dir_all(&state).at(&state)?;
+        days.extend(
+            list_days(&opts.records_dir, file)?
+                .into_iter()
+                .map(|(d, p)| (d, file.clone(), p)),
+        );
+    }
     days.sort();
-    std::fs::create_dir_all(&opts.state_dir).at(&opts.state_dir)?;
-    for (day, path) in days {
+    for (day, file, path) in days {
         if !settled(day, today, opts.settle_days) {
             report.pending += 1;
             continue;
         }
         let digest = file_sha256(&path)?;
-        let marker = opts.state_dir.join(format!("{day}.sha256"));
+        let marker = opts.state_dir.join(&file).join(format!("{day}.sha256"));
         match std::fs::read_to_string(&marker) {
             Ok(prev) if prev.trim() == digest => {
                 report.unchanged += 1;
@@ -70,7 +79,7 @@ pub fn scan(opts: &PartitionDir, today: Day) -> Result<ScanReport> {
                 tracing::warn!(day = %day, file = %path.display(),
                     "record file changed after it was partitioned; left alone (write a correction to change it)");
                 crate::metrics::inc("archive_partition_dir_changed_total", &[], 1);
-                report.changed.push(day);
+                report.changed.push((day, file));
                 continue;
             }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -87,7 +96,7 @@ pub fn scan(opts: &PartitionDir, today: Day) -> Result<ScanReport> {
         tracing::info!(day = %day, records = n, files = files.len(), "partitioned");
         crate::metrics::inc("archive_partition_dir_days_total", &[], 1);
         crate::metrics::inc("archive_partition_dir_records_total", &[], n as u64);
-        report.written.push(day);
+        report.written.push((day, file));
     }
     Ok(report)
 }
@@ -228,7 +237,7 @@ mod tests {
     fn opts(tmp: &Path) -> PartitionDir {
         PartitionDir {
             records_dir: tmp.join("records"),
-            file: "swap_print.jsonl".into(),
+            files: vec!["swap_print.jsonl".into()],
             out: tmp.join("normalized"),
             state_dir: tmp.join("state"),
             settle_days: 2,
@@ -248,7 +257,8 @@ mod tests {
         let today: Day = "2026-01-04".parse().expect("day");
 
         let r = scan(&o, today).expect("scan");
-        assert_eq!(r.written, vec![d1, d2]);
+        let f = || "swap_print.jsonl".to_string();
+        assert_eq!(r.written, vec![(d1, f()), (d2, f())]);
         assert_eq!(r.pending, 1);
 
         let again = scan(&o, today).expect("rescan");
@@ -260,11 +270,11 @@ mod tests {
         lines.truncate(1);
         write_day(&o.records_dir, "2026-01-01", &lines);
         let changed = scan(&o, today).expect("scan after change");
-        assert_eq!(changed.changed, vec![d1]);
+        assert_eq!(changed.changed, vec![(d1, f())]);
 
         // The next day settles.
         let later = scan(&o, "2026-01-05".parse().expect("day")).expect("later");
-        assert_eq!(later.written, vec![d3]);
+        assert_eq!(later.written, vec![(d3, f())]);
     }
 
     #[test]

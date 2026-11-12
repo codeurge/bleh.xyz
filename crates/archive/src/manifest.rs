@@ -11,12 +11,18 @@
 //!
 //! `manifest.json` is written as the canonical JSON of the signed manifest,
 //! so its SHA-256 is the manifest hash.
+//!
+//! Source notices (ADR 0012, decision 5) come from the optional
+//! [`NOTICES_FILE`] at the archive root, written by the pollers that fill
+//! the archive; every manifest of the archive then carries them.
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use mesh_types::manifest::{MANIFEST_FORMAT, Manifest, ManifestFile, SignedManifest, TorrentInfo};
+use mesh_types::manifest::{
+    MANIFEST_FORMAT, Manifest, ManifestFile, SignedManifest, SourceNotice, TorrentInfo,
+};
 use mesh_types::{EthAddress, Sha256Digest, SigningKey, UnixNanos};
 
 use crate::digest::{self, FileDigest};
@@ -56,6 +62,30 @@ pub struct Built {
     pub torrent: Torrent,
     /// Path and digest of every file, in manifest order.
     pub digests: Vec<(String, FileDigest)>,
+}
+
+/// File at an archive root listing the source notices its manifests carry
+/// (a JSON array of `SourceNotice`). Its `_` prefix keeps it out of the
+/// data files.
+pub const NOTICES_FILE: &str = "_notices.json";
+
+/// The source notices of the archive at `root`, sorted and deduplicated;
+/// empty when there is no [`NOTICES_FILE`].
+///
+/// # Errors
+///
+/// Fails on I/O errors or a malformed file.
+pub fn read_notices(root: &Path) -> Result<Vec<SourceNotice>> {
+    let path = root.join(NOTICES_FILE);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let bytes = std::fs::read(&path).at(&path)?;
+    let mut notices: Vec<SourceNotice> = serde_json::from_slice(&bytes)
+        .map_err(|e| Error::invalid(format!("{}: {e}", path.display())))?;
+    notices.sort();
+    notices.dedup();
+    Ok(notices)
 }
 
 /// The data files of `day` under the archive root `root`, sorted by path.
@@ -179,6 +209,7 @@ pub fn build(root: &Path, opts: &BuildOptions) -> Result<Built> {
         web_seeds: opts.web_seeds.clone(),
         signer: opts.signer,
         next_signer: opts.next_signer,
+        notices: read_notices(root)?,
     };
     manifest.validate()?;
     Ok(Built {
@@ -563,6 +594,33 @@ mod tests {
             next_signer: None,
             previous,
         }
+    }
+
+    #[test]
+    fn notices_file_reaches_the_manifest() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        write_partitions(root, every_kind(), &PartitionOptions::default()).unwrap();
+        let k = key(1);
+        let plain = build(root, &opts("2026-01-01", &k, None)).unwrap();
+        assert!(plain.manifest.notices.is_empty());
+        std::fs::write(
+            root.join(NOTICES_FILE),
+            br#"[{"admission":"ADM-9002","source":"example-b","notice":"Notice B."},
+                 {"admission":"ADM-9001","source":"example-a","notice":"Notice A."},
+                 {"admission":"ADM-9001","source":"example-a","notice":"Notice A."}]"#,
+        )
+        .unwrap();
+        let built = build(root, &opts("2026-01-01", &k, None)).unwrap();
+        let n = &built.manifest.notices;
+        assert_eq!(n.len(), 2);
+        assert_eq!(n[0].admission.as_str(), "ADM-9001");
+        // The notices file is not a data file.
+        assert_eq!(built.manifest.files.len(), plain.manifest.files.len());
+        let signed = sign(built.manifest, &k).unwrap();
+        verify_signed(&signed, &[k.address()]).unwrap();
+        std::fs::write(root.join(NOTICES_FILE), b"{").unwrap();
+        assert!(build(root, &opts("2026-01-01", &k, None)).is_err());
     }
 
     #[test]

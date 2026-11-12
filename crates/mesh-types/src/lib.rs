@@ -39,6 +39,7 @@
 //! | [`swap`] | Part 43 / SBSR swap prints |
 //! | [`reference`] | Public reference values (rates, yields, prices) |
 //! | [`synthetic`] | Synthetic contract months |
+//! | [`positioning`] | Futures positioning statistics (Commitments of Traders) |
 //! | [`batch`] | [`BlockBatch`], the unit published on the bus |
 //! | [`registry`] | Instrument specifications built from venue metadata |
 //! | [`allowlist`] | Runtime field allowlist |
@@ -65,6 +66,7 @@ mod hex;
 pub mod ids;
 pub mod manifest;
 pub mod merkle;
+pub mod positioning;
 pub mod provenance;
 pub mod record;
 pub mod reference;
@@ -86,7 +88,9 @@ pub use derived::{DerivedHeader, Footprint, FootprintLevel, ProfileLevel, Volume
 pub use flags::{Flag, Flags};
 pub use hash::{ContentHash, ContentHasher, Sha256Digest, canonical_json, content_hash};
 pub use ids::{AdmissionId, IdError, InstrumentId, MethodId, OrderId, TradeId, VenueId};
+pub use manifest::SourceNotice;
 pub use merkle::{H256, MerkleProof, merkle_root};
+pub use positioning::{Positioning, PositioningCategory, PositioningReport};
 pub use provenance::Provenance;
 pub use record::{
     AggressorSide, Bar, BarInterval, BookAction, BookEvent, BookSide, BookSnapshot, Level, Record,

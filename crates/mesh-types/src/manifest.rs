@@ -13,6 +13,10 @@
 //!   name `next_signer`; the following manifest may be signed by either.
 //! - The manifest hash used for chaining and anchoring is
 //!   `SHA-256(canonical_json(signed_manifest))`.
+//! - A manifest may carry [`SourceNotice`]s: the notices that sources
+//!   admitted under the open-terms route require to travel with their
+//!   data (ADR 0012, decision 5). The list is omitted when empty, so
+//!   manifests without notices keep their encoding and signature.
 //! - [`ManifestAnchors`] live beside the signed manifest (anchors are made
 //!   after signing): an OpenTimestamps proof and an Ethereum L2
 //!   transaction, both committing to the manifest hash.
@@ -25,6 +29,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::hash::{CanonicalError, ContentHash, Sha256Digest, canonical_json};
+use crate::ids::{AdmissionId, VenueId};
 use crate::merkle::H256;
 use crate::signing::{EthAddress, EthSignature, SigError, SigningKey};
 use crate::time::UnixNanos;
@@ -85,6 +90,22 @@ pub struct ManifestFile {
     pub bt_pieces_root: Option<Sha256Digest>,
 }
 
+/// Longest notice text accepted, in bytes.
+pub const MAX_NOTICE_BYTES: usize = 4096;
+
+/// A notice a source requires to travel with its data (ADR 0012,
+/// decision 5), for example the New York Fed's reference-rates notice.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SourceNotice {
+    /// Admission covering the records the notice applies to.
+    pub admission: AdmissionId,
+    /// The records' `prov.venue`.
+    pub source: VenueId,
+    /// The notice text, verbatim as the admission record requires it.
+    pub notice: String,
+}
+
 /// The day's BitTorrent v2 torrent, containing every listed file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -122,6 +143,10 @@ pub struct Manifest {
     /// Address that may sign the next manifest instead (key rotation).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_signer: Option<EthAddress>,
+    /// Source notices for the archive's records, sorted by admission and
+    /// source, unique. Omitted when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notices: Vec<SourceNotice>,
 }
 
 /// A manifest with its signature. This is the file published as
@@ -242,6 +267,23 @@ impl Manifest {
                 .all(|u| u.starts_with("https://") && u.ends_with('/'))
         {
             return Err(invalid("web_seeds must be https base URLs ending in /"));
+        }
+        for w in self.notices.windows(2) {
+            if (&w[0].admission, &w[0].source) >= (&w[1].admission, &w[1].source) {
+                return Err(invalid(
+                    "notices must be sorted by admission and source and unique",
+                ));
+            }
+        }
+        if let Some(n) = self.notices.iter().find(|n| {
+            n.notice.trim().is_empty()
+                || n.notice.len() > MAX_NOTICE_BYTES
+                || n.notice.chars().any(char::is_control)
+        }) {
+            return Err(invalid(format!(
+                "notice for {} {} must be 1 to {MAX_NOTICE_BYTES} bytes of printable text",
+                n.admission, n.source
+            )));
         }
         Ok(())
     }
@@ -531,7 +573,41 @@ mod tests {
             web_seeds: vec!["https://mirror.example.org/archive/".into()],
             signer: key.address(),
             next_signer: None,
+            notices: Vec::new(),
         }
+    }
+
+    #[test]
+    fn notices_are_optional_and_checked() {
+        let k1 = SigningKey::from_bytes(&[1u8; 32]).unwrap();
+        let m = manifest(&k1, 0, "2026-01-01", None);
+        let json = String::from_utf8(canonical_json(&m).unwrap()).unwrap();
+        assert!(!json.contains("notices"), "empty notices are omitted");
+        let notice = |adm: &str, src: &str, text: &str| SourceNotice {
+            admission: AdmissionId::new(adm).unwrap(),
+            source: VenueId::new(src).unwrap(),
+            notice: text.into(),
+        };
+        let mut m2 = m.clone();
+        m2.notices = vec![
+            notice("ADM-9001", "example-a", "Example notice A."),
+            notice("ADM-9002", "example-b", "Example notice B."),
+        ];
+        m2.validate().unwrap();
+        let signed = m2.clone().sign(&k1).unwrap();
+        verify_signed(&signed, &[k1.address()]).unwrap();
+        let back: SignedManifest =
+            serde_json::from_slice(&canonical_json(&signed).unwrap()).unwrap();
+        assert_eq!(back.manifest.notices, m2.notices);
+        let mut bad = m2.clone();
+        bad.notices.reverse();
+        assert!(bad.validate().is_err(), "unsorted");
+        let mut bad = m2.clone();
+        bad.notices[0].notice = " ".into();
+        assert!(bad.validate().is_err(), "empty text");
+        let mut bad = m2;
+        bad.notices[0].notice = "line\nbreak".into();
+        assert!(bad.validate().is_err(), "control character");
     }
 
     #[test]

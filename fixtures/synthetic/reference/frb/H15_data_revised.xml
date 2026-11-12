@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<message:MessageGroup xmlns:message="http://www.SDMX.org/resources/SDMXML/schemas/v1_0/message" xmlns:frb="http://www.federalreserve.gov/structure/compact/common" xmlns:kf="http://www.federalreserve.gov/structure/compact/H15_H15">
+<message:Header><message:ID>SYNTHETIC</message:ID></message:Header>
+<frb:DataSet id="SYNTHETIC">
+<kf:Series SERIES_NAME="RIFSPFF_N.B" FREQ="9" UNIT="Percent">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.33" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.34" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.35" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.36" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.35" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFSPPNAAD30_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.30" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.31" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.32" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.33" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.34" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFSRP_F02_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.50" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.51" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.52" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.53" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.54" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFSGFSW04_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.18" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.19" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.20" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.21" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.22" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFLGFCY10_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.20" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.21" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="ND" OBS_VALUE="ND" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.23" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.24" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFLGFCY05_XII_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.60" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.61" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.62" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.63" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.64" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFLGFCY10_N.WF" FREQ="17">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.22" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFSPBLP_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="7.50" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="7.51" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="7.52" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="7.53" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="7.54" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFLDIY10_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="3.90" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="3.91" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="3.92" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="3.93" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="3.94" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RILSPDEPM03_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.40" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.41" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.42" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.43" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="4.44" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIMLPAAAR_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.20" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.21" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.22" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.23" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.24" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="H0.RIFSPPCM01_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.00" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.01" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.02" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.03" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="5.04" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RIFNEWSERIES_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.00" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.01" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.02" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.03" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.04" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+</frb:DataSet></message:MessageGroup>

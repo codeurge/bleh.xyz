@@ -79,8 +79,18 @@ futures data, live and historical:
      publishes
 
 4. **reference-pollers**
-   - Status: Ready
-   - Owner: Unassigned
+   - Status: Done (merged to main 2026-11-12)
+   - Owner: reference-pollers lane
    - Dependencies: task 1 (only `Admitted` fields)
-   - PR: Not opened
-   - Next action: pollers and history backfill for the admitted sources, emitting records the synthetic engine reads
+   - PR: Not opened (owner pushes to main)
+   - Done: `crates/reference-pollers` with live polling and backfill for
+     ADM-0005 to ADM-0013 (feeder cattle live only: no admitted history
+     channel); ADR 0015 (Accepted): `exchange_referenced` bit 7,
+     `positioning` kind, reference-value periods, manifest notices; the
+     synthetic engine's reference-poller curve preset; compose, systemd,
+     alerts and runbook `docs/operations/reference-pollers.md`; tests on
+     synthetic fixtures only
+   - Next action: the open points in the
+     runbook (DTCC sentence of the NY Fed notice, volumes and tenorless
+     rates, the `reference-normalized` daily archive in
+     `archive-pipeline.sh`); then a first real backfill

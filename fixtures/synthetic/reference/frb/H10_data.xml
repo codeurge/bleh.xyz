@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<message:MessageGroup xmlns:message="http://www.SDMX.org/resources/SDMXML/schemas/v1_0/message" xmlns:frb="http://www.federalreserve.gov/structure/compact/common" xmlns:kf="http://www.federalreserve.gov/structure/compact/H15_H15">
+<message:Header><message:ID>SYNTHETIC</message:ID></message:Header>
+<frb:DataSet id="SYNTHETIC">
+<kf:Series SERIES_NAME="RXI$US_N.B.EU" FREQ="9" CURRENCY="USD" FX="EUR">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.08" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.09" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.10" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.11" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.12" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RXI_N.B.JA" FREQ="9" CURRENCY="JPY" FX="USD">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="149.50" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="149.51" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="149.52" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="149.53" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="149.54" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RXI_N.B.CA" FREQ="9" CURRENCY="CAD" FX="USD">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.35" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.36" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.37" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.38" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="1.39" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="JRXWTFB_N.B" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="120.00" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="120.01" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="120.02" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="120.03" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="120.04" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+<kf:Series SERIES_NAME="RXI_N.B.ZZ" FREQ="9">
+<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType><common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>
+<frb:Obs OBS_STATUS="A" OBS_VALUE="2.00" TIME_PERIOD="2026-03-09" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="2.01" TIME_PERIOD="2026-03-10" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="2.02" TIME_PERIOD="2026-03-11" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="2.03" TIME_PERIOD="2026-03-12" />
+<frb:Obs OBS_STATUS="A" OBS_VALUE="2.04" TIME_PERIOD="2026-03-13" />
+</kf:Series>
+</frb:DataSet></message:MessageGroup>

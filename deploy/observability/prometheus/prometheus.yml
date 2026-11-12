@@ -85,6 +85,11 @@ scrape_configs:
       - targets: ["swap-pollers:9187"]
         labels: {site: home}
 
+  - job_name: reference-pollers
+    static_configs:
+      - targets: ["reference-pollers:9188"]
+        labels: {site: home}
+
   - job_name: nats
     static_configs:
       - targets: ["10.77.0.1:7777"]

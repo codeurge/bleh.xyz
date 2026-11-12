@@ -1230,6 +1230,7 @@ pub fn write_archive(
             web_seeds: vec!["https://demo.invalid/".to_owned()],
             signer: key.address(),
             next_signer: None,
+            notices: Vec::new(),
         };
         let signed: SignedManifest = manifest.sign(&key).map_err(model)?;
         prev = Some(signed.sha256().map_err(model)?);

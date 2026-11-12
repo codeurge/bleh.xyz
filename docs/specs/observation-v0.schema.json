@@ -21,7 +21,8 @@
     { "$ref": "#/$defs/liquidity_grade" },
     { "$ref": "#/$defs/coverage" },
     { "$ref": "#/$defs/reference_value" },
-    { "$ref": "#/$defs/synthetic_month" }
+    { "$ref": "#/$defs/synthetic_month" },
+    { "$ref": "#/$defs/positioning" }
   ],
   "$defs": {
     "decimal": {
@@ -65,7 +66,8 @@
           "low_resolution",
           "size_capped",
           "block_trade_delayed",
-          "replayed"
+          "replayed",
+          "exchange_referenced"
         ]
       }
     },
@@ -622,6 +624,40 @@
         },
         "currency": { "oneOf": [{ "type": "string", "pattern": "^[A-Z]{3}$" }, { "type": "null" }] },
         "as_of_date": { "$ref": "#/$defs/date" },
+        "revision": { "$ref": "#/$defs/u32" },
+        "period_start_ms": { "$ref": "#/$defs/ms" },
+        "period_end_ms": { "$ref": "#/$defs/ms" }
+      },
+      "dependentRequired": {
+        "period_start_ms": ["period_end_ms"],
+        "period_end_ms": ["period_start_ms"]
+      }
+    },
+    "positioning": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "report", "combined", "contract_market_code", "as_of_date", "category",
+        "long", "short", "spreading", "open_interest", "revision"
+      ],
+      "properties": {
+        "kind": { "const": "positioning" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "report": { "enum": ["legacy", "disaggregated", "tff", "supplemental"] },
+        "combined": { "type": "boolean" },
+        "contract_market_code": { "type": "string", "pattern": "^[A-Z0-9]{1,12}$" },
+        "as_of_date": { "$ref": "#/$defs/date" },
+        "category": {
+          "enum": [
+            "total_reportable", "nonreportable", "noncommercial", "commercial", "index_traders",
+            "producer_merchant", "swap_dealer", "managed_money", "other_reportable", "dealer",
+            "asset_manager", "leveraged_funds"
+          ]
+        },
+        "long": { "$ref": "#/$defs/u64" },
+        "short": { "$ref": "#/$defs/u64" },
+        "spreading": { "oneOf": [{ "$ref": "#/$defs/u64" }, { "type": "null" }] },
+        "open_interest": { "$ref": "#/$defs/u64" },
         "revision": { "$ref": "#/$defs/u32" }
       }
     },

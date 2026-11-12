@@ -155,7 +155,7 @@ targets_for() {
   case "$1" in
     synthetic) echo "hl-node-reader gateway archive history-api" ;;
     node-box) echo "hl-node origin" ;;
-    home-archive) echo "archive history-api swap-pollers hl-backfill tools" ;;
+    home-archive) echo "archive history-api swap-pollers reference-pollers hl-backfill tools" ;;
     relay) echo "gateway history-api tools" ;;
   esac
 }

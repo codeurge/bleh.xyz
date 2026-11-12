@@ -137,16 +137,19 @@ it was partitioned.
 
 ### Daily record files
 
-`archive partition-dir --records-dir DIR --file NAME --out ROOT
+`archive partition-dir --records-dir DIR --file NAME [--file NAME2] --out ROOT
 [--state-dir S] [--settle-days 2] [--follow --interval-secs 900]`
-(every flag also reads a `BLEH_PARTITION_DIR_*` variable). Compose runs it
-as `swap-partition` on the home-archive server for swap prints.
+(every flag also reads a `BLEH_PARTITION_DIR_*` variable;
+`BLEH_PARTITION_DIR_FILE` takes a comma-separated list). Compose runs it as
+`swap-partition` for swap prints and `reference-partition` for reference
+records (`reference_value.jsonl`, `positioning.jsonl`, settled 12 days to
+cover the New York Fed's revision window) on the home-archive server.
 
 - A day is written once it is `--settle-days` whole days before today
   (UTC), when its file is complete (swap-pollers finishes a day from the
   repository's end-of-day file).
-- Each written day leaves a marker in the state directory with the file's
-  SHA-256; unchanged days are skipped on later scans.
+- Each written day file leaves a marker, `<state>/<file>/<day>.sha256`,
+  holding its SHA-256; unchanged files are skipped on later scans.
 - Partitions are write-once. A file that changes after its day was
   partitioned is logged and counted
   (`archive_partition_dir_changed_total`) and left alone; correct it

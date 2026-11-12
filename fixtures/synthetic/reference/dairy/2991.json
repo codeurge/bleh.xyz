@@ -1,0 +1,31 @@
+[
+ {
+  "reportSection": "Detail",
+  "results": [
+   {
+    "report_year": "2026",
+    "report_month": "February",
+    "class_2_Price": "18.12",
+    "class_2_butterfat_Price": "2.6023",
+    "advanced_skim_milk_class_2_Price": "9.01",
+    "class_3_Price": "17.25",
+    "class_3_skim_milk_Price": "8.80",
+    "class_4_Price": "16.90",
+    "class_4_skim_milk_Price": "8.20",
+    "butterfat_Price": "2.5953",
+    "nonfat_solids_Price": "1.0011",
+    "protein_Price": "2.3456",
+    "other_solids_Price": "0.3210",
+    "somatic_cell_adjustment_Rate": "0.00091",
+    "butter_monthly_avg_Price": "2.5500",
+    "nfdm_monthly_avg_Price": "1.2000",
+    "cheese_monthly_avg_Price": "1.8000",
+    "cheese_monthly_40p_Price": "1.8100",
+    "cheese_monthly_500p_Price": "1.7900",
+    "whey_monthly_avg_Price": "0.5500",
+    "example_undocumented_Price": "9.99",
+    "cme_futures_settle": "17.00"
+   }
+  ]
+ }
+]

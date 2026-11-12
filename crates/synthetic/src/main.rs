@@ -3,6 +3,7 @@
 //!
 //! ```text
 //! synthetic --registry registry.json --input inputs.jsonl [--input more.jsonl]
+//!           [--curve reference-pollers | --curve curve.json]
 //!           [--step-secs 60] [--from-ms T] [--to-ms T] [--output out.jsonl]
 //! ```
 
@@ -13,6 +14,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Parser;
 use synthetic::batch::{Grid, read_records, run};
+use synthetic::registry::CurveConfig;
 use synthetic::{Engine, Registry};
 
 /// Synthetic contract-month fair values (synthetic-months@1).
@@ -25,6 +27,11 @@ struct Args {
     /// Input records, JSON lines (repeatable).
     #[arg(long, required = true)]
     input: Vec<PathBuf>,
+    /// Replace the registry's rate curve: `reference-pollers` (SOFR and
+    /// the Treasury curve as the reference pollers emit them) or a JSON
+    /// file holding a curve section.
+    #[arg(long)]
+    curve: Option<String>,
     /// Seconds between valuations.
     #[arg(long, default_value_t = 60)]
     step_secs: u32,
@@ -41,7 +48,16 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let registry = Registry::load(&args.registry)?;
+    let mut registry = Registry::load(&args.registry)?;
+    if let Some(c) = &args.curve {
+        let curve = if c == "reference-pollers" {
+            CurveConfig::reference_pollers()
+        } else {
+            let text = std::fs::read_to_string(c).with_context(|| c.clone())?;
+            serde_json::from_str(&text).with_context(|| c.clone())?
+        };
+        registry = registry.with_curve(curve)?;
+    }
     let mut inputs = Vec::new();
     for p in &args.input {
         let f = File::open(p).with_context(|| p.display().to_string())?;

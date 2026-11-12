@@ -120,6 +120,24 @@ versions (see [AGENTS.md](AGENTS.md)).
     under review.
   - Access details for the poller lane are in
     `docs/specs/reference-sources.md`.
+- Reference pollers (`crates/reference-pollers`, plan task 4): live
+  polling and yearly, resumable, idempotent history backfill for every
+  admitted reference source (COT, Treasury rates and auctions, NY Fed,
+  H.15, H.10, USDA LMR, dairy and feeder cattle, ERCOT), with raw capture,
+  conditional requests, backoff, uniform revision handling, JSON lines,
+  partitions through the archive writer, a series catalogue with notices,
+  metrics and alerts, compose and systemd deployment and a runbook
+  (`docs/operations/reference-pollers.md`). Synthetic fixtures only.
+- ADR 0015: observation v0 gains flag bit 7
+  `exchange_referenced`, the non-derived `positioning` kind (Commitments of
+  Traders) and optional `period_start_ms` / `period_end_ms` on
+  `reference_value`; manifest v0 gains an optional, signed `notices` list,
+  filled by `archive manifest build` from `_notices.json`. Existing
+  canonical encodings and manifests are unchanged.
+- The synthetic engine reads the pollers' rates directly: curve preset
+  `CurveConfig::reference_pollers()` and `synthetic --curve
+  reference-pollers` (SOFR, Treasury bills, Treasury par curve), with the
+  mapping in the method spec (§ 2.1, informative).
 
 ### Changed
 

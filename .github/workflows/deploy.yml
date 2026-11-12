@@ -72,6 +72,7 @@ jobs:
           - {target: archive, platforms: linux/amd64, file: deploy/docker/Dockerfile}
           - {target: history-api, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
           - {target: swap-pollers, platforms: linux/amd64, file: deploy/docker/Dockerfile}
+          - {target: reference-pollers, platforms: linux/amd64, file: deploy/docker/Dockerfile}
           - {target: hl-backfill, platforms: linux/amd64, file: deploy/docker/Dockerfile}
           - {target: tools, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
           - {target: hl-node, platforms: linux/amd64, file: deploy/docker/hl-node/Dockerfile}
@@ -166,7 +167,7 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          images=(origin hl-node-reader gateway archive history-api swap-pollers hl-backfill tools hl-node)
+          images=(origin hl-node-reader gateway archive history-api swap-pollers reference-pollers hl-backfill tools hl-node)
           # Verify everything first, so a missing or unsigned image moves no tag.
           for t in "${images[@]}"; do
             cosign verify "${REGISTRY}/${t}:${SHA}" \

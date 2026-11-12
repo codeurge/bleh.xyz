@@ -1,0 +1,576 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<feed xml:base="https://example.invalid/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <title type="text">Synthetic</title>
+  <entry>
+    <id>synthetic-0</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">1</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">n/a?</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-03-30T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-13T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-04-27T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-01T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-06-29T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-08-31T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-01T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-1</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">2</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-03-31T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-14T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-04-28T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.22</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.30</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-02T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.220</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.300</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-06-30T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.16</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.24</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-01T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.160</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.240</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.01</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.09</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-02T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.010</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.090</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-2</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">3</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.18</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-01T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-15T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-04-29T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-03T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-01T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-02T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-03T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-3</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">4</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-02T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-16T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-04-30T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.22</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.30</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-04T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.220</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.300</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-02T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.16</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.24</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-03T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.160</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.240</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.01</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.09</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-04T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.010</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.090</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-4</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">5</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.18</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-03T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-17T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-01T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-05T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-03T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-04T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-05T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-5</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">6</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-06T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-20T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-04T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.22</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.30</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-08T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.220</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.300</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-06T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.16</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.24</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-07T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.160</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.240</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.01</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.09</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-08T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.010</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.090</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-6</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">7</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.18</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-07T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-21T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-05T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-09T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-07T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-08T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-09T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-7</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">8</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-08T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-22T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-06T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.22</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.30</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-10T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.220</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.300</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-08T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.16</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.24</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-09T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.160</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.240</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.01</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.09</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-10T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.010</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.090</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-8</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">9</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.18</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-09T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-23T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-07T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-11T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-09T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-10T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-11T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-9</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">10</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-10T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-24T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-08T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.22</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.30</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-12T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.220</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.300</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-10T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.16</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.24</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-11T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.160</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.240</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.01</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.09</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-12T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.010</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.090</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-10</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">11</d:Id>
+        <d:INDEX_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:INDEX_DATE>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:QUOTE_DATE>
+        <d:ROUND_B1_CLOSE_4WK_2 m:type="Edm.Double">4.18</d:ROUND_B1_CLOSE_4WK_2>
+        <d:ROUND_B1_YIELD_4WK_2 m:type="Edm.Double">4.26</d:ROUND_B1_YIELD_4WK_2>
+        <d:CUSIP_4WK m:type="Edm.String">SYNTH0004</d:CUSIP_4WK>
+        <d:MATURITY_DATE_4WK m:type="Edm.DateTime">2026-04-13T00:00:00</d:MATURITY_DATE_4WK>
+        <d:CS_4WK_CLOSE_AVG m:type="Edm.Double">4.180</d:CS_4WK_CLOSE_AVG>
+        <d:CS_4WK_YIELD_AVG m:type="Edm.Double">4.260</d:CS_4WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_6WK_2 m:type="Edm.Double">4.19</d:ROUND_B1_CLOSE_6WK_2>
+        <d:ROUND_B1_YIELD_6WK_2 m:type="Edm.Double">4.27</d:ROUND_B1_YIELD_6WK_2>
+        <d:CUSIP_6WK m:type="Edm.String">SYNTH0006</d:CUSIP_6WK>
+        <d:MATURITY_DATE_6WK m:type="Edm.DateTime">2026-04-27T00:00:00</d:MATURITY_DATE_6WK>
+        <d:CS_6WK_CLOSE_AVG m:type="Edm.Double">4.190</d:CS_6WK_CLOSE_AVG>
+        <d:CS_6WK_YIELD_AVG m:type="Edm.Double">4.270</d:CS_6WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_8WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_8WK_2>
+        <d:ROUND_B1_YIELD_8WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_8WK_2>
+        <d:CUSIP_8WK m:type="Edm.String">SYNTH0008</d:CUSIP_8WK>
+        <d:MATURITY_DATE_8WK m:type="Edm.DateTime">2026-05-11T00:00:00</d:MATURITY_DATE_8WK>
+        <d:CS_8WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_8WK_CLOSE_AVG>
+        <d:CS_8WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_8WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_13WK_2 m:type="Edm.Double">4.21</d:ROUND_B1_CLOSE_13WK_2>
+        <d:ROUND_B1_YIELD_13WK_2 m:type="Edm.Double">4.29</d:ROUND_B1_YIELD_13WK_2>
+        <d:CUSIP_13WK m:type="Edm.String">SYNTH0013</d:CUSIP_13WK>
+        <d:MATURITY_DATE_13WK m:type="Edm.DateTime">2026-06-15T00:00:00</d:MATURITY_DATE_13WK>
+        <d:CS_13WK_CLOSE_AVG m:type="Edm.Double">4.210</d:CS_13WK_CLOSE_AVG>
+        <d:CS_13WK_YIELD_AVG m:type="Edm.Double">4.290</d:CS_13WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_17WK_2 m:type="Edm.Double">4.20</d:ROUND_B1_CLOSE_17WK_2>
+        <d:ROUND_B1_YIELD_17WK_2 m:type="Edm.Double">4.28</d:ROUND_B1_YIELD_17WK_2>
+        <d:CUSIP_17WK m:type="Edm.String">SYNTH0017</d:CUSIP_17WK>
+        <d:MATURITY_DATE_17WK m:type="Edm.DateTime">2026-07-13T00:00:00</d:MATURITY_DATE_17WK>
+        <d:CS_17WK_CLOSE_AVG m:type="Edm.Double">4.200</d:CS_17WK_CLOSE_AVG>
+        <d:CS_17WK_YIELD_AVG m:type="Edm.Double">4.280</d:CS_17WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_26WK_2 m:type="Edm.Double">4.15</d:ROUND_B1_CLOSE_26WK_2>
+        <d:ROUND_B1_YIELD_26WK_2 m:type="Edm.Double">4.23</d:ROUND_B1_YIELD_26WK_2>
+        <d:CUSIP_26WK m:type="Edm.String">SYNTH0026</d:CUSIP_26WK>
+        <d:MATURITY_DATE_26WK m:type="Edm.DateTime">2026-09-14T00:00:00</d:MATURITY_DATE_26WK>
+        <d:CS_26WK_CLOSE_AVG m:type="Edm.Double">4.150</d:CS_26WK_CLOSE_AVG>
+        <d:CS_26WK_YIELD_AVG m:type="Edm.Double">4.230</d:CS_26WK_YIELD_AVG>
+        <d:ROUND_B1_CLOSE_52WK_2 m:type="Edm.Double">4.00</d:ROUND_B1_CLOSE_52WK_2>
+        <d:ROUND_B1_YIELD_52WK_2 m:type="Edm.Double">4.08</d:ROUND_B1_YIELD_52WK_2>
+        <d:CUSIP_52WK m:type="Edm.String">SYNTH0052</d:CUSIP_52WK>
+        <d:MATURITY_DATE_52WK m:type="Edm.DateTime">2027-03-15T00:00:00</d:MATURITY_DATE_52WK>
+        <d:CS_52WK_CLOSE_AVG m:type="Edm.Double">4.000</d:CS_52WK_CLOSE_AVG>
+        <d:CS_52WK_YIELD_AVG m:type="Edm.Double">4.080</d:CS_52WK_YIELD_AVG>
+      </m:properties>
+    </content>
+  </entry>
+</feed>

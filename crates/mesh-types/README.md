@@ -27,7 +27,8 @@ and [manifest-v0](../../docs/specs/manifest-v0.md).
 | `derived` | `DerivedHeader`, `Footprint`, `VolumeProfile` |
 | `analytics` | `ActivityBar`, `DeltaBar` (`SignedSize`), `ProfileSummary`, `OrderActivity`, `QueuePositions`, `Sweep`, `HeatmapTile`, `LiquidityGrade`, venue `Coverage` |
 | `swap` | `SwapPrint` (Part 43 / SBSR: lifecycle actions, event type, option terms, quantities) |
-| `reference` | `ReferenceValue` (published rates, yields, prices; `Compounding`, `DayCount`) |
+| `reference` | `ReferenceValue` (published rates, yields, prices, optional intra-day period; `Compounding`, `DayCount`) |
+| `positioning` | `Positioning` (regulator positioning statistics; `PositioningReport`, `PositioningCategory`) |
 | `synthetic` | `SyntheticMonth` (fair value of a contract month; `SyntheticQuality`, `CarrySource`) |
 | `batch` | `BlockBatch` (bus unit), gap detection |
 | `registry` | `InstrumentSpec::hyperliquid`, `Registry` (`insert`, `replace`, `remove`) |
@@ -36,7 +37,7 @@ and [manifest-v0](../../docs/specs/manifest-v0.md).
 | `canonical` | Direct canonical encoders for trades, book events and snapshots (byte-identical to the generic path; used by `canonical_record`) |
 | `merkle` | `H256`, `merkle_root`, `MerkleProof` (RFC 9162, Keccak-256) |
 | `signing` | `SigningKey`, `EthAddress`, `EthSignature`, `BlockCommitment`, `StreamId` (secp256k1, EIP-191) |
-| `manifest` | `Manifest`, `SignedManifest`, `verify_signed`, `verify_link`, `ManifestAnchors` |
+| `manifest` | `Manifest`, `SignedManifest`, `SourceNotice`, `verify_signed`, `verify_link`, `ManifestAnchors` |
 | `arrow` | `schema(kind)` |
 
 ## Rules

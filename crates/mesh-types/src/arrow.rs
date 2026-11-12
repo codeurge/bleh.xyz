@@ -17,8 +17,8 @@
 //! - Derived kinds add `method`, `inputs_hash` (32-byte fixed binary) and
 //!   `input_count`.
 //!
-//! - Analytics kinds, coverage, reference values and synthetic months
-//!   ([`RecordKind::is_analytics`]) are flat
+//! - Analytics kinds, coverage, reference values, synthetic months and
+//!   positioning ([`RecordKind::is_analytics`]) are flat
 //!   too, with one column per top-level field. Each column's
 //!   [`META_ENCODING`] field metadata says how its value is stored:
 //!   `price` or `size` (an `Int64` mantissa at the row's `price_scale` or
@@ -235,6 +235,20 @@ fn analytics_fields(kind: RecordKind) -> Vec<Field> {
             opt("currency", DataType::Utf8),
             req("as_of_date", DataType::Utf8),
             req("revision", DataType::UInt32),
+            opt_ms_col("period_start_ms"),
+            opt_ms_col("period_end_ms"),
+        ],
+        RecordKind::Positioning => vec![
+            req("report", DataType::Utf8),
+            req("combined", DataType::Boolean),
+            req("contract_market_code", DataType::Utf8),
+            req("as_of_date", DataType::Utf8),
+            req("category", DataType::Utf8),
+            req("long", DataType::UInt64),
+            req("short", DataType::UInt64),
+            opt("spreading", DataType::UInt64),
+            req("open_interest", DataType::UInt64),
+            req("revision", DataType::UInt32),
         ],
         RecordKind::SyntheticMonth => vec![
             req("exposure", DataType::Utf8),
@@ -424,7 +438,8 @@ fn kind_fields(kind: RecordKind) -> Vec<Field> {
         | RecordKind::LiquidityGrade
         | RecordKind::Coverage
         | RecordKind::ReferenceValue
-        | RecordKind::SyntheticMonth => analytics_fields(kind),
+        | RecordKind::SyntheticMonth
+        | RecordKind::Positioning => analytics_fields(kind),
     }
 }
 
