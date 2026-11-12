@@ -1,184 +1,343 @@
 # Phase 2: historical data — Plan
 
-Status: Active (archive design now; recording starts with the Phase 1 node)
+Status: Active (backfill and archive design now; live recording starts with
+the first node)
 Last updated: 2026-11-11
 
 ## Goal
 
-Once deployed, everything the mesh publishes live is also available as
-history, permanently:
+Once deployed, everything the mesh publishes live is also history that
+anyone can query, download and verify:
 
-- a **raw archive** of node output, immutable, from the first day the node
-  runs
-- **normalized daily partitions** (trades, order-level book events, periodic
-  book snapshots, bars) rebuilt deterministically from the raw archive
-- a **historical API** for range queries
-- **bulk downloads** of daily partitions
-- a **backfill** from Hyperliquid's public archives, where admitted, so
-  history starts before the mesh's own recording
+- a **two-tier raw archive**: unfiltered raw (private, contains owner
+  addresses, kept as long as storage allows) and filtered raw (admitted
+  fields only, the public reproducibility root), from the first node's first
+  day (owner decision, 2026-11-11)
+- **normalized partitions**: Hive-partitioned Parquet with a catalog,
+  rebuilt from filtered raw by replay, queried directly from a CDN
+- **signed, anchored manifests**: hash-chained daily manifests, timestamped
+  on Bitcoin and anchored on an Ethereum L2
+- **distribution** over HTTPS, BitTorrent, IPFS and Arweave, with public
+  mirrors, from the first recorded day
+- **compatibility layers** so existing tools connect unchanged
+- **backfill** from Hyperliquid's public buckets back to the earliest
+  available date, including order-level history rebuilt from `replica_cmds`
+- a **second venue**, admitted and recording
 
-## Backfill sources (to be admitted as ADM-0003)
+## Backfill sources (ADM-0003, Admitted)
 
 Hyperliquid publishes history in AWS requester-pays buckets. The requester
 pays transfer costs, and uploads are not guaranteed timely or complete.
 
-| Bucket and path | Contents | Proposed use |
+| Bucket and path | Contents | Use |
 |---|---|---|
-| `hl-mainnet-node-data/node_fills_by_block` (older: `node_fills`, `node_trades`) | Fills from a non-validating node | Trade history backfill |
-| `hl-mainnet-node-data/replica_cmds`, `explorer_blocks` | Historical L1 transactions and blocks | Research: replay to rebuild order-level books |
-| `hyperliquid-archive/market_data` | Hourly L2 book snapshots | Book-snapshot backfill |
-| `hyperliquid-archive/asset_ctxs` | Asset contexts, including oracle, mark and funding | **Exclude** under ADM-0001's field rules |
+| `hl-mainnet-node-data/node_fills_by_block` (older: `node_fills`, `node_trades`) | Fills from a non-validating node | Trade history |
+| `hl-mainnet-node-data/replica_cmds`, `explorer_blocks` | L1 transactions and blocks | Order-level replay through an emulated matcher |
+| `hyperliquid-archive/market_data` | L2 snapshots, one file per coin per hour (frequency inside to verify) | Book history and replay checkpoints |
+| `hyperliquid-archive/asset_ctxs`, `hl-mainnet-node-data/misc_events_by_block` | Oracle, mark, funding, ledger events | **Excluded** |
 
-Check coverage dates by listing the buckets. Secondary sources date them
-differently.
+Coverage dates come from bucket listings, not secondary sources.
 
 ## Acceptance criteria
 
-- [ ] Every raw node file since go-live is in object storage, compressed,
-      immutable and listed in a daily manifest.
-- [ ] Daily manifests are hash-chained and signed; a verifier tool checks
-      them.
-- [ ] Normalized partitions rebuild byte-for-byte from the raw archive, and
-      CI checks this on a fixture day.
-- [ ] The historical API serves trades, bars (1s, 1m, 5m, 15m, 1h, 1d), a
-      book snapshot at any time T, and book-event ranges, with documented
-      limits.
-- [ ] Bulk daily partitions are downloadable for every recorded day.
-- [ ] A public coverage map shows recorded and missing hours per market.
-      Gaps are flagged, never filled in.
-- [ ] Backfilled data carries its own source and admission ID, and is
-      flagged as backfill.
+- [ ] Every filtered raw file since the first node's first day is stored and
+      listed in a daily manifest; unfiltered raw is private, zstd
+      long-range with trained dictionaries, and access-logged.
+- [ ] Daily manifests are hash-chained and signed, and list per file: size,
+      content hash, IPFS CID, and the day's BitTorrent v2 infohash and
+      magnet link.
+- [ ] Every manifest has a Bitcoin OpenTimestamps proof and an L2 anchor,
+      both checked by the verifier, along with signature and hash chain.
+- [ ] Every recorded day is retrievable via HTTPS, BitTorrent and IPFS,
+      verifiable against the signed manifest; manifests are also on Arweave.
+- [ ] Normalized partitions rebuilt from filtered raw have the same canonical
+      content hash; inside the pinned build container they are
+      byte-identical. CI checks both on a synthetic fixture day.
+- [ ] The catalog is queryable directly with DuckDB (httpfs and WASM),
+      Polars and ClickHouse `s3()`; bars, analytics and volume profiles are
+      precomputed; book at time T works from checkpoints.
+- [ ] The small API serves JSON queries with documented limits, query
+      timeouts and memory caps.
+- [ ] Compatibility layers are published: Databento-shaped API over DBN,
+      websocket replay at N× speed, NautilusTrader adapter, TradingView UDF
+      datafeed, CCXT-style REST shim, MCP server.
+- [ ] Trade history and book snapshots are backfilled to the earliest
+      available date; order-level replay results are published for every
+      day it succeeds on. Backfilled data carries ADM-0003 and the
+      `backfill` (or `replayed`) flag.
+- [ ] A public coverage map shows recorded, backfilled and missing hours per
+      market. Gaps are flagged, never filled in.
+- [ ] Gateways and keys are discoverable from the on-chain registry; SDKs
+      rotate gateways and fall back to torrent web seeds.
+- [ ] One command re-originates the pipeline on a clean host from
+      reproducible builds.
+- [ ] A second venue is admitted and recording.
 
 ## Dependencies
 
-- Phase 1: node-runbook (raw files), node-reader, book-builder, bar-builder.
-- [ADR 0006](../../docs/decisions/0006-phase-1-2-service-architecture.md)
-  accepted.
-- ADM-0003 admitted before any backfill is published.
+- Phase 1: node-reader, book-builder, bar-builder, orderflow-analytics,
+  block-signing, signing-keys, cost-and-retention-model.
+- [ADR 0006](../../docs/decisions/0006-phase-1-2-service-architecture.md):
+  Accepted.
 
 ## Ordered work
 
-1. **raw-archive**
-   - Status: Blocked
-   - Owner: Unassigned
-   - Dependencies: Phase 1 node-runbook
-   - PR: Not opened
-   - Next action: Ship rotated node files to object storage (compressed,
-     write-once), so recording starts the day the node goes live, even
-     before the rest of this phase exists.
+### Lane: backfill (parallel, starting now)
 
-2. **manifest-chain**
+1. **bucket-copy**
    - Status: Ready
    - Owner: Unassigned
-   - Dependencies: Phase 0 data-model-schema
+   - Dependencies: None
    - PR: Not opened
-   - Next action: Specify the daily manifest (file list, sizes, content
-     hashes, previous manifest hash, signature) and build the verifier.
+   - Next action: List the buckets for coverage dates; copy every admitted
+     path as-is into the private raw tier, sharded by day on spot
+     instances, with checksums and a copy log.
 
-3. **normalized-partitions**
+2. **backfill-fills**
+   - Status: Blocked
+   - Owner: Unassigned
+   - Dependencies: bucket-copy, normalized-partitions
+   - PR: Not opened
+   - Next action: Filter archived fills to book-matched trades under
+     ADM-0001's rules into filtered raw and partitions flagged `backfill`;
+     compare with live-recorded overlap days.
+
+3. **backfill-book-snapshots**
+   - Status: Blocked
+   - Owner: Unassigned
+   - Dependencies: bucket-copy
+   - PR: Not opened
+   - Next action: Measure the snapshot frequency inside `market_data`
+     files; import them as book history flagged `backfill`.
+
+4. **l3-replay**
+   - Status: Ready
+   - Owner: Unassigned
+   - Dependencies: bucket-copy (first days can start from a sample)
+   - PR: Not opened
+   - Next action: Rebuild order-level books before raw book diffs existed by
+     replaying order actions from `replica_cmds` through an emulated
+     matcher, checkpointed against archived L2 snapshots; publish matched
+     days flagged `replayed` and a report of mismatches.
+
+### Lane: archive
+
+5. **filtered-raw-capture**
+   - Status: Blocked
+   - Owner: Unassigned
+   - Dependencies: Phase 1 node-runbook, node-reader
+   - PR: Not opened
+   - Next action: Ship unfiltered and filtered raw to object storage from
+     the first node's first day, zstd long-range with trained dictionaries
+     for the raw tier.
+
+6. **manifest-chain**
+   - Status: Ready
+   - Owner: Unassigned
+   - Dependencies: Phase 0 data-model-schema, Phase 1 signing-keys
+   - PR: Not opened
+   - Next action: Specify the daily manifest (per file: size, content hash,
+     IPFS CID, torrent infohash and magnet; previous manifest hash;
+     signature) and build the verifier.
+
+7. **manifest-anchoring**
+   - Status: Ready
+   - Owner: Unassigned
+   - Dependencies: manifest-chain
+   - PR: Not opened
+   - Next action: Per day, an OpenTimestamps proof on Bitcoin and an anchor
+     transaction on an Ethereum L2 (L2 TBD); store proofs next to the
+     manifest and distribute them with it; extend the verifier to check
+     signature, hash chain and both anchors.
+
+8. **normalized-partitions**
    - Status: Ready
    - Owner: Unassigned
    - Dependencies: Phase 1 node-reader and book-builder (synthetic data is
      enough to start)
    - PR: Not opened
-   - Next action: Deterministic daily Parquet writer per market and kind
-     (trades, book events, book snapshots every N seconds, 1s and 1m bars).
-     Add DBN output if ADR 0004 is accepted.
+   - Next action: Deterministic Hive-partitioned Parquet writer (kind,
+     venue, date; sorted by instrument and time; zstd) for trades, book
+     events, book checkpoints, bars and analytics, with an Iceberg or
+     DuckLake catalog.
 
-4. **replay-tool**
+9. **replay-tool**
    - Status: Ready
    - Owner: Unassigned
    - Dependencies: normalized-partitions
    - PR: Not opened
-   - Next action: Rebuild normalized partitions from raw files for any day;
-     add a CI determinism check on a fixture day.
+   - Next action: The only path from filtered raw to partitions, for live
+     days, rebuilds and backfill; canonical content hash gate; pinned build
+     container for byte identity; CI check on a fixture day.
 
-5. **bar-rollups**
-   - Status: Ready
-   - Owner: Unassigned
-   - Dependencies: Phase 1 bar-builder
-   - PR: Not opened
-   - Next action: Deterministic 5m, 15m, 1h and 1d bars from 1m bars; the
-     daily boundary is UTC midnight, recorded in the registry.
-
-6. **historical-api**
-   - Status: Blocked
-   - Owner: Unassigned
-   - Dependencies: normalized-partitions, architecture-decision
-   - PR: Not opened
-   - Next action: HTTP API for range queries (trades, bars, book at time T,
-     book events), with pagination, size limits and per-client rate limits,
-     backed by the query engine chosen in ADR 0006.
-
-7. **bulk-downloads**
-   - Status: Blocked
-   - Owner: Unassigned
-   - Dependencies: normalized-partitions, manifest-chain
-   - PR: Not opened
-   - Next action: Publish daily partitions and manifests at a public HTTPS
-     location. Content-addressed distribution comes in Phase 5.
-
-8. **coverage-map**
-   - Status: Blocked
-   - Owner: Unassigned
-   - Dependencies: raw-archive
-   - PR: Not opened
-   - Next action: Publish per-market, per-hour coverage as data and as a
-     page; never fill gaps.
-
-9. **admission-archive-buckets**
-   - Status: Ready
-   - Owner: Unassigned
-   - Dependencies: None
-   - PR: Not opened
-   - Next action: Complete ADM-0003. Check the bucket terms, the
-     requester-pays conditions, field exclusions (`asset_ctxs`), and whether
-     archived fills match the live node's fields.
-
-10. **backfill-fills**
-    - Status: Blocked
-    - Owner: Unassigned
-    - Dependencies: admission-archive-buckets, normalized-partitions
-    - PR: Not opened
-    - Next action: Import archived fills for the starter markets into
-      backfill partitions with their own admission ID; check them against
-      live-recorded days where the two overlap.
-
-11. **backfill-book-snapshots**
-    - Status: Blocked
-    - Owner: Unassigned
-    - Dependencies: admission-archive-buckets
-    - PR: Not opened
-    - Next action: Import hourly L2 snapshots as low-resolution book history,
-      clearly marked as such.
-
-12. **replay-l1-research**
+10. **bar-rollups**
     - Status: Ready
     - Owner: Unassigned
-    - Dependencies: admission-archive-buckets (for publishing only)
+    - Dependencies: Phase 1 bar-builder, orderflow-analytics
     - PR: Not opened
-    - Next action: Test whether replaying `replica_cmds` through node
-      software can rebuild full order-level history. If it can, the archive
-      gets order-level depth back to the venue's start.
+    - Next action: Precompute 5m, 15m, 1h and 1d bars and daily volume
+      profiles; the daily boundary is UTC midnight, recorded in the
+      registry.
 
-13. **cost-and-retention-model**
+11. **correction-and-versioning-protocol**
     - Status: Ready
-    - Owner: Repository owner
-    - Dependencies: Phase 1 node-runbook (measured growth)
+    - Owner: Unassigned
+    - Dependencies: manifest-chain
     - PR: Not opened
-    - Next action: Estimate storage growth (raw and normalized), egress for
-      bulk downloads and requester-pays backfill costs; set the hosting
-      budget. Raw is kept permanently.
+    - Next action: Document how a partition is corrected or withdrawn: new
+      version, new manifest entry, old hashes kept listed, all distribution
+      channels updated.
 
-14. **staging-and-production-deploy**
+12. **torrent-and-ipfs-publishing**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: normalized-partitions, manifest-chain
+    - PR: Not opened
+    - Next action: Per day, create a BitTorrent v2 torrent with web seeds
+      pointing at the HTTPS copy, add files to IPFS, and write magnets and
+      CIDs into the manifest.
+
+13. **seedbox-and-pinning**
     - Status: Blocked
     - Owner: Repository owner
-    - Dependencies: historical-api, bulk-downloads, coverage-map
+    - Dependencies: torrent-and-ipfs-publishing
     - PR: Not opened
-    - Next action: Deploy to staging, verify every acceptance criterion
-      against real recorded days, then deploy to production alongside the
-      Phase 1 gateway.
+    - Next action: Run at least one always-on seeder and one IPFS pinning
+      node; document how anyone can mirror.
+
+14. **arweave-and-public-mirrors**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: manifest-chain, torrent-and-ipfs-publishing
+    - PR: Not opened
+    - Next action: Store each manifest (with proofs) on Arweave; publish
+      partitions to Hugging Face datasets, the Internet Archive and Academic
+      Torrents.
+
+15. **mirror-verification**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: manifest-anchoring
+    - PR: Not opened
+    - Next action: A tool and doc so any mirror or user can verify downloads
+      against the signed, anchored manifests.
+
+### Lane: static history, small API and compatibility layers
+
+16. **static-catalog**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: normalized-partitions, Phase 1 tls-cdn-front
+    - PR: Not opened
+    - Next action: Serve partitions and catalog from zero-egress storage
+      behind the CDN; publish worked examples for DuckDB httpfs,
+      DuckDB-WASM, Polars and ClickHouse `s3()`.
+
+17. **small-api**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: static-catalog
+    - PR: Not opened
+    - Next action: HTTP service for small JSON queries (recent trades, bars,
+      book at time T), with pagination, query timeouts, memory caps and
+      per-client rate limits.
+
+18. **replay-websocket**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: static-catalog, Phase 1 gateway
+    - PR: Not opened
+    - Next action: Replay any archived range over the live protocol at N×
+      speed.
+
+19. **dbn-compat-api**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: static-catalog, Phase 0 wire-format-decision
+    - PR: Not opened
+    - Next action: Databento-shaped live and historical API over DBN, with
+      provenance and signatures alongside.
+
+20. **client-adapters**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: small-api, Phase 1 client-sdks
+    - PR: Not opened
+    - Next action: NautilusTrader adapter, TradingView UDF datafeed and a
+      CCXT-style REST shim, each with an example.
+
+21. **mcp-server**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: small-api
+    - PR: Not opened
+    - Next action: MCP server exposing live snapshots, history queries,
+      coverage and verification to agents.
+
+22. **coverage-map**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: filtered-raw-capture, normalized-partitions
+    - PR: Not opened
+    - Next action: Per-market, per-hour coverage (recorded, backfilled,
+      replayed, missing) as data and as a page; never fill gaps.
+
+### Lane: bus, gateway, relay and client SDKs (Phase 2 part)
+
+23. **gateway-discovery**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: Phase 1 gateway, Phase 1 signing-keys
+    - PR: Not opened
+    - Next action: On-chain registry of gateways, relays and keys (for
+      example the Ethereum Attestation Service), ENS/IPNS names, a Tor onion
+      service and Nostr-announced manifests; SDKs rotate gateways and fall
+      back to torrent web seeds.
+
+### Lane: infrastructure (Phase 2 part)
+
+24. **one-command-reorigination**
+    - Status: Blocked
+    - Owner: Unassigned
+    - Dependencies: Phase 1 infrastructure-as-code, replay-tool
+    - PR: Not opened
+    - Next action: Reproducible builds plus a compose file (node → reader →
+      gateway → archive) that brings up the whole pipeline on a clean host;
+      test it from scratch.
+
+25. **code-mirrors**
+    - Status: Ready
+    - Owner: Repository owner
+    - Dependencies: None
+    - PR: Not opened
+    - Next action: Mirror the repository to Codeberg and Radicle
+      automatically.
+
+### Second venue
+
+26. **second-venue**
+    - Status: Ready
+    - Owner: Unassigned
+    - Dependencies: Phase 0 data-model-schema
+    - PR: Not opened
+    - Next action: Pick the first of the Phase 2–3 venues in
+      `docs/sources.md` (for example PAXG/XAUT pools or Solana tokenized
+      stocks), file its admission record, and build its reader on our own
+      node.
+
+### Release
+
+27. **staging-and-production-deploy**
+    - Status: Blocked
+    - Owner: Repository owner
+    - Dependencies: static-catalog, small-api, torrent-and-ipfs-publishing,
+      manifest-anchoring, coverage-map
+    - PR: Not opened
+    - Next action: Verify every acceptance criterion against real recorded
+      and backfilled days in staging, then deploy to production alongside
+      the Phase 1 gateway.
 
 ## Exit
 
-All acceptance criteria met, with the historical API and bulk downloads live.
+All acceptance criteria met, with static history, distribution channels,
+compatibility layers and backfill live.

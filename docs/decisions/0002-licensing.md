@@ -1,6 +1,6 @@
 # 0002: Apache-2.0 for code, CC0 1.0 for data and methods
 
-- Status: Accepted (provisional until first public release)
+- Status: Accepted
 - Date: 2026-11-11
 - Deciders: Maintainers
 
@@ -22,8 +22,7 @@ infrastructure where patents exist.
 - Contributors need not assign copyright. DCO sign-off is enough (see
   [CONTRIBUTING.md](../../CONTRIBUTING.md)).
 - CC0 does not override third-party rights. That is why the admission policy
-  must keep encumbered data out in the first place.
-- Counsel confirms this choice before the first public release.
+  keeps encumbered data out in the first place.
 
 ## Alternatives considered
 

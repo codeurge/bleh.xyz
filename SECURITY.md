@@ -20,8 +20,11 @@ dedicated address is tracked in
 1. Acknowledgement within 3 business days.
 2. For contamination: affected live outputs are withdrawn at once, under
    [docs/admission-policy.md](docs/admission-policy.md) § Removal, and the
-   affected archive segments are marked.
-3. A fix or rebuild, then a public note in `CHANGELOG.md` once it is safe to
+   affected archive partitions are rebuilt as new versions with a new
+   manifest.
+3. For a signing-key compromise: the key is revoked in the registry, a new
+   key is published, and manifests signed after the compromise are re-signed.
+4. A fix or rebuild, then a public note in `CHANGELOG.md` once it is safe to
    disclose.
 
 ## Supported versions

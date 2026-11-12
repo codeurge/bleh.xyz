@@ -11,10 +11,11 @@ Every observation carries its admission ID.
 
 | ID | Source | Fields | Status |
 |---|---|---|---|
-| [ADM-0001](ADM-0001-hyperliquid-trades-orders.md) | Hyperliquid node: trades, fills, order statuses, book diffs | Trade and order fields only; oracle, mark and funding excluded | Requested |
-| [ADM-0002](ADM-0002-cftc-part43-swaps.md) | CFTC Part 43 public swap dissemination | Price, size, time, product, flags | Requested |
-| [ADM-0003](ADM-0003-hyperliquid-archive-buckets.md) | Hyperliquid public archive buckets | Historical fills, L1 data, hourly L2 snapshots; asset contexts excluded | Requested |
+| [ADM-0001](ADM-0001-hyperliquid-trades-orders.md) | Hyperliquid node, every market (core, HIP-3, HIP-4): book-matched fills, order statuses, book diffs, L4 snapshots | Venue-matched fields only; owner addresses, oracle, mark, funding, liquidation and settlement fields excluded | Admitted |
+| [ADM-0002](ADM-0002-cftc-part43-swaps.md) | CFTC Part 43 public swap dissemination | Price, size, time, product, option terms, flags | Requested (Phases 1–2 lane) |
+| [ADM-0003](ADM-0003-hyperliquid-archive-buckets.md) | Hyperliquid public archive buckets | Historical fills, L1 data, L2 snapshots (one file per coin per hour); `asset_ctxs` and `misc_events_by_block` excluded | Admitted |
+| [ADM-0004](ADM-0004-sec-sbsr-public-dissemination.md) | SEC Regulation SBSR public dissemination | Price, size, time, product, flags | Requested (Phases 1–2 lane) |
 
-No source is admitted yet. The remaining Phase 0 candidates are listed in
-[docs/sources.md](../sources.md) and tracked in
-[.agents/plans/phase-0-foundation.md](../../.agents/plans/phase-0-foundation.md).
+Admission is a maintainer's engineering decision about field lineage. The
+remaining candidates are listed in [docs/sources.md](../sources.md), with
+their phases in [docs/roadmap.md](../roadmap.md).

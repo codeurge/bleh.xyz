@@ -1,6 +1,7 @@
 # bleh.xyz — open market-data mesh
 
-> Working name. Status: design. No code yet.
+> Working name. Status: Phases 0–2 active; live and historical services in
+> development.
 
 An open-source, freely redistributable source of futures-grade market data
 that never touches exchange-licensed feeds.
@@ -20,12 +21,18 @@ not contractual.
 
 ## What it aims to provide
 
-- Trade-by-trade tapes with native aggressor side
+- Trade-by-trade tapes with native aggressor side, for every market on each
+  venue, signed block by block
 - Order-by-order books, for the venues that publish them
-- Bars from 1 second to 1 day, and a permanent, tamper-evident archive
-- Composite prices per exposure (for example "S&P 500 front", "WTI front", "gold")
+- Open order-flow analytics: footprint, delta, volume profile, heatmaps
+- Bars from 1 second to 1 day, and a versioned archive that anyone can
+  download over HTTPS, BitTorrent or IPFS and verify against signed manifests
+  anchored on-chain
+- Composite prices per exposure (for example "US large-cap index front",
+  "WTI front", "gold")
 - Dated-contract equivalents for perpetual markets, from an open cost-of-carry model
-- An open daily reference close, recomputable by anyone
+- An open daily reference close, recomputable by anyone, and an on-chain
+  oracle with no exchange data in its lineage
 - Rate curves, cash-market prices and positioning data
 - An open instrument registry: contract specs, rolls, session calendars
 
@@ -44,8 +51,9 @@ execution-grade marks for positions held at an exchange. See
    published methods, and anyone can recompute them from the archive.
 4. **Honest labels.** Proxies are called proxies. The basis to the reference
    market is measured and published, not hidden.
-5. **No single point of control.** Independent nodes, several gateways, and a
-   content-addressed archive.
+5. **No single point of control.** Active-active ingest, signed blocks that
+   any relay can carry, and a content-addressed archive from day one;
+   independent operators as the mesh federates. No project token.
 
 ## Documents
 
@@ -63,14 +71,15 @@ execution-grade marks for positions held at an exchange. See
 | Record | Contents |
 |---|---|
 | [docs/decisions/](docs/decisions/) | Decision records (ADRs) |
-| [docs/admissions/](docs/admissions/) | Source admission register; no source is admitted yet |
-| [.agents/plans/](.agents/plans/) | Tracked plans; Phase 0 is active |
+| [docs/admissions/](docs/admissions/) | Source admission register; Hyperliquid node and archive fields are admitted |
+| [.agents/plans/](.agents/plans/) | Tracked plans; Phases 0–2 are active |
 | [CHANGELOG.md](CHANGELOG.md) | Notable changes |
 
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md). Changes
-go through pull requests, and commits need a DCO sign-off. Never contribute
+go through pull requests (the repository owner may push directly), and
+commits need a DCO sign-off. Never contribute
 exchange-licensed data in any form. Report suspected contamination privately,
 as described in [SECURITY.md](SECURITY.md).
 
@@ -78,10 +87,4 @@ as described in [SECURITY.md](SECURITY.md).
 
 Code is licensed under [Apache-2.0](LICENSE). Data, registry entries and
 method documents are dedicated to the public domain under
-[CC0 1.0](LICENSE-DATA). See [ADR 0002](docs/decisions/0002-licensing.md);
-counsel confirms this before the first public release.
-
-## Not legal advice
-
-These documents record engineering research. Every source's terms need review
-by counsel before the project publishes data from it.
+[CC0 1.0](LICENSE-DATA). See [ADR 0002](docs/decisions/0002-licensing.md).

@@ -2,73 +2,118 @@
 
 Research snapshot: 2026-11-11. Figures come from news and aggregator sites
 unless marked otherwise. Check them against primary sources before relying on
-them. Every source needs a legal review under the
-[admission policy](admission-policy.md) before the project publishes data
-from it.
+them. Each source's fields are admitted under the
+[admission policy](admission-policy.md).
 
 ## Tier A: open venues, read from our own nodes
 
 These venues do their own price discovery and record trades and orders as
 public chain state. Reading through our own node avoids any API terms.
 
-### Hyperliquid (core perpetuals and HIP-3 builder-deployed markets)
+### Hyperliquid (core perpetuals, HIP-3 and HIP-4 markets)
 
 - **What:** Order-book perpetuals. HIP-3 lets third parties deploy markets on
-  equity indices, commodities and single stocks.
+  equity indices, commodities, rates, FX and single stocks. HIP-4 adds
+  outcome markets.
+- **Scope:** every market on the node, recorded and published from day one;
+  new markets register automatically from node metadata (owner decision,
+  2026-11-11). Admitted under
+  [ADM-0001](admissions/ADM-0001-hyperliquid-trades-orders.md). Each market
+  carries a liquidity grade (spread, depth, trades per minute), so thin
+  markets are labelled as tapes, not benchmarks.
+- **Reported listings beyond index, metals and oil (to confirm from node
+  metadata):** trade.xyz reportedly lists NATGAS, TTF, copper, platinum,
+  palladium, CORN, WHEAT, EUR, JPY and DXY; Kinetiq reportedly lists a
+  USBOND perpetual, the only tick-level duration exposure found so far.
 - **Scale (secondary sources):**
   - About 315 HIP-3 markets and about $4.08B open interest by late October 2026
-  - The S&P 500 perpetual (trade.xyz) launched 2026-03-18 under an S&P Dow
-    Jones Indices license, with about $425M open interest
+  - The US large-cap index perpetual (trade.xyz) launched 2026-03-18 under a
+    license from the index provider, with about $425M open interest
   - Gold at about $308M open interest
   - Oil and precious metals were over 67% of HIP-3 volume in Q1 2026, and the
     WTI contract reportedly peaked at $1.7B daily volume
   - trade.xyz holds roughly 90–94% of HIP-3 open interest, a concentration risk
-- **Data available from a non-validating node:** per-block trades, fills,
-  order statuses and raw book diffs. An L4 snapshot computed from node state,
-  with the order-status stream applied on top, gives a real-time book with
-  order IDs. Hyperliquid publishes an open-source order-book server for this.
-- **Lineage caution:** trade.xyz computes oracle, mark and "external" prices
-  off-chain and pushes them about every 3 seconds. A third-party tracker says
-  its oil oracles blend the front two CME contracts. **Trades and orders are
-  admissible. Oracle, mark and funding fields are not**, until each deployer's
-  method is shown to be clean.
-- **Weekend behavior:** while CME is closed, trade.xyz caps how far mark and
-  oracle prices can move from the last external price (about ±5% for xyz:CL,
-  per an Arrakis analysis). Trades within that band are genuine price
-  discovery, though they are still bounded by the last external price.
-- **To verify:** the node's file formats and retention (much detail comes from
-  vendor docs); each HIP-3 deployer's terms; whether index-licensed markets add
-  any data terms.
+- **Data available from a non-validating node:** per-block fills, order
+  statuses and raw book diffs (`--write-fills`, `--write-order-statuses`,
+  `--write-raw-book-diffs`, with `--batch-by-block`). Fills arrive one per
+  user, so a book-matched trade is two fills sharing a `tid`, one with
+  `crossed: true`. An L4 snapshot is requested from the node's local info
+  server (`--serve-info`, `fileSnapshot` with `l4Snapshots`); state
+  snapshots on disk (`periodic_abci_states`) are written every 10,000
+  blocks. The snapshot plus the order-status stream gives a real-time book
+  with order IDs.
+- **Reference code:** `hyperliquid-dex/order_book_server` shows one way to
+  serve an L4 book from node output. It has no LICENSE file and its README
+  says it is a standalone project not written by the Hyperliquid core team.
+  The mesh's reader is written from the documented schemas and copies no
+  code from it.
+- **Oracle anchoring (HIP-3):**
+  - The HIP-3 mark is the median of up to two deployer-supplied marks and a
+    local mark (median of best bid, best ask and last trade). Each update
+    moves the mark at most 1%. Deployers are expected to update the oracle
+    about every 3 seconds.
+  - Hyperliquid uses the mark for margining, liquidations, TP/SL triggers and
+    unrealized PnL.
+  - `haltTrading` cancels all orders and settles positions at the current
+    mark price.
+  - trade.xyz bounds its mark within ±(1/max leverage) of a reference price
+    in all sessions: the last externally derived fair price while the
+    reference market is open, and the last external oracle price (for
+    example the Friday close) while it is closed. At 20× maximum leverage
+    that is ±5%. trade.xyz does not name its price sources; a third-party
+    tracker says its oil oracles blend the front two CME contracts.
+- **Core perpetuals:** mark and funding use Hyperliquid's validator oracle,
+  described as a weighted median of centralized-exchange spot prices (to
+  verify against current docs).
+- **What the mesh publishes:** book-matched trades and order-level book
+  events. These are formed by the venue's own matching. Within the mark band,
+  traders set prices freely; the band and liquidations at mark are outside
+  prices acting on the market. Records from these markets carry
+  `oracle_anchored_venue`. Oracle, mark, funding, liquidation and settlement
+  fields are never published.
+- **To verify:** how ADL fills and HIP-4 outcome markets appear in node
+  output; node file retention and pruning; each HIP-3 deployer's documented
+  oracle method.
 
-### Other on-chain order books
+### Next venues (Phases 2–3)
 
-- **Candidates:** dYdX v4 (own chain, public node), Derive (options and
-  perpetuals on its own OP Stack L2, crypto only), and others.
-- **To verify:** whether matching happens off-chain with only settlement
-  on-chain. In that case trade data may only be available through an API with
-  terms.
+Second and third venues give a real consolidated tape per exposure. Each is
+read from infrastructure the project runs and gets its own admission record:
+
+| Venue | Exposure | How we read it |
+|---|---|---|
+| Solana tokenized stocks (xStocks, Ondo) | Single stocks and index ETFs | Own RPC node with Geyser; decode AMM swaps |
+| Uniswap v4 tokenized securities; PAXG and XAUT pools | Stocks; gold spot | Own Ethereum node; decode pool swaps |
+| Derive | Crypto options and perpetuals | Own node for its L2; options trades feed crypto surfaces |
+| dYdX v4 | Crypto perpetuals | Own full node |
+| Lighter | Perpetuals | Decode the rollup data it posts in Ethereum blobs |
+| Polymarket | FOMC and macro event odds | Own Polygon node |
+
+To verify per venue: whether matching happens on-chain or only settlement,
+and which fields are matched rather than oracle-priced.
 
 ## Tier B: free by regulation, or public domain
 
 | Source | Data | Timeliness | Status |
 |---|---|---|---|
-| CFTC Part 43 public swap dissemination (swap data repositories, e.g. DTCC) | Swap trades and prices: rates (incl. SOFR), commodities (WTI, natural gas), credit, FX | Near real time; block trades delayed and sizes capped | 17 CFR 43.3 requires publicly disseminated data to be free of charge. **To verify:** each repository's site and API terms and formats |
+| CFTC Part 43 public swap dissemination (DTCC, ICE Trade Vault) | SOFR and OIS swaps, FX NDFs and options, natural gas, power and refined-product swaps, swaptions and caps, commodity options | Near real time; block trades delayed and sizes capped | Free of charge under 17 CFR 43.3(c)(2); repositories need only keep a year online (43.3(c)(1)), so capture is time-critical. Phases 1–2 lane ([ADM-0002](admissions/ADM-0002-cftc-part43-swaps.md)) |
+| SEC Regulation SBSR public dissemination (DTCC, ICE Trade Vault) | Equity-index swaps, single-name CDS | Near real time, with dissemination delays for some trades | Non-fee basis under 17 CFR 242.900(cc) and (tt). Phases 1–2 lane ([ADM-0004](admissions/ADM-0004-sec-sbsr-public-dissemination.md)) |
 | NY Fed | SOFR, EFFR, OBFR, repo rates | Daily | Public; check attribution terms |
 | US Treasury | Yield curves, auction results | Daily | Public domain |
 | USDA AMS, including mandatory livestock price reporting | Cash livestock and grain prices from actual transactions | Several times a day | Public domain |
 | EIA | Energy spot prices, inventories, production | Daily or weekly | Public domain, **but** some series (e.g. NYMEX futures prices) credit a commercial vendor and are excluded |
 | CFTC Commitments of Traders | Positions by trader category for exchange futures | Weekly | Public domain |
-| IEX delayed data (≥15 ms) | Equity and ETF quotes and trades from one exchange | 15 ms delay | Fee filings describe delayed data as free to redistribute; a 2025 SEC filing lists delayed data and DEEP+ as free. **To verify:** current Data Subscriber Agreement and attribution |
 
 ## Tier C: public, but under terms
 
-Admit only after a review of each source's terms.
+Data reached only through API terms. The on-chain equivalents above replace
+these where they exist.
 
 | Source | Use | Issue |
 |---|---|---|
-| Prediction markets (Kalshi, Polymarket) | FOMC and macro event odds | Kalshi's terms reportedly restrict commercial redistribution. Polymarket trades are on-chain, so they may move to Tier A if read from our own node |
+| Kalshi | FOMC and macro event odds | Terms reportedly restrict commercial redistribution; Polymarket covers the same events on-chain |
 | Centralized crypto exchange APIs | Crypto spot and perpetuals | API terms usually restrict redistribution |
-| Tokenized gold (PAXG, XAUT) on-chain trades | Gold spot proxy | On-chain trades may qualify for Tier A; centralized venue data does not |
+| Tokenized gold on centralized venues | Gold spot proxy | Covered on-chain by PAXG and XAUT pools |
 
 ## Excluded
 
@@ -79,6 +124,8 @@ Admit only after a review of each source's terms.
 | FINRA end-of-day Treasury trade file | Free only for non-professional, non-commercial use |
 | Broker screens or fills relayed by contributors | Exchange data under the broker's agreement |
 | Scraped exchange websites | Website terms; exchange data |
+| Ostium | Oracle-priced trades, not matched; a July 2026 oracle-signer exploit was reported |
+| IEX delayed data | An exchange feed distributed under IEX's data agreements, and not needed: index exposure comes from venue markets (owner decision, 2026-11-11). A 2025 SEC filing may have redefined "delayed" as 15 minutes (unconfirmed) |
 
 ## Sources consulted
 
@@ -86,12 +133,17 @@ Admit only after a review of each source's terms.
 - Datawallet, HIP-3 explained: https://www.datawallet.com/crypto/hip-3-explained-hyperliquid-upgrade
 - Boluo, HIP-3: https://www.boluo.im/crypto/what-is-hip3
 - Coinperps, Hyperliquid statistics: https://www.coinperps.com/learn/hyperliquid-statistics
-- S&P 500 perpetual launch: https://coinmarketman.com/blog/sp500-perpetual-futures-hyperliquid-hip3--en/
+- Index perpetual launch: https://coinmarketman.com/blog/sp500-perpetual-futures-hyperliquid-hip3--en/
 - Hyperliquid markets list: https://hyperliquidguide.com/markets
 - HIP-3 market count: https://cryptoticker.io/en/hyperliquid-stock-commodity-perpetuals/
 - HIP-3 open-interest concentration: https://cryptobriefing.com/hyperliquid-2-5b-open-interest-tokenized-equities/
 - Hyperliquid L1 data schemas: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/nodes/l1-data-schemas
-- Hyperliquid order book server: https://uithub.com/hyperliquid-dex/order_book_server
+- Hyperliquid order book server (no license): https://github.com/hyperliquid-dex/order_book_server
+- Hyperliquid node (README, flags, info server): https://github.com/hyperliquid-dex/node
+- HIP-3 deployer actions: https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/hip-3-deployer-actions.md
+- HIP-3 overview (halt and settlement): https://hyperliquid.gitbook.io/hyperliquid-docs/hyperliquid-improvement-proposals-hips/hip-3-builder-deployed-perpetuals
+- Mark price uses: https://hyperliquid.gitbook.io/hyperliquid-docs/trading/robust-price-indices
+- trade.xyz discovery bounds: https://docs.trade.xyz/perpetuals/mechanics/discovery-bounds.md
 - Dwellir data catalog: https://www.dwellir.com/docs/hyperliquid/data-catalog
 - trade.xyz perp mechanics: https://docs.trade.xyz/perp-mechanics/overview
 - RWA roll calendar: https://loris.tools/rwa/roll-calendar

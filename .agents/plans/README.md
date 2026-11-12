@@ -5,12 +5,25 @@ status in the same pull request as the work.
 
 | Plan | Status | Next action |
 |---|---|---|
-| [Phase 0: foundation](phase-0-foundation.md) | Active | Counsel review of ADM-0001–0003; decide ADR 0004; data-model and registry schemas |
-| [Phase 1: live data](phase-1-live-data.md) | Active | Decide ADR 0006; choose hosting; synthetic fixtures, book and bar builders |
-| [Phase 2: historical data](phase-2-historical-data.md) | Active | Manifest spec; partition writer; ADM-0003; raw archive starts with the Phase 1 node |
+| [Phase 0: foundation](phase-0-foundation.md) | Active | Accept ADR 0007 (code layout); data-model and registry schemas |
+| [Phase 1: live data](phase-1-live-data.md) | Active | Cost model, then two-provider hosting; synthetic fixtures, node reader, book and bar builders, block signing; Part 43 and SBSR pollers |
+| [Phase 2: historical data](phase-2-historical-data.md) | Active | Copy Hyperliquid's public buckets now; manifest and anchoring spec; partition writer; `replica_cmds` replay |
 
 Phases 3–6 get plans when Phases 1 and 2 near exit. See
 [docs/roadmap.md](../../docs/roadmap.md).
+
+## Build lanes (Phases 1–2)
+
+| Lane | Plan |
+|---|---|
+| Node-reader: all markets, inotify | Phase 1 |
+| Book, bars and analytics | Phase 1 |
+| Bus, gateway, relay and client SDKs | Phase 1 (discovery in Phase 2) |
+| Archive: filtered raw, partitions, manifests, per-block signing, anchoring, torrents and IPFS | Phase 2 (block signing in Phase 1) |
+| Static history, small API and compatibility layers | Phase 2 |
+| Infrastructure: active-active, multi-provider, CDN | Phase 1 (re-origination in Phase 2) |
+| Parallel: Part 43 and SBSR pollers | Phase 1 |
+| Parallel: backfill | Phase 2, starting now |
 
 ## Task statuses
 

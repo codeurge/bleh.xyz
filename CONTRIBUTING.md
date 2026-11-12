@@ -9,8 +9,9 @@ compromise everything downstream. Please read this file and
 
 - Open an issue for anything larger than a small fix, so the approach can be
   agreed first.
-- Proposing a new data source? Open an **admission request** issue. Do not
-  write ingest code until the admission record is `Admitted`. See
+- Proposing a new data source? Open an **admission request** issue. Ingest
+  code can be built against synthetic data at once and merges when the
+  admission record is `Admitted`. See
   [docs/admission-policy.md](docs/admission-policy.md).
 
 ## Never contribute
@@ -50,9 +51,12 @@ request (see [AGENTS.md](AGENTS.md) § Workflow).
 
 ## Review
 
-- Every pull request needs one approving review from a maintainer other than
-  the author.
-- Admission records and method changes need two approvals.
+- While the project has one maintainer, the repository owner may merge their
+  own pull requests (owner decision, 2026-11-11). Pull requests from anyone
+  else need the owner's approval.
+- Once there are at least three maintainers, every pull request needs one
+  approving review from a maintainer other than the author, and admission
+  records and method changes need two.
 
 ## Code of conduct
 

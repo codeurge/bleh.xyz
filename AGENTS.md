@@ -29,6 +29,10 @@ from it, may ever enter the repository, the archive or the network. Read
    [docs/decisions/](docs/decisions/).
 5. **Methods are versioned.** A change to a published method gets a new
    version. Old versions stay documented and reproducible.
+6. **Clean-room code.** Source readers are written from documented schemas
+   and specifications only. Never copy code from a repository that has no
+   license, or a license incompatible with Apache-2.0 (for example
+   `hyperliquid-dex/order_book_server`, which has no license file).
 
 ## Workflow
 
@@ -53,15 +57,20 @@ from it, may ever enter the repository, the archive or the network. Read
 
 | Path | Purpose |
 |---|---|
+| `crates/` | Rust workspace members (see ADR 0007) |
+| `tools/` | Command-line tools, such as replay and verifiers (see ADR 0007) |
+| `fixtures/synthetic/` | Synthetic test data; the only place data files may live without an admission (see ADR 0007) |
 | `docs/` | Design documents |
+| `docs/specs/` | Machine-readable schemas and specifications (see ADR 0007) |
+| `docs/protocol/` | Gateway and archive protocol documentation (see ADR 0007) |
+| `docs/operations/` | Runbooks (see ADR 0007) |
 | `docs/decisions/` | Decision records (ADRs) |
 | `docs/admissions/` | One record per source admission decision |
 | `.agents/plans/` | Plans with tracked tasks |
 | `scripts/` | Repository checks |
 | `.github/` | CI and templates |
 
-Code directories are added when Phase 1 starts. Their layout is a decision
-record.
+The code layout is decided in ADR 0007.
 
 ## Checks
 
@@ -71,5 +80,5 @@ Run before opening a pull request:
 scripts/check.sh
 ```
 
-CI runs the same checks: markdown lint, link check, forbidden-content scan
-and data-file guard.
+CI runs the same checks: forbidden-content scan, data-file guard, relative
+link check, DCO sign-off, and Rust `fmt`, `clippy` and tests.

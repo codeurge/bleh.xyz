@@ -2,14 +2,21 @@
 
 - Status: Requested
 - Requested: 2026-11-11 by maintainers
-- Reviewers: To be assigned (two maintainers plus counsel)
+- Reviewers: To be assigned (a maintainer)
 - Decided:
+
+Built as a parallel lane in Phases 1–2 (owner decision, 2026-11-11).
 
 ## Source
 
-Swap data repositories (for example DTCC Data Repository (U.S.)) publicly
-disseminate swap transaction and pricing data under CFTC Part 43.
-17 CFR 43.3 requires publicly disseminated data to be free of charge.
+Swap data repositories (for example DTCC Data Repository (U.S.) and ICE
+Trade Vault) publicly disseminate swap transaction and pricing data under
+CFTC Part 43: SOFR and OIS swaps, FX NDFs and options, natural gas, power
+and refined-product swaps, swaptions and caps, and commodity options.
+17 CFR 43.3(c)(2) requires publicly disseminated data to be made available
+free of charge. 17 CFR 43.3(c)(1) only requires a repository to keep data on
+its website for at least one year after dissemination, so capture is
+time-critical: anything not recorded within a year may be gone.
 
 ## Fields requested
 
@@ -19,24 +26,27 @@ disseminate swap transaction and pricing data under CFTC Part 43.
 | Asset class, product, underlier, tenor, notional currency | Product identity | Requested |
 | Price, spread, rounded notional | Pricing and size as disseminated | Requested |
 | Block, cap and cancel/correct flags | Dissemination flags | Requested |
+| Option and swaption terms: strike, expiry, option type, premium | For swaptions, caps and commodity options | Requested |
 
 ## Policy checks (to complete)
 
 1. Original price formation: swap prices are agreed between counterparties.
-   Note that commodity swaps often float against an exchange settlement, but
-   the disseminated **fixed price** is a market-agreed price. Counsel to
-   confirm.
-2. No contract on the path: free by regulation. Review each repository's
-   website and API terms, which may still impose conditions on access.
-3. Clean upstream: the disseminated fields are transaction reports.
+   Commodity swaps often float against an exchange settlement, but the
+   disseminated **fixed price** is the price the counterparties agreed. The
+   record says which leg each published price is.
+2. No contract on the path: free by regulation. Check each repository's
+   website and API for conditions on access.
+3. Venue-matched fields only: the disseminated fields are transaction
+   reports.
 4. Exclusions: none expected.
 
-## Legal basis
+## Source basis
 
-17 CFR 43.3, <https://www.law.cornell.edu/cfr/text/17/43.3>. Repository
-terms to be reviewed.
+Public dissemination under 17 CFR 43.3,
+<https://www.law.cornell.edu/cfr/text/17/43.3>, read from each repository's
+public site or API.
 
 ## Risks and review triggers
 
-- A repository's terms restrict redistribution despite free access.
+- A repository adds conditions to its site or API.
 - Rule changes to Part 43.

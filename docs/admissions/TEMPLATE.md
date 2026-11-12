@@ -2,7 +2,7 @@
 
 - Status: Requested
 - Requested: YYYY-MM-DD by <name>
-- Reviewers: <two maintainers, plus counsel>
+- Reviewers: <maintainer(s)>
 - Decided: <date, or blank>
 
 ## Source
@@ -21,13 +21,14 @@ Under [admission-policy.md](../admission-policy.md):
 
 1. Original price formation: <evidence>
 2. No contract on the path: <evidence, with links to terms>
-3. Clean upstream: <evidence for each field>
+3. Venue-matched fields only: <evidence for each field>
 4. Field-level exclusions: <fields excluded and why>
 
-## Legal basis
+## Source basis
 
-<Statute, regulation, public-domain status or terms reviewed, with links and
-the date reviewed.>
+<What the source is and how we read it (own node, open bucket, regulatory
+dissemination, public-domain publication), with links and the date
+checked.>
 
 ## Risks and review triggers
 
