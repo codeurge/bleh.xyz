@@ -1,0 +1,19 @@
+# Grafana datasources. URLs come from the environment so the same file
+# serves the local compose stack and production hosts:
+#   PROMETHEUS_URL  (compose: http://prometheus:9090, hosts: http://localhost:9090)
+#   LOKI_URL        (compose: http://loki:3100,       hosts: http://localhost:3100)
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: ${PROMETHEUS_URL}
+    isDefault: true
+    jsonData:
+      timeInterval: 15s
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: ${LOKI_URL}

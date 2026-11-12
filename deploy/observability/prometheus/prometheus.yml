@@ -1,0 +1,125 @@
+# Production Prometheus, one per services host (both sites scrape every
+# target over the WireGuard overlay, so either site's Prometheus can answer
+# alone). Overlay addresses are fixed by convention (deploy/README.md):
+#
+#   10.77.0.11  site a node host       10.77.0.21  site b node host
+#   10.77.0.12  site a services host   10.77.0.22  site b services host
+#   10.77.0.31  external probe host (outside both providers)
+#
+# host-bootstrap.sh installs this file to /etc/bleh/prometheus/prometheus.yml
+# and sets the external label `replica` to the local site.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    replica: __REPLICA__
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["10.77.0.12:9093", "10.77.0.22:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node
+    static_configs:
+      - targets: ["10.77.0.11:9100"]
+        labels: {site: a, role: node}
+      - targets: ["10.77.0.12:9100"]
+        labels: {site: a, role: services}
+      - targets: ["10.77.0.21:9100"]
+        labels: {site: b, role: node}
+      - targets: ["10.77.0.22:9100"]
+        labels: {site: b, role: services}
+      - targets: ["10.77.0.31:9100"]
+        labels: {site: probe, role: probe}
+
+  - job_name: hl-node-reader
+    static_configs:
+      - targets: ["10.77.0.11:9101"]
+        labels: {site: a, path: a}
+      - targets: ["10.77.0.21:9101"]
+        labels: {site: b, path: b}
+
+  - job_name: gateway
+    static_configs:
+      - targets: ["10.77.0.12:9102"]
+        labels: {site: a}
+      - targets: ["10.77.0.22:9102"]
+        labels: {site: b}
+
+  - job_name: archive
+    static_configs:
+      - targets: ["10.77.0.12:9103"]
+        labels: {site: a}
+      - targets: ["10.77.0.22:9103"]
+        labels: {site: b}
+
+  - job_name: history-api
+    static_configs:
+      - targets: ["10.77.0.12:9104"]
+        labels: {site: a}
+      - targets: ["10.77.0.22:9104"]
+        labels: {site: b}
+
+  - job_name: swap-pollers
+    static_configs:
+      - targets: ["10.77.0.12:9105"]
+        labels: {site: a}
+      - targets: ["10.77.0.22:9105"]
+        labels: {site: b}
+
+  - job_name: nats
+    static_configs:
+      - targets: ["10.77.0.12:7777"]
+        labels: {site: a}
+      - targets: ["10.77.0.22:7777"]
+        labels: {site: b}
+
+  # Public endpoints through the CDN, as users see them.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://live.bleh.xyz/health
+          - https://api.bleh.xyz/health
+          - https://data.bleh.xyz/hyperliquid-normalized/_manifests/latest.json
+          - https://gw-a.bleh.xyz/health
+          - https://gw-b.bleh.xyz/health
+    relabel_configs: &blackbox_relabel
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115
+
+  - job_name: blackbox-websocket
+    metrics_path: /probe
+    params:
+      module: [websocket_upgrade]
+    static_configs:
+      - targets:
+          - https://live.bleh.xyz/v0/ws
+    relabel_configs: *blackbox_relabel
+
+  # Per-origin health over the overlay, bypassing the CDN.
+  - job_name: blackbox-origin
+    metrics_path: /probe
+    params:
+      module: [http_2xx_internal]
+    static_configs:
+      - targets:
+          - http://10.77.0.12:8080/health
+          - http://10.77.0.22:8080/health
+          - http://10.77.0.12:8081/health
+          - http://10.77.0.22:8081/health
+    relabel_configs: *blackbox_relabel

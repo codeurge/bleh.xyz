@@ -1,0 +1,68 @@
+# Recording rules for bleh.xyz. Metric names are the service contract in
+# deploy/README.md; docs/operations/observability.md explains each series.
+groups:
+  - name: bleh-latency
+    interval: 30s
+    rules:
+      # p99 of ts_publish - ts_node (gateway send time minus node local
+      # write time). Target: <= 50 ms (docs/requirements.md, R9).
+      - record: bleh:gateway_publish_latency_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[5m])))
+      - record: bleh:gateway_publish_latency_seconds:p50_5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[5m])))
+      - record: bleh:gateway_publish_latency_seconds:p99_1h
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, site) (rate(bleh_gateway_publish_latency_seconds_bucket[1h])))
+      # Share of records published within the 50 ms budget (needs a 0.05
+      # bucket boundary in the histogram).
+      - record: bleh:gateway_publish_within_50ms:ratio_1h
+        expr: |
+          sum by (site) (rate(bleh_gateway_publish_latency_seconds_bucket{le="0.05"}[1h]))
+            /
+          sum by (site) (rate(bleh_gateway_publish_latency_seconds_count[1h]))
+      - record: bleh:reader_ingest_lag_seconds:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, path) (rate(bleh_reader_ingest_lag_seconds_bucket[5m])))
+
+  - name: bleh-availability
+    interval: 30s
+    rules:
+      # The external probe connects once a minute, subscribes to one
+      # instrument and must see a block heartbeat within 5 s
+      # (docs/requirements.md, Availability). 1 = success.
+      - record: bleh:probe_success:ratio_5m
+        expr: avg by (target) (avg_over_time(bleh_probe_success[5m]))
+      - record: bleh:probe_success:ratio_30m
+        expr: avg by (target) (avg_over_time(bleh_probe_success[30m]))
+      - record: bleh:probe_success:ratio_1h
+        expr: avg by (target) (avg_over_time(bleh_probe_success[1h]))
+      - record: bleh:probe_success:ratio_6h
+        expr: avg by (target) (avg_over_time(bleh_probe_success[6h]))
+      - record: bleh:probe_success:ratio_1d
+        expr: avg by (target) (avg_over_time(bleh_probe_success[1d]))
+      - record: bleh:probe_success:ratio_30d
+        expr: avg by (target) (avg_over_time(bleh_probe_success[30d]))
+
+  - name: bleh-ingest
+    interval: 30s
+    rules:
+      # How far each ingest path is behind the furthest path, in blocks.
+      - record: bleh:dedupe_path_blocks_behind
+        expr: |
+          max by (site) (bleh_dedupe_path_last_block)
+            - on (site) group_right
+          bleh_dedupe_path_last_block
+      - record: bleh:gateway_resnapshots:rate10m
+        expr: sum by (site, reason) (rate(bleh_gateway_resnapshots_total[10m]))
+      - record: bleh:reader_seq_gaps:rate10m
+        expr: sum by (path, stream) (rate(bleh_reader_seq_gaps_total[10m]))
+      # Node data disk growth, bytes per day, from the last 6 hours.
+      - record: bleh:node_disk_growth_bytes_per_day
+        expr: |
+          -deriv(node_filesystem_avail_bytes{mountpoint="/srv/hl"}[6h]) * 86400
