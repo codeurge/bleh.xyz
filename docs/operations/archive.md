@@ -67,14 +67,18 @@ blocks just before midnight):
 export BLEH_ARCHIVE_SIGNING_KEY_FILE=/etc/bleh/manifest.key
 R=/data/archive
 
-# 1. Raw tiers (live capture is wired to the node reader; batch mode shown).
+# 1. Raw tiers. Live, the origin captures them (docs/operations/origin.md);
+#    standalone: `archive capture run --follow`; batch (catching up):
 archive capture run --staging /data/staging \
   --stream fills=/hl/data/node_fills_by_block \
   --stream order_statuses=/hl/data/node_order_statuses_by_block \
   --stream raw_book_diffs=/hl/data/node_raw_book_diffs_by_block \
   --upload
 
-# 2. Partitions from filtered raw (the only path to partitions).
+# 2. Partitions from filtered raw (the only path to partitions). The parser
+#    needs the reader's registry; BLEH_BOOK_CHECKPOINT_SECS must match the
+#    origin's (default 600).
+export BLEH_ARCHIVE_REGISTRY=/data/registry.json
 archive replay --raw $R/hyperliquid-raw --date $D --out $R/hyperliquid-normalized
 
 # 3. Manifests, one chain per archive.
@@ -114,7 +118,7 @@ All commands take `--log-format json` for structured logs and
 
 | Command | What it does |
 |---|---|
-| `capture run` | Feeds node hour files (`<dir>/hourly/<YYYYMMDD>/<H>`) to both tiers, seals every hour, optionally uploads. Resumes open hours after a restart (skips the lines already captured) |
+| `capture run` | Feeds node hour files (`<dir>/hourly/<YYYYMMDD>/<H>`) to both tiers, seals every hour, optionally uploads. Resumes open hours after a restart (skips the lines already captured). With `--follow` it keeps running (see "Live capture") |
 | `capture upload` | Uploads sealed hours in `<staging>/<archive>/ready/` write-once; conflicts go to `conflicts/` and fail the command |
 | `capture train-dict` | Trains a private-tier zstd dictionary from node files (`--dict stream=FILE` uses it) |
 | `partition` | Writes partitions from records in JSON lines (for derived records produced elsewhere) |
@@ -129,6 +133,31 @@ All commands take `--log-format json` for structured logs and
 Exit codes: `0` success (warnings allowed unless `--strict`), `1` failure,
 `2` usage error.
 
+### Live capture
+
+`archive::follow` (used by the origin, and by `archive capture run
+--follow --staging S --stream ... [--upload] --metrics-out F`):
+
+- follows each stream's hourly node files as the node writes them and
+  captures only complete lines (a partial last line of an older file, from
+  a node crash, is kept verbatim in the private tier);
+- seals an hour once every stream has a later file, or
+  `--seal-grace-secs` (600) after the hour ended by the wall clock for a
+  stopped node; node files rotate by hour, so a sealed hour never grows;
+- uploads sealed hours write-once (with `--upload`) and writes
+  `<staging>/.captured-through` (`YYYY-MM-DDTHH`): the last hour sealed in
+  every stream and uploaded with nothing left in `ready/`; the node pruner
+  (`deploy/scripts/hl-prune.sh`) deletes node output only up to it;
+- rewrites `--metrics-out` every `--metrics-every-secs` (60), so the
+  stale-capture alert (textfile age) sees a live process;
+- resumes after a restart from the tiers' open hours (skipping the lines
+  already written) and `<staging>/capture-state.json` (last sealed hour per
+  stream).
+
+Each manifest index refresh also writes `_manifests/latest.json`
+(`{format, archive, date, sequence, manifest, sha256}`), which `publish`
+uploads as a mutable object; monitoring probes it.
+
 ### Wiring (integrator)
 
 The node reader is not a dependency of this crate. `archive::cli::Hooks`
@@ -138,8 +167,16 @@ carries:
   per stream; streams without one never reach the filtered tier;
 - `parser: Option<Arc<dyn RawParser>>` — filtered raw files to records.
 
-`main.rs` passes `Hooks::default()`; without hooks, filtered capture and
-replay fail with "not wired". Live capture uses the library directly:
+The `archive` binary is built by `crates/origin` (`src/bin/archive.rs`)
+with `origin::hooks::env_hooks()`: the filters are
+`hl_node_reader::filter_line` per stream, and the parser runs the reader's
+replay and the origin's deriver, so replayed partitions hold exactly the
+records the origin published live (trades, book events, derived records,
+checkpoints, coverage). It reads `BLEH_ARCHIVE_REGISTRY` (required for
+replay), `BLEH_ARCHIVE_BOOK_START` (`empty` for a first recorded day;
+default `snapshot`) and `BLEH_BOOK_CHECKPOINT_SECS`. Without hooks
+(`Hooks::default()`, library use), filtered capture and replay fail with
+"not wired". Live capture uses the library directly:
 `Capture::push(RawLine { stream, day, hour, line })` per node line,
 `Capture::seal_before(day, hour)` once per wall-clock hour,
 `HourWriter::position(stream)` to resume after a restart, and
@@ -243,12 +280,16 @@ it.
 
 ## 9. Known limits
 
-- Instrument IDs may contain `#` (HIP-4 outcome symbols such as `#9001`),
-  which appears in partition paths. HTTPS fetches percent-encode it, and
-  DuckDB reads such paths, but URI-based readers (PyIceberg, Java Iceberg's
-  S3 paths) treat `#` as a fragment and cannot open those files through the
-  Iceberg metadata. A path-safe escape in `InstrumentId::path_segment` is
-  requested from the integrator.
+- Instrument IDs may contain `#` (HIP-4 outcome symbols such as `#9001`).
+  Partition paths write it as `%23` (`InstrumentId::path_segment`), so the
+  object key holds a literal `%23` and HTTPS URLs escape the `%` (`%2523`).
+  Readers that build URLs from paths must escape `%`.
+- Book-dependent derived records (checkpoints, queue positions, heatmaps,
+  order activity, liquidity grades) are replayed from the day's records
+  alone, so they equal the live ones only when the replay starts from the
+  same book: on the first recorded day (`BLEH_ARCHIVE_BOOK_START=empty`), or
+  once L4 snapshots are captured into the raw tiers (not yet wired; see the
+  Phase 2 plan). Trade-only analytics are day-local and always match.
 - `ts_ingest_ns` is a nanosecond Parquet timestamp; Iceberg v2 has no
   nanosecond type, so the tables declare `timestamptz` (microseconds) and
   readers convert.

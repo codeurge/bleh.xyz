@@ -2535,6 +2535,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
+name = "origin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "archive",
+ "axum",
+ "book",
+ "bus",
+ "clap",
+ "gateway",
+ "history-api",
+ "hl-node-reader",
+ "hl-synth",
+ "mesh-client",
+ "mesh-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "page_size"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

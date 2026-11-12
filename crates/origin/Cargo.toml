@@ -1,0 +1,48 @@
+[package]
+name = "origin"
+description = "The bleh.xyz origin service: node reader, book builder, block signer, gateway and live capture in one process"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "origin"
+path = "src/main.rs"
+
+# The archive command line with the node reader's filters and parser wired
+# in (the archive library itself does not depend on the reader).
+[[bin]]
+name = "archive"
+path = "src/bin/archive.rs"
+
+[dependencies]
+anyhow.workspace = true
+archive.workspace = true
+axum.workspace = true
+book.workspace = true
+bus.workspace = true
+clap = { workspace = true, features = ["env"] }
+gateway.workspace = true
+hl-node-reader.workspace = true
+mesh-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+history-api.workspace = true
+hl-synth.workspace = true
+mesh-client.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true

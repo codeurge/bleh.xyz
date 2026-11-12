@@ -3,7 +3,7 @@
 Raw archive, partition writer, replay and manifests for the bleh.xyz mesh.
 
 **Status:** implemented against synthetic fixtures; the node reader's
-filter and parser are wired in by the integrator. Runbook:
+filter and parser are wired in by the integrator (`crates/origin` builds the `archive` binary with them). Runbook:
 [docs/operations/archive.md](../../docs/operations/archive.md).
 
 ## Responsibility
@@ -28,7 +28,7 @@ filter and parser are wired in by the integrator. Runbook:
   `AnchorSubmitter` trait (dry-run and JSON-RPC implementations).
 - **Publishing and verification** (`publish`, `verify`): uploads, Kubo
   pinning (`IpfsPinner`), and mirror verification from a directory or URL.
-- **Binary** `archive` (`cli`): `capture`, `partition`, `replay`,
+- **Command line** `archive::cli` (the `archive` binary is built by `crates/origin`): `capture` (batch and `--follow`), `partition`, `replay`,
   `iceberg`, `manifest`, `anchor`, `publish`, `verify`.
 
 Every network call goes through `http::HttpClient`, so tests run offline

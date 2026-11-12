@@ -10,6 +10,7 @@ members = [
     "crates/gateway",
     "crates/archive",
     "crates/history-api",
+    "crates/origin",
     "crates/swap-pollers",
     "tools/hl-synth",
     "tools/mesh-client",
@@ -40,6 +41,7 @@ history-api = { path = "crates/history-api" }
 hl-node-reader = { path = "crates/hl-node-reader" }
 hl-synth = { path = "tools/hl-synth" }
 mesh-client = { path = "tools/mesh-client" }
+origin = { path = "crates/origin" }
 mesh-types = { path = "crates/mesh-types" }
 
 # Foundation (used by mesh-types and the tools).

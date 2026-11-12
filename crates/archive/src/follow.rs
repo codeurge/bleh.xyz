@@ -157,6 +157,8 @@ pub struct Follower {
     state: State,
     /// Every hour strictly before this is sealed for every stream.
     sealed_before: Option<Hour>,
+    /// The oldest node hour seen (in this run or sealed before it).
+    first_seen: Option<Hour>,
 }
 
 impl Follower {
@@ -179,6 +181,7 @@ impl Follower {
             cursors: BTreeMap::new(),
             state,
             sealed_before: None,
+            first_seen: None,
         })
     }
 
@@ -282,6 +285,11 @@ impl Follower {
                 Vec::new()
             };
             newest.push(files.last().map(|(d, h, _)| (*d, *h)));
+            if let Some(o) = files.first().map(|(d, h, _)| (*d, *h))
+                && self.first_seen.is_none_or(|f| o < f)
+            {
+                self.first_seen = Some(o);
+            }
             if !self.cursors.contains_key(stream) {
                 match self.start_cursor(stream, &files) {
                     Some(c) => {
@@ -329,13 +337,14 @@ impl Follower {
         if self.sealed_before.is_none_or(|s| before > s) {
             sealed.extend(self.capture.seal_before(before.0, before.1)?);
             self.sealed_before = Some(before);
-            let last = prev_hour(before);
-            for (stream, _) in &streams {
-                if self.last_sealed(stream).is_none_or(|s| s < last) {
-                    self.state.sealed.insert(stream.clone(), hour_text(last));
+            if let Some(last) = self.sealed_through() {
+                for (stream, _) in &streams {
+                    if self.last_sealed(stream).is_none_or(|s| s < last) {
+                        self.state.sealed.insert(stream.clone(), hour_text(last));
+                    }
                 }
+                self.save_state()?;
             }
-            self.save_state()?;
         }
         Ok(sealed)
     }
@@ -349,8 +358,12 @@ impl Follower {
 
     /// The last hour sealed for every stream, if any.
     #[must_use]
+    ///
+    /// Hours before the first node hour seen never count: a watermark must
+    /// not claim hours this capture never had a chance to read.
     pub fn sealed_through(&self) -> Option<Hour> {
-        self.sealed_before.map(prev_hour)
+        let first = self.first_seen?;
+        self.sealed_before.map(prev_hour).filter(|h| *h >= first)
     }
 
     /// Seals every open hour (shutdown of a batch run; never in live use,
@@ -572,6 +585,7 @@ mod tests {
             f.capture().private().unwrap().position("diffs"),
             Some(("2026-01-01".parse().unwrap(), 0, 2))
         );
+        assert_eq!(f.sealed_through(), None);
         // Only fills moves to hour 1: nothing is sealed for every stream
         // yet, but fills' hour 0 seals on its own when hour 1 starts.
         append(node.path(), "fills", "20260101", 1, "c\n");

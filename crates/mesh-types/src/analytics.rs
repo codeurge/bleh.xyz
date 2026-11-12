@@ -251,9 +251,11 @@ impl ActivityBar {
             k,
             || "OHLC is inconsistent".into(),
         )?;
-        ensure(self.first_seq <= self.prov.seq, k, || {
-            "first trade is after the last".into()
-        })?;
+        ensure(
+            self.first_seq.block_number <= self.prov.seq.block_number,
+            k,
+            || "first trade is after the publishing block".into(),
+        )?;
         ensure(
             self.derived.input_count == u64::from(self.trade_count),
             k,
@@ -569,9 +571,11 @@ impl Sweep {
             k,
             || "levels must be at least 2 and at most the trade count".into(),
         )?;
-        ensure(self.first_seq <= self.prov.seq, k, || {
-            "first trade is after the last".into()
-        })
+        ensure(
+            self.first_seq.block_number <= self.prov.seq.block_number,
+            k,
+            || "first trade is after the publishing block".into(),
+        )
     }
 }
 

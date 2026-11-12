@@ -42,7 +42,8 @@ record.
 | `crates/bus` | library | bus, gateway and client | NATS JetStream subjects, publish and replay |
 | `crates/gateway` | library and binary | bus, gateway and client | Public websocket gateway |
 | `tools/mesh-client` | library and binary | bus, gateway and client | Reference client |
-| `crates/archive` | library and binary | archive | Filtered raw capture, partition writer, replay, manifests |
+| `crates/archive` | library | archive | Filtered raw capture (batch and live), partition writer, replay, manifests; the `archive` command line as a library (`archive::cli`) |
+| `crates/origin` | library and binaries `origin`, `archive` | integrator | The origin service composing reader, book, bus, gateway and live capture; the archive's injected filters and parser; the wired `archive` binary |
 | `crates/history-api` | library and binary | historical API | HTTP range queries over partitions |
 | `tools/hl-synth` | library and binary | integrator | Synthetic node-format fixture generator |
 | `crates/swap-pollers` | library and binary | swap pollers | CFTC Part 43 and SEC SBSR public dissemination to `SwapPrint` records |
@@ -76,6 +77,27 @@ record.
   and `cargo test --workspace` pass on every pull request.
 - No `unwrap()` in library code paths outside tests; `unsafe` is forbidden.
 - Each crate's `README.md` states its responsibility and status.
+
+### Amendment (2026-11-12): the origin crate
+
+Composition belongs to no single lane: the origin service needs the
+reader, book builder, bus, gateway and archive, and the archive's replay
+needs the reader's parser and the book builder, while the archive library
+must not depend on the reader (it takes a parser through `Hooks`). The
+integrator therefore owns `crates/origin`, which depends on all of them and
+provides:
+
+- the `origin` binary: one deployable process from node files to the
+  signed live stream and live raw capture;
+- `origin::derive`, the single block-by-block driver of the book builder
+  used both live and in archive replay, so the two paths cannot drift;
+- `origin::hooks`, the archive's filters and parser;
+- the `archive` binary, which moved here from `crates/archive` (the
+  library and its command-line module stay in the archive crate; the
+  binary name is unchanged).
+
+Lanes keep owning their crates; changes to `crates/origin` go through the
+integrator like `mesh-types`.
 
 ## Consequences
 
