@@ -14,7 +14,7 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0004](0004-wire-format.md) | DBN-compatible format with provenance sidecar | Accepted (Phase 2 compatibility layer) |
 | [0005](0005-working-name.md) | "bleh.xyz" is a working name only | Superseded by 0008 |
 | [0006](0006-phase-1-2-service-architecture.md) | Service architecture for live and historical data | Accepted |
+| [0007](0007-code-layout.md) | Code layout and lane ownership | Accepted |
 | [0008](0008-project-name.md) | The project is named bleh.xyz | Accepted |
 | [0009](0009-admission-policy-amendments.md) | Admission policy amendments: open buckets, venue-matched prices | Accepted |
 
-ADR 0007 (code layout) arrives with the code foundation.

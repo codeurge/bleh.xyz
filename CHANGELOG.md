@@ -26,6 +26,12 @@ versions (see [AGENTS.md](AGENTS.md)).
   compatibility layers; open oracle in Phase 4.
 - ADR 0008: the project is named bleh.xyz (supersedes 0005).
 - ADR 0009: admission policy amendments (open buckets, venue-matched prices).
+- Code foundation (ADR 0007): Cargo workspace with one crate per build lane;
+  `mesh-types` (fixed-point prices, per-block sequencing, provenance, field
+  allowlist, canonical hashing, Keccak Merkle trees, secp256k1 block
+  commitments and manifests, Arrow schemas); `hl-synth` synthetic node
+  fixtures; specs for observations, node format, manifests, archive layout
+  and gateway v0; hardened checks with a self-test; Rust and cargo-deny CI.
 - Brand: the tongue-out "e" wordmark, palette and type in `brand/`, with the
   first concept round and landing-page mocks in `brand/concepts/`.
 

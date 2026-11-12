@@ -29,6 +29,10 @@ dco_exempt=(
 # Size caps in bytes.
 max_size_outside_fixtures=1048576   # 1 MiB
 max_size_in_fixtures=5242880        # 5 MiB
+max_size_brand=2097152              # 2 MiB
+max_size_brand_video=20971520       # 20 MiB
+brand_ext=' svg html css js json png ico webp gif jpg jpeg mp4 webm woff2 txt md '
+brand_video_ext=' mp4 webm gif '
 
 # Every file the checks consider: tracked (including force-added ignored
 # files) plus untracked files that are not ignored. NUL-separated.
@@ -109,6 +113,15 @@ while IFS= read -r -d '' f; do
     fixtures/*)
       err "$f: fixtures must live under fixtures/synthetic/ or fixtures/admitted/"
       continue
+      ;;
+    brand/*)
+      # Brand assets: pages, images, fonts and rendered video. Never data.
+      if [[ -n "$ext" ]] && in_list "$brand_ext" "$ext"; then
+        cap=$max_size_brand
+        in_list "$brand_video_ext" "$ext" && cap=$max_size_brand_video
+        (( size <= cap )) || err "$f: $size bytes exceeds the brand cap of $cap bytes"
+        continue
+      fi
       ;;
   esac
 

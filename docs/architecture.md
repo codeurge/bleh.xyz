@@ -22,7 +22,7 @@ Every record is an **observation**: a fact from one admitted source.
 | `kind` | trade, book_add, book_modify, book_cancel, book_snapshot, bar, analytics, heartbeat, gap, swap_print, rate, reference |
 | `instrument` | Mesh instrument ID from the registry |
 | `venue` | Where it happened (venue ID, or a public-data source ID) |
-| `ts_source` | Venue or source time, as nanoseconds since the Unix epoch. Hyperliquid `block_time` has millisecond resolution, so the last six digits are zero |
+| `ts_source` | Venue or source time in milliseconds since the Unix epoch (`ts_source_ms`; Hyperliquid `block_time` has millisecond resolution). See [observation-v0](specs/observation-v0.md) |
 | `ts_node` | When our node wrote the block (Hyperliquid `local_time`, milliseconds) |
 | `ts_ingest` | When the reader received it |
 | `ts_publish` | When the gateway sent it (live only; required by [requirements.md](requirements.md)) |
