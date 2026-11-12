@@ -9,6 +9,8 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- `deploy/docker/build.sh --jobs N` (build argument `CARGO_BUILD_JOBS`)
+  caps parallel compile jobs on builders that are short of memory.
 - `archive partition-dir`: partitions daily record files
   (`date=YYYY-MM-DD/<file>`) once per settled day, with SHA-256 markers and
   write-once partitions; compose runs it as `swap-partition` so swap prints
@@ -141,6 +143,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- The image workflow frees runner disk before building. Every Rust image
+  job had been running out of space while linking DuckDB, so no image was
+  published.
 - Workflow: the repository owner may push directly to `main`; other
   contributors use pull requests.
 - Derived records are positioned at the block that completed them

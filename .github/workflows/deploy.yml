@@ -82,6 +82,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      # The workspace build (every binary plus bundled DuckDB) outgrows the
+      # runner's free disk, so drop preinstalled toolchains it never uses.
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune --all --force >/dev/null
+          df -h /
+
       - name: Commit time for reproducible timestamps
         id: meta
         run: echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
