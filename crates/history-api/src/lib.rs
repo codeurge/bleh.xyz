@@ -8,6 +8,7 @@ pub mod config;
 pub mod engine;
 pub mod error;
 pub mod http;
+pub mod mcp;
 pub mod metrics;
 pub mod params;
 pub mod rows;

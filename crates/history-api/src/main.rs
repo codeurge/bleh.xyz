@@ -4,6 +4,7 @@
 //! history-api serve --archive /data/archive            # local archive
 //! history-api serve --archive s3://bucket/prefix       # object store (httpfs)
 //! history-api serve --archive https://cdn.example      # HTTPS via manifests
+//! history-api mcp --archive /data/archive              # MCP over stdio
 //! history-api demo                                     # synthetic archive + server
 //! history-api synth --dir ./synthetic                  # synthetic archive only
 //! ```
@@ -18,7 +19,7 @@ use std::time::Duration;
 use anyhow::Context;
 use clap::{Args, Parser, Subcommand};
 use history_api::config::{ArchiveRoot, Config, DEFAULT_ARCHIVE, Limits, RemoteSettings};
-use history_api::http::{AppState, router};
+use history_api::http::{AppState, router_with_mcp};
 use history_api::service::Service;
 use history_api::synth;
 
@@ -35,12 +36,17 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Serve the HTTP API (JSON and websocket replay).
+    /// Serve the HTTP API (JSON, replay, compatibility layers, MCP at /mcp).
     Serve {
         #[command(flatten)]
         archive: ArchiveArgs,
         #[command(flatten)]
         server: ServerArgs,
+    },
+    /// Serve MCP over stdin/stdout.
+    Mcp {
+        #[command(flatten)]
+        archive: ArchiveArgs,
     },
     /// Generate a synthetic archive and serve it.
     Demo {
@@ -249,7 +255,7 @@ async fn serve(mut config: Config, server: &ServerArgs) -> anyhow::Result<()> {
     config.mcp_allowed_hosts = server.mcp_allowed_hosts.clone();
     let root = config.root.display();
     let svc = Service::open(config).context("opening the archive")?;
-    let app = router(AppState::new(svc));
+    let app = router_with_mcp(AppState::new(svc));
     let listener = tokio::net::TcpListener::bind(server.bind)
         .await
         .with_context(|| format!("binding {}", server.bind))?;
@@ -282,6 +288,12 @@ async fn main() -> anyhow::Result<()> {
             init_logging(server.log_format == "json");
             serve(archive.config(), &server).await
         }
+        Command::Mcp { archive } => {
+            // stdout carries the protocol; logs go to stderr.
+            init_logging(false);
+            let svc = Service::open(archive.config()).context("opening the archive")?;
+            history_api::mcp::serve_stdio(svc).await
+        }
         Command::Demo {
             dir,
             hours,
@@ -299,12 +311,14 @@ async fn main() -> anyhow::Result<()> {
             let start = synth::SynthConfig::default().start_ms;
             let t = mesh_types::UnixMillis(start).to_rfc3339();
             eprintln!(
-                "Synthetic demo archive (invented data, fictional markets): {}\n  {} files, {} records, days {:?}\n\nTry:\n  curl 'http://{b}/v0/instruments'\n  curl 'http://{b}/v0/trades?instrument=hyperliquid:perp:SYN&start={t}&limit=5'\n  curl 'http://{b}/v0/bars?instrument=hyperliquid:perp:SYN&interval=5m&start={t}'\n  curl 'http://{b}/v0/book?instrument=hyperliquid:perp:SYN&at={t}&depth=l2&levels=5'\n  curl 'http://{b}/v0/coverage?instrument=hyperliquid:perp:syn:IDX&start={t}&end=2026-01-02T02:00:00Z'\n",
+                "Synthetic demo archive (invented data, fictional markets): {}\n  {} files, {} records, days {:?}\n\nTry:\n  curl 'http://{b}/v0/instruments'\n  curl 'http://{b}/v0/trades?instrument=hyperliquid:perp:SYN&start={t}&limit=5'\n  curl 'http://{b}/v0/bars?instrument=hyperliquid:perp:SYN&interval=5m&start={t}'\n  curl 'http://{b}/v0/book?instrument=hyperliquid:perp:SYN&at={t}&depth=l2&levels=5'\n  curl 'http://{b}/v0/coverage?instrument=hyperliquid:perp:syn:IDX&start={t}&end=2026-01-02T02:00:00Z'\n  curl 'http://{b}/udf/history?symbol=hyperliquid:perp:SYN&resolution=5&from={s}&to={e}'\n  curl -o syn.dbn 'http://{b}/databento/v0/timeseries.get_range?dataset=BLEH.HL&symbols=hyperliquid:perp:SYN&schema=trades&start={t}'\n",
                 dir.display(),
                 summary.files.len(),
                 summary.records,
                 summary.days,
                 b = server.bind,
+                s = start / 1000,
+                e = start / 1000 + 4 * 3600,
             );
             let mut config = Config::local(&dir);
             config.registry_file = Some(summary.registry_file);

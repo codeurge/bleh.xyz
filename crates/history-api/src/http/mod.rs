@@ -3,9 +3,16 @@
 //! | Prefix | Module |
 //! |---|---|
 //! | `/v0/...`, `/health`, `/metrics` | [`v0`] JSON API, [`replay`] websocket replay |
+//! | `/databento/v0/...` | [`databento`] Databento-shaped historical API (DBN) |
+//! | `/udf/...` | [`udf`] TradingView UDF datafeed |
+//! | `/ccxt/...` | [`ccxt`] CCXT-style REST shim |
+//! | `/mcp` | [`crate::mcp`] MCP streamable HTTP transport |
 
+pub mod ccxt;
+pub mod databento;
 pub mod openapi;
 pub mod replay;
+pub mod udf;
 pub mod v0;
 
 use std::collections::HashMap;
@@ -219,7 +226,8 @@ async fn not_found() -> ApiError {
     )
 }
 
-/// Builds the full router.
+/// Builds the full router (without the MCP transport; see
+/// [`router_with_mcp`]).
 pub fn router(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -233,10 +241,29 @@ pub fn router(state: AppState) -> Router {
     Router::new()
         .merge(v0::routes())
         .merge(replay::routes())
+        .merge(databento::routes())
+        .merge(udf::routes())
+        .merge(ccxt::routes())
         .fallback(not_found)
         .layer(axum::middleware::from_fn_with_state(state.clone(), observe))
         .layer(cors)
         .with_state(state)
+}
+
+/// The router with the MCP streamable HTTP transport mounted at `/mcp`.
+pub fn router_with_mcp(state: AppState) -> Router {
+    let mcp = crate::mcp::streamable_http_service(state.svc.clone());
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
+        .allow_headers(Any)
+        .expose_headers(Any);
+    let mcp_router = Router::new()
+        .nest_service("/mcp", mcp)
+        .layer(axum::middleware::from_fn_with_state(state.clone(), observe))
+        .layer(cors)
+        .with_state(state.clone());
+    router(state).merge(mcp_router)
 }
 
 #[cfg(test)]
