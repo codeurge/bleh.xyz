@@ -19,6 +19,11 @@ versions (see [AGENTS.md](AGENTS.md)).
 - Admission request ADM-0003: Hyperliquid public archive buckets for
   backfill.
 
+### Changed
+
+- Workflow: the repository owner may push directly to `main`; other
+  contributors use pull requests.
+
 ## 0.0.0 — 2026-11-11
 
 ### Added

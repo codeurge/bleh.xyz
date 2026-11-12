@@ -37,7 +37,10 @@ text covered by the "Never contribute" list above.
 
 ## Pull requests
 
-- Use a branch named `<type>/<short-slug>` (see [AGENTS.md](AGENTS.md)).
+Contributors other than the repository owner submit every change as a pull
+request (see [AGENTS.md](AGENTS.md) § Workflow).
+
+- Use a branch named `<type>/<short-slug>`.
 - Follow [Conventional Commits](https://www.conventionalcommits.org/).
 - Keep one concern per pull request.
 - Run `scripts/check.sh` and make sure CI passes.

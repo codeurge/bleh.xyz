@@ -37,8 +37,9 @@ sources, and the registry schema.
    - Owner: Repository owner
    - Dependencies: repo-foundation
    - PR: Not applicable (repository settings)
-   - Next action: Protect `main`: require a pull request, one approval, and
-     passing `checks` CI.
+   - Next action: Protect `main` for everyone except the owner: require a
+     pull request, one approval and passing `checks` CI, and add the owner
+     to the bypass list so direct pushes keep working.
 
 3. **wire-format-decision**
    - Status: Ready

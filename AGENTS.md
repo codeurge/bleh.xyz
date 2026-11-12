@@ -32,8 +32,11 @@ from it, may ever enter the repository, the archive or the network. Read
 
 ## Workflow
 
-- `main` is protected. All changes go through a branch and a pull request.
-  Never commit directly to `main`.
+- **Repository owner:** the owner, and agents working directly for the owner,
+  may commit and push straight to `main`. The checks still apply: run
+  `scripts/check.sh` before pushing, and sign off every commit.
+- **Everyone else:** changes go through a branch and a pull request. Do not
+  push to `main`.
 - Branch names: `<type>/<short-slug>`, where type is one of `feat`, `fix`,
   `docs`, `chore`, `adr`, `admission`, `method`.
 - Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
