@@ -1,6 +1,8 @@
 # Hyperliquid node
 
-Running the non-validating Hyperliquid node that feeds the reader. Format
+Running the non-validating Hyperliquid node that feeds the origin
+([origin.md](origin.md): reader, book builder, signer, gateway and raw
+capture in one process). Format
 of its output: [hyperliquid-node-format.md](../specs/hyperliquid-node-format.md).
 Admission: [ADM-0001](../admissions/ADM-0001-hyperliquid-trades-orders.md).
 Hosting choices: [hosting.md](hosting.md). Upgrades and schema drift:
@@ -75,7 +77,7 @@ clears.
 | Data | `/srv/hl/hl` mounted at `/home/hluser/hl` | `/srv/hl/hl` (the user's `~/hl`) |
 | hl-node binary | inside the container (re-downloaded on restart) | `/srv/hl/hl-node` |
 
-Use one or the other, never both. The reader, pruner and drift check see
+Use one or the other, never both. The origin, pruner and drift check see
 the same paths either way.
 
 ## Layout
@@ -88,8 +90,10 @@ the same paths either way.
 | `/srv/hl/hl/data/periodic_abci_states/<date>/<height>.rmp` | State every 10,000 blocks | node |
 | `/srv/hl/hl/data/replica_cmds/...` | Blocks as transactions (not used live) | node |
 | `/srv/hl/hl/data/node_logs`, `visor_child_stderr` | Logs | node |
-| `/srv/hl/snapshots/` | `fileSnapshot` output requested by the reader | node writes, reader reads |
-| `/srv/bleh/raw/` | Reader's filtered and unfiltered raw, waiting for capture; `.captured-through` watermark | reader and archive (65532) |
+| `/srv/hl/snapshots/` | `fileSnapshot` output requested by the origin | node writes, origin reads |
+| `/srv/bleh/raw/` | The origin's capture staging (private and filtered tiers, sealed hours before upload); `.captured-through` watermark (`BLEH_RAW_DIR`) | origin (65532) |
+| `/srv/bleh/reader/` | Reader checkpoint and `registry.json` (`BLEH_READER_DIR`) | origin (65532) |
+| `/var/lib/node_exporter/textfile/bleh_archive_capture.prom` | Capture counters, rewritten every 60 s | origin (group 65532) |
 
 Whether a live node with `--batch-by-block` writes `node_fills/` or
 `node_fills_by_block/` is still to verify (format spec, § 2); the reader
@@ -97,38 +101,52 @@ takes directory names from configuration and the drift check accepts both.
 
 ## Info server
 
-`--serve-info` serves `http://localhost:3001/info`. The reader requests L4
+`--serve-info` serves `http://localhost:3001/info`. The origin requests L4
 snapshots with `fileSnapshot` (`l4Snapshots`, `includeUsers: false`) and an
-`outPath` under `/snapshots/`; the node writes the file there and the reader
+`outPath` under `/snapshots/`; the node writes the file there and the origin
 reads it from the same path (both containers mount `/srv/hl/snapshots` at
 `/snapshots`). The server listens on loopback only, which is why the node
-and the reader use host networking.
+and the origin use host networking.
 
-If `BlehRegistryRefreshFailing` fires, or the reader logs L4 snapshot errors
-(`HL_SNAPSHOT_INTERVAL_SECS`, default 600 here, sets how often it asks):
+If `BlehRegistryRefreshFailing`, `BlehSnapshotFailures`
+(`hl_reader_snapshot_failures_total`) or `BlehSnapshotsUnusable`
+(`bleh_book_snapshots_unusable_total`) fires, or the origin logs L4
+snapshot errors (`HL_SNAPSHOT_INTERVAL_SECS`, default 600 here, sets how
+often it asks; books wait for the first usable snapshot):
 
 ```bash
 curl -s -X POST -H 'Content-Type: application/json' \
   --data '{"type":"exchangeStatus"}' http://127.0.0.1:3001/info   # is the server up?
 ls -la /srv/hl/snapshots                                          # permissions, free space
-docker compose -f /opt/bleh/src/deploy/compose/compose.yaml logs --tail 200 hl-node
+docker compose -f /opt/bleh/src/deploy/compose/compose.yaml logs --tail 200 hl-node origin
 ```
+
+Snapshots that arrive but are unusable are usually older than the blocks
+the origin keeps to roll them forward; raise `BLEH_RECENT_BLOCKS`
+([origin.md](origin.md#books-and-snapshots)).
 
 ## Disk and pruning
 
 Node output is data until captured. `deploy/scripts/hl-prune.sh`
 (`bleh-prune.timer`, hourly) deletes an hourly stream file only when it is
 older than `RETAIN_HOURS` (24) **and** at or before the capture watermark
-`/srv/bleh/raw/.captured-through`, which the reader and `archive-capture`
-advance once an hour's raw is in R2. Other directories are pruned by age:
-`replica_cmds` and TWAP statuses after 24 h, all but the newest three ABCI
-states, logs after 7 days, snapshots after 6 h. Settings:
-`/etc/bleh/prune.env` (template `deploy/systemd/env/prune.example.conf`).
+`/srv/bleh/raw/.captured-through`, which the origin's live capture
+advances once an hour is sealed in every stream and uploaded to R2. The
+origin writes it as `<BLEH_RAW_DIR>/.captured-through` inside its
+container; compose mounts `.env` `BLEH_RAW_DIR` (`/srv/bleh/raw`, set by
+`host-bootstrap.sh`) there, and that is the pruner's default
+`BLEH_RAW_DIR`. With `BLEH_RAW_DIR` empty in `.env` (a named volume) the
+pruner cannot see the watermark and keeps every stream file. Other
+directories are pruned by age: `replica_cmds` and TWAP statuses after
+24 h, all but the newest three ABCI states, logs after 7 days, snapshots
+after 6 h. Settings: `/etc/bleh/prune.env` (template
+`deploy/systemd/env/prune.example.conf`).
 
-Until live raw capture and the watermark exist (pending reader and archive
-work, deploy/README.md), stream files would be held forever; on such a host
-set `CAPTURE_REQUIRED=0` in `/etc/bleh/prune.env` to prune by age alone,
-knowing those hours are not archived from this node (backfill covers fills).
+On a host that does not capture (origin with `BLEH_CAPTURE_DISABLED=true`
+and no standalone `archive capture run --follow`), stream files would be
+held forever; set `CAPTURE_REQUIRED=0` in `/etc/bleh/prune.env` to prune
+by age alone, knowing those hours are not archived from this node
+(backfill covers fills).
 
 Emergency: below 5% free, the oldest stream hours are deleted regardless of
 capture, `bleh_hl_prune_emergency_deleted_files` records how many, and those
@@ -164,5 +182,5 @@ Alerts: `BlehNodeDiskLow` (< 20% free), `BlehNodeDiskCritical` (< 10%),
    hosts dashboard.
 5. After an upgrade by `hl-visor`, check [upgrades.md](upgrades.md#schema-drift).
 
-While the node is down the reader emits `gap` records; with a second
-origin (Tier 2) the gateway continues from the other path.
+While the node is down the origin emits `gap` records; with a second
+origin (Tier 2) relays continue from the other path.

@@ -1,15 +1,18 @@
-# Proposed workflow (the integrator moves it to .github/workflows/deploy.yml).
+# Build and promote bleh.xyz service images (docs/operations/deploy.md).
 #
 # - On every push to main: build every service image from the commit, push
 #   to GHCR tagged with the full commit SHA, attach SBOM and provenance, and
 #   sign with cosign (keyless, GitHub OIDC). Relay images (gateway,
-#   history-api) are multi-arch because the default relays are arm64.
-# - Manual promote: "Run workflow" with a commit SHA and an environment.
-#   The staging and production GitHub environments carry protection rules
-#   (required reviewers; production only from main). Promotion verifies the
-#   signatures, moves the environment tag to those digests and, if the
-#   environment lists hosts, updates each over SSH to that exact SHA.
-#   Rollback is the same action with an earlier SHA.
+#   history-api, tools) are multi-arch because the default relays are arm64;
+#   node-box images (origin, hl-node, archive) are amd64 only.
+# - Manual promote: "Run workflow" on main with a commit SHA and an
+#   environment. Nothing is deployed on push. The staging and production
+#   GitHub environments carry protection rules (required reviewers;
+#   deployment branches limited to main). Promotion verifies that every
+#   image at that SHA was signed by this workflow on main, moves the
+#   environment tag to those digests and, if the environment lists hosts,
+#   updates each over SSH to that exact SHA. Rollback is the same action
+#   with an earlier SHA (every image in the list below must exist at it).
 #
 # Environment configuration (Settings > Environments > staging|production):
 #   vars.DEPLOY_HOSTS      space-separated "profile@user@host" entries, for
@@ -18,6 +21,9 @@
 #                          the same SHA by hand: docs/operations/deploy.md)
 #   secrets.DEPLOY_SSH_KEY private key of a deploy-only SSH user
 #   secrets.DEPLOY_KNOWN_HOSTS  pinned host keys for those hosts
+#
+# Actions are pinned by commit SHA (version in the trailing comment), as in
+# checks.yml.
 name: deploy
 
 on:
@@ -26,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: Full commit SHA to promote (built by a previous run)
+        description: Full commit SHA to promote (built by a previous run on main)
         required: true
         type: string
       environment:
@@ -35,28 +41,32 @@ on:
         type: choice
         options: [staging, production]
 
-permissions:
-  contents: read
+# No default token permissions; each job asks for what it needs.
+permissions: {}
 
 concurrency:
   group: deploy-${{ github.event_name }}-${{ inputs.environment || 'build' }}
   cancel-in-progress: false
 
 env:
+  # GHCR names must be lower case.
   REGISTRY: ghcr.io/${{ github.repository }}
 
 jobs:
   build:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 240
     permissions:
       contents: read
       packages: write
+      # cosign keyless signing.
       id-token: write
     strategy:
       fail-fast: false
       matrix:
         include:
+          - {target: origin, platforms: linux/amd64, file: deploy/docker/Dockerfile}
           - {target: hl-node-reader, platforms: linux/amd64, file: deploy/docker/Dockerfile}
           - {target: gateway, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
           - {target: archive, platforms: linux/amd64, file: deploy/docker/Dockerfile}
@@ -69,12 +79,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Commit time for reproducible timestamps
         id: meta
         run: echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        if: contains(matrix.platforms, ',')
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -83,6 +95,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Path context: the checkout holds only committed files, and the root
+      # .dockerignore keeps .git and local junk out.
       - name: Build and push
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -111,11 +125,15 @@ jobs:
         run: cosign sign --yes "${IMAGE}@${DIGEST}"
 
   promote:
-    if: github.event_name == 'workflow_dispatch'
+    # The dispatch must run this file as it is on main, so a branch cannot
+    # bring its own promote steps; environment rules gate who may run it.
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment: ${{ inputs.environment }}
     permissions:
       contents: read
+      # Moving the environment tag writes to GHCR.
       packages: write
     env:
       SHA: ${{ inputs.sha }}
@@ -128,9 +146,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Production promotes only commits on main
-        if: inputs.environment == 'production'
+      # Every promoted image is signed by a main build (checked below); this
+      # also refuses a SHA that is not on main for either environment.
+      - name: Promote only commits on main
         run: git merge-base --is-ancestor "$SHA" origin/main
 
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
@@ -146,13 +166,17 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          for t in hl-node-reader gateway archive history-api swap-pollers hl-backfill tools hl-node; do
-            image="${REGISTRY}/${t}"
-            cosign verify "${image}:${SHA}" \
+          images=(origin hl-node-reader gateway archive history-api swap-pollers hl-backfill tools hl-node)
+          # Verify everything first, so a missing or unsigned image moves no tag.
+          for t in "${images[@]}"; do
+            cosign verify "${REGISTRY}/${t}:${SHA}" \
               --certificate-oidc-issuer https://token.actions.githubusercontent.com \
               --certificate-identity "https://github.com/${REPO}/.github/workflows/deploy.yml@refs/heads/main" \
               >/dev/null
-            docker buildx imagetools create --tag "${image}:${ENVIRONMENT}" "${image}:${SHA}"
+            echo "${t}: signature verified"
+          done
+          for t in "${images[@]}"; do
+            docker buildx imagetools create --tag "${REGISTRY}/${t}:${ENVIRONMENT}" "${REGISTRY}/${t}:${SHA}"
             echo "${t}: ${ENVIRONMENT} -> ${SHA}"
           done
 
@@ -171,8 +195,13 @@ jobs:
           for entry in $DEPLOY_HOSTS; do
             profile=${entry%%@*}
             target=${entry#*@}
+            case "$profile" in
+              node-box|home-archive|relay|origin) ;;
+              *) echo "unknown profile '$profile' in DEPLOY_HOSTS"; exit 1 ;;
+            esac
             echo "::group::${profile} on ${target#*@}"
-            ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$target" \
+            ssh -i ~/.ssh/id_deploy -o BatchMode=yes -o StrictHostKeyChecking=yes "$target" \
               "sudo /opt/bleh/src/deploy/scripts/update-host.sh '$profile' '$SHA' '$REGISTRY'"
             echo "::endgroup::"
           done
+          rm -f ~/.ssh/id_deploy

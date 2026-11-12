@@ -20,6 +20,11 @@
 #   ARCHIVE_EVM_CHAIN_ID  L2 chain id; empty skips L2 anchoring (L2 not decided yet)
 #   ARCHIVE_BITCOIN_API  [https://blockstream.info/api]
 #   ARCHIVE_PROFILE      compose profile that runs the jobs [home-archive]
+#
+# Replay's instrument registry is deploy/compose/.env ARCHIVE_REGISTRY (a
+# path inside the archive-job container); empty means the origin's registry
+# from the mirror, $ARCHIVE_MIRROR_DIR/_registry/hyperliquid/registry.json,
+# which registry-sync on the node box keeps in the public bucket.
 #   TEXTFILE_DIR         [/var/lib/node_exporter/textfile]
 set -uo pipefail
 
@@ -96,6 +101,13 @@ case "$mode" in
       cp -an "$mirror/hyperliquid-raw/_manifests/." "$scratch/hyperliquid-raw/_manifests/"
     fi
 
+    # Replay reads the origin's instrument registry (BLEH_ARCHIVE_REGISTRY in
+    # the archive-job service; default: the copy registry-sync puts in the
+    # public bucket, which archive-mirror brings here).
+    registry_override=$(sed -n 's/^ARCHIVE_REGISTRY=//p' /opt/bleh/src/deploy/compose/.env 2>/dev/null | tail -n 1)
+    if [[ -z "$registry_override" && ! -s "$mirror/_registry/hyperliquid/registry.json" ]]; then
+      log "no registry at $mirror/_registry/hyperliquid/registry.json (registry-sync on the node box, archive-mirror here); replay will fail"
+    fi
     step replay hyperliquid-normalized \
       archive replay --raw /work/hyperliquid-raw --date "$day" --out /work/hyperliquid-normalized
     for a in "${archives[@]}"; do

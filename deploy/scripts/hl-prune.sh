@@ -6,10 +6,12 @@
 # bytes/day). Output is data until the archive has captured it, so hourly
 # stream files are deleted only when BOTH hold:
 #   - older than RETAIN_HOURS, and
-#   - at or before the capture watermark written by the reader and
-#     archive-capture: $BLEH_RAW_DIR/.captured-through holds the last UTC
-#     hour (YYYY-MM-DDTHH) whose node files have been read and whose
-#     filtered and unfiltered raw is in object storage.
+#   - at or before the capture watermark written by the origin's live
+#     capture (or a standalone `archive capture run --follow`):
+#     $BLEH_RAW_DIR/.captured-through holds the last UTC hour
+#     (YYYY-MM-DDTHH) sealed in every stream and uploaded, filtered and
+#     unfiltered, to object storage. BLEH_RAW_DIR here is the host path
+#     mounted as the origin's BLEH_RAW_DIR (compose .env BLEH_RAW_DIR).
 # Emergency: if free space on the node volume falls below EMERGENCY_FREE_PCT
 # the oldest stream hours are deleted regardless, the count is exported
 # (bleh_hl_prune_emergency_deleted_files) and the hours become flagged gaps.

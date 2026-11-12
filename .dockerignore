@@ -1,0 +1,76 @@
+# Build context filter for `docker build .` at the repository root (the
+# deploy workflow builds this way from a clean checkout). deploy/docker/build.sh
+# feeds `git archive` of a commit instead, so for local builds this file is a
+# safety net: it keeps build output, version control, local secrets and
+# market data out of an ad-hoc context.
+#
+# The Dockerfile runs `cargo build --locked --release --workspace --bins`,
+# which needs Cargo.toml, Cargo.lock, rust-toolchain.toml and every
+# workspace member under crates/ and tools/. No build script or non-test
+# include_str!/include_bytes! reads docs/ or fixtures/; they stay in the
+# context anyway (small, and tests may read them).
+
+# Build output and dependencies
+target/
+**/target/
+node_modules/
+**/node_modules/
+dist/
+
+# Version control and agent worktrees
+.git
+.gitignore
+.gitattributes
+.claude/
+.agents/
+
+# Secrets and real configuration (templates are named *.example.*)
+**/*.key
+**/*.pem
+**/*.p12
+**/*.age
+**/*.secret
+**/.env
+**/.env.*
+**/*.env
+!**/*.example.*
+deploy/compose/.env
+deploy/compose/secrets/
+deploy/**/secrets/
+.check-denylist
+
+# Terraform and OpenTofu state, plans and real variables
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/*.tfvars
+**/*.tfvars.json
+**/*.tfvars.hcl
+!**/*.example.tfvars.hcl
+**/backend.hcl
+**/crash.log
+
+# Market data never belongs in an image (root-level data directories and
+# data files outside fixtures/)
+/data/
+/archive/
+**/*.dbn
+**/*.dbn.zst
+**/*.parquet
+!fixtures/**/*.parquet
+!fixtures/**/*.dbn
+!fixtures/**/*.dbn.zst
+
+# Not needed to build (brand assets are large)
+brand/
+deploy/docker/.build/
+
+# Editor and OS junk
+.DS_Store
+**/.DS_Store
+*.swp
+**/*.swp
+*~
+.idea/
+.vscode/

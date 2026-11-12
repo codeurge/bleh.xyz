@@ -176,6 +176,10 @@ if ((has_node)); then
   fi
   install -d -o 10000 -g 10000 -m 0755 /srv/hl /srv/hl/hl /srv/hl/hl/data /srv/hl/snapshots
   install -d -o 65532 -g 65532 -m 0750 /srv/bleh /srv/bleh/raw /srv/bleh/reader /srv/bleh/archive
+  # The origin (container user 65532) writes its capture counters into the
+  # textfile collector directory (write to .prom.tmp, then rename).
+  chgrp 65532 /var/lib/node_exporter/textfile
+  chmod 0775 /var/lib/node_exporter/textfile
 fi
 if ((has_home)); then
   # Mount the disk array at /srv/archive and NVMe scratch at /srv/scratch
@@ -269,7 +273,10 @@ set_env S3_ALLOW_HTTP false
 if ((has_node)); then
   set_env HL_DATA_DIR /srv/hl/hl
   set_env HL_SNAPSHOT_DIR /srv/hl/snapshots
+  # The origin's capture watermark lands here; it is hl-prune.sh's default
+  # BLEH_RAW_DIR (and /etc/bleh/prune.env's).
   set_env BLEH_RAW_DIR /srv/bleh/raw
+  set_env BLEH_READER_DIR /srv/bleh/reader
 fi
 if ((has_home)); then
   set_env ARCHIVE_MIRROR_DIR /srv/archive

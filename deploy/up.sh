@@ -5,10 +5,12 @@
 #
 # Profiles (deploy/compose/compose.yaml; ADR 0010 for the production ones):
 #   synthetic     laptop stack, no node (demo gateway, fixture replay, MinIO)
-#   node-box      rented node box: Hyperliquid node, reader, gateway, capture
+#   node-box      rented node box: Hyperliquid node and the origin service
+#                 (reader, book builder, signer, gateway, raw capture)
 #   home-archive  self-hosted archive, seed and processing server
 #   relay         public relay VM
 #   origin        node-box + home-archive on one box that can run the node
+#                 (a profile name; the origin service runs in node-box)
 #   node          alias for node-box
 #
 # Commands (default: up):
@@ -38,13 +40,13 @@ note() { printf 'up.sh: %s\n' "$*" >&2; }
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
     --no-build) build=0; shift ;;
-    -h|--help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown option $1" ;;
   esac
 done
 
 profile=${1:-}
-[[ -n "$profile" ]] || { sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 64; }
+[[ -n "$profile" ]] || { sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'; exit 64; }
 shift
 cmd=${1:-up}
 [[ $# -gt 0 ]] && shift
@@ -139,12 +141,20 @@ for f in signing-key.hex manifest-key.hex anchor-key.hex tunnel-token.txt \
          alertmanager/page_webhook_url alertmanager/ticket_webhook_url alertmanager/deadman_webhook_url; do
   placeholder "$f"
 done
+# Compose bind-mounts secret files with their host owner and mode; the
+# services run as UID 65532, so on a Linux host (run as root) hand them the
+# keys they read. Docker Desktop maps ownership itself.
+if [[ $EUID -eq 0 ]]; then
+  for f in signing-key.hex manifest-key.hex anchor-key.hex; do
+    chown 65532:65532 "$secrets/$f" && chmod 0400 "$secrets/$f"
+  done
+fi
 
 # ---------------------------------------------------------------- images
 targets_for() {
   case "$1" in
     synthetic) echo "hl-node-reader gateway archive history-api" ;;
-    node-box) echo "hl-node hl-node-reader archive" ;;
+    node-box) echo "hl-node origin" ;;
     home-archive) echo "archive history-api swap-pollers hl-backfill tools" ;;
     relay) echo "gateway history-api tools" ;;
   esac

@@ -3,6 +3,9 @@
 #   page     wake someone (availability or integrity at risk now)
 #   ticket   fix within a working day
 #   info     visible on the dashboard, no notification
+#
+# Job "hl-node-reader" is the origin's metrics endpoint (:9184); the name is
+# kept for series continuity (deploy/observability/prometheus/prometheus.yml).
 groups:
   - name: bleh-ingest
     rules:
@@ -11,7 +14,7 @@ groups:
         for: 1m
         labels: {severity: page}
         annotations:
-          summary: No Hyperliquid ingest path is up
+          summary: No Hyperliquid ingest path (origin) is up
           runbook: docs/operations/incident.md#both-ingest-paths-down
 
       - alert: BlehIngestPathDown
@@ -19,7 +22,7 @@ groups:
         for: 3m
         labels: {severity: ticket}
         annotations:
-          summary: "Reader {{ $labels.instance }} (site {{ $labels.site }}) is down"
+          summary: "Origin {{ $labels.instance }} (site {{ $labels.site }}) is down"
           runbook: docs/operations/incident.md#one-ingest-path-down
 
       - alert: BlehNodeBehindChain
@@ -119,6 +122,62 @@ groups:
         labels: {severity: ticket}
         annotations:
           summary: "Reader on {{ $labels.site }} cannot refresh market metadata from the info server"
+          runbook: docs/operations/node.md#info-server
+
+  # The origin process (docs/operations/origin.md, "Metrics"): book builder,
+  # block signer and publisher, L4 snapshots.
+  - name: bleh-origin
+    rules:
+      - alert: BlehSigningFailures
+        # Blocks not signed or not published: relays reject the stream.
+        expr: increase(bleh_signing_failures_total[10m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Block signing failures on {{ $labels.site }} ({{ $labels.instance }})"
+          runbook: docs/operations/keys.md#signing-failures
+
+      - alert: BlehPublishErrors
+        # Batches or records rejected by the publisher: missing from the
+        # signed stream.
+        expr: increase(bleh_publish_errors_total[10m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Origin on {{ $labels.site }} could not publish records"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehBookProcessErrors
+        expr: increase(bleh_book_process_errors_total[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Book builder input errors on {{ $labels.site }}"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehBookDesyncsSustained
+        expr: sum by (site, instance) (increase(bleh_book_desyncs_total[30m])) > 5
+        for: 30m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Books keep desynchronising on {{ $labels.site }} ({{ $value }} in 30 minutes)"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehSnapshotFailures
+        # fileSnapshot requests to the node's info server failing: books
+        # cannot start or reconcile.
+        expr: increase(hl_reader_snapshot_failures_total[30m]) > 2
+        for: 15m
+        labels: {severity: ticket}
+        annotations:
+          summary: "L4 snapshot requests failing on {{ $labels.site }}"
+          runbook: docs/operations/node.md#info-server
+
+      - alert: BlehSnapshotsUnusable
+        # Snapshots arrive but are too old, stale or inconsistent to start or
+        # reconcile books (raise BLEH_RECENT_BLOCKS if they arrive late).
+        expr: increase(bleh_book_snapshots_unusable_total[1h]) > 3
+        for: 30m
+        labels: {severity: ticket}
+        annotations:
+          summary: "L4 snapshots unusable on {{ $labels.site }}"
           runbook: docs/operations/node.md#info-server
 
   - name: bleh-schema-drift
@@ -299,13 +358,35 @@ groups:
   - name: bleh-archive
     rules:
       - alert: BlehRawUploadStale
-        # archive capture rewrites its --metrics-out file as it seals and
-        # uploads hours; a file older than two hours means capture stopped.
-        # Node files rotate hourly and the pruner keeps uncaptured hours.
-        expr: time() - node_textfile_mtime_seconds{file=~".*bleh_archive_capture.prom"} > 7200
+        # Live capture (the origin, or a standalone `archive capture run
+        # --follow`) rewrites bleh_archive_capture.prom every 60 s; a file
+        # older than 15 minutes means the capture loop stopped. Node files
+        # rotate hourly and the pruner keeps uncaptured hours.
+        expr: time() - node_textfile_mtime_seconds{file=~".*bleh_archive_capture.prom"} > 900
         labels: {severity: page}
         annotations:
-          summary: "Raw capture on {{ $labels.instance }} has not reported for 2 hours"
+          summary: "Raw capture on {{ $labels.instance }} has not reported for 15 minutes"
+          runbook: docs/operations/incident.md#archive-capture-stalled
+
+      - alert: BlehCaptureNotSealing
+        # The capture loop runs but seals no hour: a stream stopped, or the
+        # node writes no new hourly files. Hours seal when every stream has a
+        # later file, or BLEH_CAPTURE_SEAL_GRACE_SECS after they end.
+        expr: increase(archive_capture_files_sealed_total[3h]) == 0
+        for: 15m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Raw capture on {{ $labels.instance }} has sealed no hour in 3 hours"
+          runbook: docs/operations/incident.md#archive-capture-stalled
+
+      - alert: BlehCaptureUploadErrors
+        # Sealed hours not reaching object storage: the watermark stops and
+        # the pruner holds node files.
+        expr: increase(archive_capture_upload_errors_total[1h]) > 0
+        for: 30m
+        labels: {severity: ticket}
+        annotations:
+          summary: "Raw capture uploads failing on {{ $labels.instance }}"
           runbook: docs/operations/incident.md#archive-capture-stalled
 
       - alert: BlehArchiveWriteConflict
@@ -355,13 +436,6 @@ groups:
         annotations:
           summary: "No {{ $labels.anchor }} anchor for {{ $labels.archive }} in 36 hours"
           runbook: docs/operations/incident.md#manifest-or-anchor-failure
-
-      - alert: BlehSigningFailures
-        expr: increase(bleh_signing_failures_total[10m]) > 0
-        labels: {severity: page}
-        annotations:
-          summary: "Signing failures in {{ $labels.job }} on {{ $labels.instance }}"
-          runbook: docs/operations/keys.md#signing-failures
 
       - alert: BlehSwapPollStale
         # Part 43 repositories keep only a year online; capture is

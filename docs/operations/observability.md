@@ -48,6 +48,12 @@ parts:
 | Node write → reader emit (inotify, parse, join) | `hl_reader_emit_lag_seconds` (gauge; p99 over scrapes) | 25 ms at p99 |
 | Reader → gateway send (book, signing, encode) | difference of the two | 25 ms at p99 |
 
+All of these run in one process, the origin ([origin.md](origin.md)), so
+the end-to-end histogram is the authoritative number; the reader gauge only
+localises a regression. Its metrics are on two ports: `:9184` (reader and
+origin, Prometheus job `hl-node-reader`, name kept for series continuity)
+and `:8080/metrics` (gateway, bus and signer, job `gateway`).
+
 Lag behind `block_time` (`hl_reader_block_lag_seconds` per node) is
 reported, not gated: it depends on the node's location (higher in Europe
 than in Tokyo; ADR 0010) and is shown on the live dashboard and the status
@@ -65,11 +71,16 @@ gateway (`gateway_slow_consumer_disconnects_total`), internal fan-out lag
 
 The definition (requirements.md): connect once a minute, subscribe to one
 instrument, receive a block heartbeat within 5 seconds.
-`ws-probe.sh` does exactly that and writes `bleh_probe_success`,
-`bleh_probe_first_block_seconds` and `bleh_probe_block_age_seconds` to the
-textfile collector. Run it from at least two networks that are not the
-origin's (default: the home server and relay-1; any small VM elsewhere is
-better still). Settings in `/etc/bleh/probe.env`.
+`ws-probe.sh` does exactly that with the reference client (`mesh-client
+probe --url URL --instrument ID --kind KIND --timeout 5s`, from the binary
+on PATH or the `tools` image through Docker; `PROBE_CLIENT=auto`) and
+writes `bleh_probe_success`, `bleh_probe_first_block_seconds` and
+`bleh_probe_block_age_seconds` to the textfile collector. With
+`PROBE_SIGNERS` set it also fails when the gateway does not announce those
+signers. websocat remains as a fallback (`PROBE_CLIENT=websocat`). Run it
+from at least two networks that are not the origin's (default: the home
+server and relay-1; any small VM elsewhere is better still). Settings in
+`/etc/bleh/probe.env`.
 
 Recording rules give `bleh:probe_success:ratio_{5m,30m,1h,6h,1d,30d}`. The
 30-day ratio is the published availability. Alerts follow the multi-window
@@ -79,9 +90,25 @@ burn-rate pattern for a 0.1% budget: `BlehAvailabilityFastBurn` (14.4× over
 Announced Hyperliquid upgrades are excluded from the published figure: note
 their windows on the status page and subtract them when publishing.
 
-Blackbox checks add HTTP health for `live`, `api`, each `relay-N`, the
-archive's latest manifest, the websocket upgrade through the CDN, and
-certificate expiry (`BlehHttpEndpointDown`, `BlehCertificateExpiring`).
+Blackbox checks add HTTP health for `live`, `api`, each `relay-N`, each
+archive's `_manifests/latest.json` (written by manifest refreshes,
+uploaded by `archive publish`), the websocket upgrade through the CDN, the
+origin's gateway `/health` over the overlay, and certificate expiry
+(`BlehHttpEndpointDown`, `BlehCertificateExpiring`).
+
+## Origin and capture
+
+The origin's own alerts (group `bleh-origin`): `BlehSigningFailures`
+(`bleh_signing_failures_total`, page), `BlehPublishErrors`
+(`bleh_publish_errors_total`, page), `BlehBookReconcileMismatch`,
+`BlehBookProcessErrors`, `BlehBookDesyncsSustained`,
+`BlehSnapshotFailures` (`hl_reader_snapshot_failures_total`) and
+`BlehSnapshotsUnusable`. Live capture writes `archive_capture_*` and
+`archive_store_put_*` to `bleh_archive_capture.prom` in the textfile
+collector every 60 s: `BlehRawUploadStale` (file older than 15 minutes,
+page), `BlehCaptureNotSealing` (no hour sealed in 3 hours),
+`BlehCaptureUploadErrors`, `BlehArchiveWriteConflict`; the pruner's
+`BlehPrunerBlockedByCapture` follows the watermark.
 
 Status page: the gateway's `/health` and `/freshness` are public. The
 planned status page (Phase 1 observability task, not built yet) is a static
@@ -126,7 +153,7 @@ the overlay (disk-buffered for 512 MB if the overlay is down). The node's
 own `visor_child_stderr` crash logs are shipped from the native install via
 `deploy/observability/vector/vector.yaml` (journal and file sources). Node
 output files are data and are never shipped. Query in Grafana Explore, for
-example `{unit="hl-node-reader"} |= "error"`.
+example `{unit="origin"} |= "error"` (the compose service name).
 
 ## Alert routing
 

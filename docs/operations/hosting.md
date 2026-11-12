@@ -15,7 +15,7 @@ tier. Prices are in [costs.md](costs.md); deployment steps in
                  Hyperliquid peers (gossip, TCP 4001-4002)
                               │
    ┌──────────── node box (rented, Europe) ─────────────┐
-   │ hl-node → hl-node-reader (book, signer, gateway)   │── raw capture ──▶ R2 (private + public)
+   │ hl-node → origin (reader, book, signer, gateway)   │── raw capture ──▶ R2 (private + public)
    │            NATS side tap, node exporter, pruner    │                     │
    └──────────────┬─────────────────────────────────────┘                     │ CDN: data.bleh.xyz
                   │ WireGuard overlay (relays verify every signature)        │ torrents, IPFS
@@ -31,7 +31,7 @@ tier. Prices are in [costs.md](costs.md); deployment steps in
 
 | Piece | Runs | Deploy profile |
 |---|---|---|
-| Node box | Hyperliquid non-validating node, reader with the origin gateway, book builder and block signer in one process, raw capture to R2, NATS | `deploy/up.sh node-box` |
+| Node box | Hyperliquid non-validating node and `origin` ([origin.md](origin.md)): reader, book builder, block signer and gateway in one process, live raw capture to R2 with the pruning watermark; NATS side tap | `deploy/up.sh node-box` |
 | Home-archive server | Archive processing, mirror, seeder, IPFS, backfill, swap pollers, staging history API, Prometheus, Alertmanager, Grafana, Loki | `deploy/up.sh home-archive` |
 | Relays (2) | Gateway in relay mode (verifies signatures), public history API, Caddy | `deploy/up.sh relay` |
 | Edge | R2 buckets, `data.bleh.xyz`, DNS, rate limits, the home tunnel | `deploy/terraform/envs/edge` |

@@ -10,13 +10,13 @@ scans for key-like strings.
 
 | Secret | Used by | Rate | Custody (default) | Rotation |
 |---|---|---|---|---|
-| Block-signing key, one per ingest path | reader on that node box (Merkle root per block per stream) | Many signatures per second | File on the node box, `deploy/compose/secrets/signing-key.hex` (0600), mounted as a compose secret | 90 days, on host change, or on suspicion |
+| Block-signing key, one per ingest path | `origin` on that node box (`BLEH_SIGNING_KEY_FILE`; Merkle root per block per stream) | Many signatures per second | File on the node box, `deploy/compose/secrets/signing-key.hex` (0600, readable by UID 65532), mounted as a compose secret (`/etc/bleh/secrets/signing-key.hex` with `bleh@origin`) | 90 days, on host change, or on suspicion |
 | Manifest key | the archive pipeline on the home-archive server (`BLEH_ARCHIVE_SIGNING_KEY_FILE`; one signed manifest per archive per day) | A few per day | File (`secrets/manifest-key.hex`, 0600) on the home server only; hardware or KMS once the archive supports it | Yearly, with `--next-signer` (archive.md) |
 | Root identity key | People, rarely: signs attestations that list the current signer addresses | A few per year | Hardware wallet, offline, with a written backup in two places | Only on compromise |
 | L2 anchor key | the archive pipeline (`BLEH_ARCHIVE_EVM_KEY_FILE`; daily anchor transaction) | Daily | File on the home server; wallet holds only a few weeks of gas | Yearly or when drained |
 | Cloudflare Tunnel token | `cloudflared` on the home server | — | `secrets/tunnel-token.txt`; created by the edge stack | On host change |
 | WireGuard keys | every host (`bleh0`) | — | `/etc/wireguard/bleh0.key` (0600), generated on the host; public keys in the peers file | On host change or suspicion |
-| R2 API tokens | archive (write), relays and mirror (read) | — | `.env` on each host (0600); one token per role, scoped to the buckets it needs | 90 days |
+| R2 API tokens | origin capture and registry-sync on the node box, archive pipeline (write); relays and mirror (read) | — | `.env` on each host (0600), or `/etc/bleh/origin.env` (0600) with systemd; one token per role, scoped to the buckets it needs | 90 days |
 | Requester-pays AWS key | hl-backfill | — | `.env` on the home server; IAM user with `s3:GetObject` and `s3:ListBucket` only | 90 days; disable between backfills |
 | Cloudflare API token | Terraform (edge) | — | Operator workstation environment (`CLOUDFLARE_API_TOKEN`), never on hosts | 90 days |
 | Provider credentials | Terraform (OCI, Hetzner Cloud, AWS, Vultr) | — | Operator workstation | 90 days |
@@ -51,8 +51,9 @@ openssl ecparam -name secp256k1 -genkey -noout -outform DER \
 # (same key format; never overwrites, mode 600):
 docker run --rm -v "$PWD:/k" -w /k bleh/archive manifest keygen --out new-key.hex
 
-# The Ethereum address of an existing key:
-cast wallet address --private-key "0x$(cat signing-key.hex)"     # Foundry
+# The Ethereum address of an existing key (warns on loose permissions):
+mesh-client keys address --key-file signing-key.hex
+docker run --rm -v "$PWD:/k:ro" bleh/tools keys address --key-file /k/signing-key.hex
 ```
 
 `deploy/up.sh synthetic` generates throwaway keys this way for local use
@@ -96,8 +97,12 @@ Block-signing key for path `a`:
 1. Generate the new key; compute its address.
 2. Publish it as `active` with `valid_from` a few hours ahead, in
    `signers.json` and the registry, signed by the root key.
-3. Install `secrets/signing-key.hex` on the node box and restart the reader
-   (`deploy/up.sh node-box restart hl-node-reader`) after `valid_from`.
+3. Install `secrets/signing-key.hex` on the node box and restart the origin
+   (`deploy/up.sh node-box restart origin`, or `systemctl restart
+   bleh@origin`) after `valid_from`. For an overlap without a restart gap,
+   the origin also takes further keys (`BLEH_SIGNING_KEYS=ID=file:PATH`)
+   and the signing one is chosen with `BLEH_ACTIVE_KEY`
+   ([origin.md](origin.md#configuration)).
 4. Mark the old key `retired` with `valid_until` set to the switch time.
    Records it signed stay verifiable for that window.
 5. Update `BLEH_SIGNER_1`/`_2` on the relays (keep the old address as the
@@ -109,7 +114,9 @@ new one, install it, restart the consumer, delete the old one.
 
 ## Revoke (compromise)
 
-1. Stop the affected signer: `deploy/up.sh node-box stop hl-node-reader`
+1. Stop the affected signer: `deploy/up.sh node-box stop origin` (this
+   also stops that box's gateway and live capture; the pruner keeps the
+   uncaptured hours)
    (for the manifest key: `systemctl disable --now bleh-archive-daily.timer`).
 2. Publish a revocation: `status: revoked` and `compromised_from` (the
    earliest block or time the key could have been misused) in
@@ -146,12 +153,18 @@ shred -u origin.pem origin-key.pem
 
 ## Signing failures
 
-`BlehSigningFailures`: a service could not sign. Check that the key file is
-present, non-empty and readable by UID 65532 inside the container
-(`docker compose exec hl-node-reader ls -l /run/secrets/`), that it holds 64
-hex characters, and for an HSM or KMS signer that the device or credentials
-are reachable. Unsigned blocks are not published as signed; clients see the
-commitments missing and can verify later from the archive.
+`BlehSigningFailures` (`bleh_signing_failures_total` on the origin's
+`:9184/metrics`): blocks were not signed or published. The origin image
+has no shell, so check from the host: the key file is present, non-empty
+and readable by UID 65532 (compose bind-mounts the secret with its host
+owner and mode: `ls -ln deploy/compose/secrets/signing-key.hex`), it holds
+64 hex characters (`mesh-client keys address --key-file ...` parses it and
+prints the address, which must match `/signers` on `:8080`), and the origin
+log (`deploy/up.sh node-box logs origin`) for blocks out of order. For an
+HSM or KMS signer, check that the device or credentials are reachable.
+Unsigned blocks are not published as signed; relays drop them
+(`BlehRelayStreamsRejected`), clients see the commitments missing and can
+verify later from the archive.
 
 ## Operational secrets
 

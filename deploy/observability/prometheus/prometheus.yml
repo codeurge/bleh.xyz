@@ -40,6 +40,13 @@ scrape_configs:
       # - targets: ["10.77.0.3:9100"]
       #   labels: {site: b, role: node-box}
 
+  # The origin's reader and origin metrics (HL_METRICS_ADDR, :9184): hl_*
+  # reader series plus bleh_book_*, bleh_signing_failures_total,
+  # bleh_origin_*, hl_reader_snapshot_*. The job keeps its historical name
+  # because alert rules (BlehAllIngestPathsDown, BlehIngestPathDown) and the
+  # overview dashboard select up{job="hl-node-reader"}; renaming it would
+  # break them and the series history. Gateway, bus and signer metrics of
+  # the same process are on :8080, scraped by the gateway job below.
   - job_name: hl-node-reader
     static_configs:
       - targets: ["10.77.0.1:9184"]
@@ -58,9 +65,11 @@ scrape_configs:
       # - targets: ["10.77.0.3:8080"]
       #   labels: {site: b, mode: live}
 
-  # The archive CLI has no HTTP endpoint: capture and the daily pipeline
-  # write bleh_archive_* and archive_* metrics to the textfile collector,
-  # scraped with the node job above.
+  # Capture and the archive CLI have no HTTP endpoint for their counters:
+  # the origin's live capture writes archive_capture_* and
+  # archive_store_put_* to the textfile collector
+  # (bleh_archive_capture.prom, rewritten every 60 s) and the daily
+  # pipeline writes bleh_archive_*; both are scraped with the node job above.
 
   - job_name: history-api
     static_configs:
@@ -94,7 +103,10 @@ scrape_configs:
           - https://api.bleh.xyz/health
           - https://relay-1.bleh.xyz/health
           - https://relay-2.bleh.xyz/health
+          # Written by every manifest refresh and uploaded by `archive
+          # publish` (docs/operations/archive.md).
           - https://data.bleh.xyz/hyperliquid-normalized/_manifests/latest.json
+          - https://data.bleh.xyz/hyperliquid-raw/_manifests/latest.json
     relabel_configs: &blackbox_relabel
       - source_labels: [__address__]
         target_label: __param_target

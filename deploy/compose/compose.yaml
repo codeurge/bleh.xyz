@@ -3,10 +3,11 @@
 # up.sh from env.example.conf. Default production layout (ADR 0010):
 #
 #   node-box      rented box (16+ modern cores, 128 GB RAM free for the node,
-#                 NVMe): Hyperliquid non-validating node, reader with the
-#                 origin gateway, book builder and block signer in process,
-#                 raw capture to R2, NATS side tap. Relays reach the gateway
-#                 over the WireGuard overlay; no inbound HTTP ports.
+#                 NVMe): Hyperliquid non-validating node and the `origin`
+#                 service (reader, book builder, block signer and gateway in
+#                 one process, live raw capture to R2, NATS side tap).
+#                 Relays reach the gateway over the WireGuard overlay; no
+#                 inbound HTTP ports.
 #   home-archive  self-hosted home or LAN server: archive processing
 #                 (replay, partitions, manifests, anchors), full archive
 #                 mirror, BitTorrent seeder, IPFS pinning, backfill, swap
@@ -25,9 +26,9 @@
 #   backfill      one-off hl-backfill jobs (deploy/up.sh <profile> backfill ...).
 #
 # Networking: services share the "bleh" bridge network, except hl-node,
-# hl-node-reader and node-exporter, which use host networking (gossip on TCP
+# origin and node-exporter, which use host networking (gossip on TCP
 # 4001-4002; the node's info server listens on localhost:3001 and writes
-# snapshots into a directory the reader reads). Bridge services reach the
+# snapshots into a directory the origin reads). Bridge services reach the
 # host as host.docker.internal. Metrics ports are published on
 # BLEH_OVERLAY_IP (the WireGuard address; loopback by default) so the
 # home-archive Prometheus can scrape the other hosts over the overlay.
@@ -78,7 +79,7 @@ services:
       - ./nats/nats.conf:/etc/nats/nats.conf:ro
       - nats-data:/data
     ports:
-      # Loopback only: the host-network reader publishes here.
+      # Loopback only: the host-network origin publishes here.
       - "127.0.0.1:4222:4222"
     networks: [bleh]
     logging: *logging
@@ -168,11 +169,16 @@ services:
       nofile: {soft: 1048576, hard: 1048576}
     logging: *logging
 
-  hl-node-reader:
+  # The origin (docs/operations/origin.md): node reader, book builder,
+  # block signer and gateway in one process, plus live capture of the
+  # private and filtered raw tiers. Flags and variables:
+  # crates/origin/src/config.rs; reader variables keep the HL_* names of
+  # docs/operations/node-reader.md.
+  origin:
     # Same hardening as x-bleh-service, spelled out because host networking
     # excludes the shared network settings.
     profiles: [node-box]
-    image: ${BLEH_REGISTRY:-bleh}/hl-node-reader:${BLEH_TAG:-local}
+    image: ${BLEH_REGISTRY:-bleh}/origin:${BLEH_TAG:-local}
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
@@ -180,67 +186,96 @@ services:
     tmpfs: ["/tmp:size=256m"]
     logging: *logging
     network_mode: host
-    # Flags and variables: docs/operations/node-reader.md.
+    # SIGTERM: the reader writes its checkpoint, gateway connections close
+    # with 1001, capture keeps the open hour; exits within 25 s.
+    stop_grace_period: 30s
     environment:
+      <<: *archive-env
       RUST_LOG: ${RUST_LOG:-info}
       HL_LOG_FORMAT: json
       # One data directory per node; Tier 2 lists both (comma-separated),
-      # the reader merges them and raises integrity alarms.
+      # the reader merges them and raises integrity alarms. Capture follows
+      # the first.
       HL_NODE_DIRS: ${HL_NODE_DIRS:-/hl/data}
       HL_INFO_URL: http://127.0.0.1:3001/info
+      # registry-sync copies registry.json to the public bucket for the
+      # archive replay on the home-archive server.
       HL_REGISTRY_OUT: /var/lib/bleh/reader/registry.json
       HL_CHECKPOINT: /var/lib/bleh/reader/checkpoint.json
-      # L4 snapshot every 10 minutes for book reconciliation. The node writes
-      # the file and the reader reads it at the same path.
+      # L4 snapshot every 10 minutes: books start from it and are
+      # reconciled against it. The node writes the file and the origin
+      # reads it at the same path.
       HL_SNAPSHOT_INTERVAL_SECS: ${HL_SNAPSHOT_INTERVAL_SECS:-600}
       HL_SNAPSHOT_PATH: /snapshots/l4.json
+      # Reader and origin metrics and /health, on the overlay.
       HL_METRICS_ADDR: ${BLEH_OVERLAY_IP:-127.0.0.1}:9184
-      # stdout (JSON lines) or none. The reader-to-gateway transport, block
-      # signing and live raw capture are pending lane work (deploy/README.md,
-      # "Service contract"); until then nothing consumes the records.
-      HL_OUTPUT: ${HL_OUTPUT:-none}
-      # The production origin gateway runs inside this process ("Library"
-      # mode in docs/operations/gateway.md) once the reader lane wires it;
-      # it is expected on 0.0.0.0:8080 (/v0/ws, /health, /metrics), which
-      # the host firewall admits only on the overlay. Relays connect to
-      # ws://<overlay ip>:8080/v0/ws.
       BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
+      BLEH_SIGNING_KEY_ID: ${BLEH_SIGNING_KEY_ID:-origin}
+      # JetStream side tap; its window is replayed into the gateway on start.
       BLEH_NATS_URL: nats://127.0.0.1:4222
+      # Embedded gateway (/v0/ws, /health, /freshness, /proof, /signers,
+      # /metrics). All addresses: the host firewall admits 8080 only on the
+      # overlay, where relays connect to ws://<overlay ip>:8080/v0/ws.
+      BLEH_GATEWAY_LISTEN: 0.0.0.0:8080
+      # Live capture: staging and the .captured-through watermark live in
+      # BLEH_RAW_DIR, mounted from the host path hl-prune.sh reads
+      # (.env BLEH_RAW_DIR, /srv/bleh/raw after host-bootstrap.sh).
+      BLEH_RAW_DIR: /var/lib/bleh/raw
+      BLEH_CAPTURE_UPLOAD: "true"
+      BLEH_CAPTURE_METRICS_OUT: /textfile/bleh_archive_capture.prom
+      # Must equal the archive replay's value (archive-job below).
+      BLEH_BOOK_CHECKPOINT_SECS: ${BLEH_BOOK_CHECKPOINT_SECS:-600}
     volumes:
       - ${HL_DATA_DIR:-hl-data}:/hl:ro
       - ${HL_SNAPSHOT_DIR:-hl-snapshots}:/snapshots
       - ${BLEH_RAW_DIR:-raw}:/var/lib/bleh/raw
-      - reader-state:/var/lib/bleh/reader
+      - ${BLEH_READER_DIR:-reader-state}:/var/lib/bleh/reader
+      # node_exporter textfile collector (capture counters).
+      - /var/lib/node_exporter/textfile:/textfile
     secrets: [signing_key]
     depends_on: [hl-node, nats]
 
-  # Raw capture (docs/operations/archive.md): reads the node's hourly files,
-  # writes the private and filtered tiers, seals each hour and uploads it
-  # write-once to R2. Counters go to the textfile collector. The filtered
-  # tier needs the reader's line filter wired into the archive binary
-  # ("Wiring (integrator)" in archive.md); until then capture of that tier
-  # fails and this service restarts.
-  archive-capture:
-    <<: *bleh-service
+  # Raw capture runs inside origin. On a host where the origin does not
+  # capture, `archive capture run --follow` is the standalone alternative
+  # (deploy/systemd/env/archive-capture.example.conf).
+
+  # Copies the origin's instrument registry to the public bucket every five
+  # minutes (only when it changed). The archive replay on the home-archive
+  # server reads it from its mirror (BLEH_ARCHIVE_REGISTRY in archive-job).
+  # The registry is open metadata (docs/requirements.md, R7).
+  registry-sync:
     profiles: [node-box]
-    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    image: docker.io/rclone/rclone:1.76.0@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    # The reader state directory belongs to the runtime user (65532).
+    user: "65532:65532"
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - capture
-      - run
-      - --staging=/var/lib/bleh/archive/staging
-      - --stream=fills=/hl/data/node_fills_by_block
-      - --stream=order_statuses=/hl/data/node_order_statuses_by_block
-      - --stream=raw_book_diffs=/hl/data/node_raw_book_diffs_by_block
-      - --upload
-      - --log-format=json
-      - --metrics-out=/textfile/bleh_archive_capture.prom
+      - |
+        while :; do
+          if [ -s /var/lib/bleh/reader/registry.json ]; then
+            rclone copyto --checksum /var/lib/bleh/reader/registry.json \
+              ":s3:$${BLEH_PUBLIC_BUCKET}/_registry/hyperliquid/registry.json"
+          fi
+          sleep 300
+        done
     environment:
-      <<: *archive-env
-      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_PUBLIC_BUCKET: ${BLEH_PUBLIC_BUCKET:-bleh-archive}
+      RCLONE_S3_PROVIDER: Cloudflare
+      RCLONE_S3_ENDPOINT: ${S3_ENDPOINT:-}
+      RCLONE_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      RCLONE_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      RCLONE_S3_NO_CHECK_BUCKET: "true"
+      RCLONE_CACHE_DIR: /tmp/rclone
     volumes:
-      - ${HL_DATA_DIR:-hl-data}:/hl:ro
-      - archive-work:/var/lib/bleh/archive
-      - /var/lib/node_exporter/textfile:/textfile
+      - ${BLEH_READER_DIR:-reader-state}:/var/lib/bleh/reader:ro
+    tmpfs: ["/tmp:size=16m,uid=65532,gid=65532", "/config:size=1m,uid=65532,gid=65532"]
+    networks: [bleh]
+    logging: *logging
+    depends_on: [origin]
 
   # ==================================================================
   # home-archive: processing, mirror, seeding, monitoring
@@ -248,6 +283,9 @@ services:
   # One-off archive CLI runs (replay, manifests, anchors, publish, verify),
   # started by deploy/scripts/archive-pipeline.sh from systemd timers, or by
   # hand: deploy/up.sh home-archive archive <command> ...
+  # Replay needs the origin's instrument registry: registry-sync on the node
+  # box copies it to the public bucket and archive-mirror brings it into the
+  # mirror. Synthetic: ARCHIVE_REGISTRY=/fixtures/hl/markets.json.
   archive-job:
     <<: *bleh-service
     profiles: [archive-jobs]
@@ -261,9 +299,15 @@ services:
       BLEH_ARCHIVE_KUBO_API: http://ipfs:5001
       BLEH_ARCHIVE_EVM_RPC: ${ARCHIVE_L2_RPC_URL:-}
       BLEH_ARCHIVE_EVM_KEY_FILE: /run/secrets/anchor_key
+      BLEH_ARCHIVE_REGISTRY: ${ARCHIVE_REGISTRY:-/srv/archive/_registry/hyperliquid/registry.json}
+      # snapshot (default): books wait for L4 snapshots, as live; empty: a
+      # first recorded day. The checkpoint interval must equal the origin's.
+      BLEH_ARCHIVE_BOOK_START: ${ARCHIVE_BOOK_START:-snapshot}
+      BLEH_BOOK_CHECKPOINT_SECS: ${BLEH_BOOK_CHECKPOINT_SECS:-600}
     volumes:
       - ${ARCHIVE_SCRATCH_DIR:-archive-work}:/work
       - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive:ro
+      - ../../fixtures/synthetic:/fixtures:ro
     secrets: [manifest_key, anchor_key]
     tmpfs: ["/tmp:size=8g"]
 

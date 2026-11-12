@@ -18,14 +18,20 @@ Command shorthand: `dc` is `docker compose --project-directory
 ## Both ingest paths down
 
 `BlehAllIngestPathsDown`. In Tier 1 there is one path, so this is any
-reader outage.
+origin outage (the origin runs the reader, signer, gateway and capture in
+one process, so its gateway and capture are down too).
 
 1. Is the node up? `up.sh node-box logs --tail 100 hl-node`; if not, follow
    [node.md](node.md#node-not-applying-blocks).
-2. Is the reader up? `up.sh node-box ps`; `logs hl-node-reader`. A crash
-   loop right after an `hl-node` upgrade is usually schema drift
-   ([upgrades.md](upgrades.md#schema-drift)).
-3. Restart only what failed: `up.sh node-box restart hl-node-reader`.
+2. Is the origin up? `up.sh node-box ps`; `logs origin`. A fatal error in
+   any part stops the whole process with a non-zero status
+   ([origin.md](origin.md#shutdown)); the log names the part. A crash loop
+   right after an `hl-node` upgrade is usually schema drift
+   ([upgrades.md](upgrades.md#schema-drift)); one right after a key change
+   is the signing key ([keys.md](keys.md#signing-failures)).
+3. Restart only what failed: `up.sh node-box restart origin` (systemd:
+   `systemctl restart bleh@origin`). The reader resumes from its
+   checkpoint and capture continues the open hour.
 4. Post on the status page; the gap is recorded automatically.
 
 ## One ingest path down
@@ -41,7 +47,7 @@ event_index)` (Tier 2+), or `BlehContentHashMismatch`: a replay did not
 reproduce a partition's content hash.
 
 1. Do not delete anything. Record the stream, block range and both values
-   from the gateway logs (`up.sh node-box logs gateway | grep mismatch`).
+   from the origin's logs (`up.sh node-box logs origin | grep mismatch`).
 2. Check both nodes' versions (`bleh_hl_node_binary_info`): a mismatch
    during an upgrade window usually means one node runs a different
    `hl-node` version with different output. Wait for both to converge and
@@ -57,24 +63,36 @@ reproduce a partition's content hash.
 
 ## Gaps and resnapshots
 
-`BlehSeqGaps`, `BlehResnapshotRateHigh`, `BlehBookReconcileMismatch`. Some
-gaps are normal (node restarts); a sustained rate is not.
+`BlehSeqGaps`, `BlehResnapshotRateHigh`, `BlehBookReconcileMismatch`,
+`BlehBookDesyncsSustained`, `BlehBookProcessErrors`, `BlehPublishErrors`.
+Some gaps are normal (node restarts); a sustained rate is not.
 
-- Gaps on one path only: that node or reader is dropping blocks (disk
+- Gaps on one path only: that node or origin is dropping blocks (disk
   stalls, inotify limits: check `fs.inotify.max_user_watches`, set by
   host-bootstrap).
-- Re-snapshots without gaps: the book builder disagrees with the node's L4
-  snapshot. Capture one mismatch (instrument, block, both books' top levels)
-  for the book lane; affected books are re-synced automatically.
+- Re-snapshots without gaps, or `bleh_book_reconcile_mismatch_total`
+  rising: the book builder disagrees with the node's L4 snapshot (the book
+  was reset to the snapshot and published as a resync). Compare with the
+  reader's alarms; capture one mismatch (instrument, block, both books' top
+  levels) for the book lane.
+- `bleh_book_desyncs_total{reason}`: `gap` follows reader gaps; `book`
+  points at the book builder or its input (`bleh_book_process_errors_total`).
+- `bleh_publish_errors_total`: the publisher rejected batches or records,
+  so they are missing from the signed stream. Check the origin log for the
+  rejection reason and treat the affected blocks as gaps.
 
 ## Gateway down
 
 `BlehGatewayDown`, `BlehAllGatewaysDown`, `BlehGatewayStalled`.
 
-1. `up.sh node-box ps` and `logs gateway`. If the process is up but stalled,
-   check its upstream (the reader stream on 7400) and NATS.
-2. `up.sh node-box restart gateway`. Relays reconnect by themselves and
-   clients resynchronise from snapshots.
+1. On the node box the gateway runs inside `origin`: `up.sh node-box ps`
+   and `logs origin`. If the process is up but the gateway is stalled
+   (`/health` 503), blocks are not reaching it: check the reader side
+   (`hl_output_block_lag_seconds`, the node) and `bleh_signing_failures_total`.
+   NATS is only a side tap; its outage does not stall the gateway.
+2. `up.sh node-box restart origin`. Relays reconnect by themselves and
+   clients resynchronise from snapshots; the gateway replays the JetStream
+   window on start.
 3. If relays are down instead: `ssh relay-N` and `deploy/up.sh relay ps`;
    a lost relay can be re-created with Terraform in minutes
    (`terraform apply -replace=...` in its stack) and its IP updated in the
@@ -98,17 +116,24 @@ Find the broken layer from the inside out:
 
 ## Archive capture stalled
 
-`BlehRawUploadStale`, `BlehArchiveUploadFailures`,
+`BlehRawUploadStale`, `BlehCaptureNotSealing`, `BlehCaptureUploadErrors`,
 `BlehPrunerBlockedByCapture`. Data is still on the node box; the pruner
-keeps uncaptured hours until disk runs low.
+keeps uncaptured hours until disk runs low. Live capture runs inside the
+origin (or, on a host where the origin does not capture, the standalone
+`bleh@archive-capture`).
 
-1. `up.sh node-box logs archive-capture`: credentials (R2 token expired?),
-   network, a malformed file, a write-once conflict.
-2. Look at the staging area: sealed hours waiting in
-   `<staging>/<archive>/ready/`, conflicts in `conflicts/`
-   ([archive.md](archive.md)).
-3. Fix and restart `archive-capture`; it resumes open hours and
-   `archive capture upload` ships sealed ones.
+1. `up.sh node-box logs origin` (look for `upload failed`, capture errors):
+   credentials (R2 token expired?), network, a malformed file, a
+   write-once conflict. `cat /srv/bleh/raw/.captured-through` shows the
+   last hour sealed and uploaded.
+2. Look at the staging area `/srv/bleh/raw`: sealed hours waiting in
+   `<archive>/ready/`, conflicts in `conflicts/`
+   ([archive.md](archive.md)). Not sealing at all usually means a node
+   stream stopped writing; hours seal `BLEH_CAPTURE_SEAL_GRACE_SECS` after
+   they end.
+3. Fix (for example the R2 credentials in `.env`) and restart `origin`. It
+   continues the open hour and retries uploading sealed hours on every
+   pass, then advances the watermark.
 4. If the disk is about to fill before capture can catch up, copy the
    oldest uncaptured hours elsewhere (`rclone copy` to the private bucket or
    to the home server over the overlay) before the pruner's emergency mode
@@ -116,8 +141,14 @@ keeps uncaptured hours until disk runs low.
 
 ## Manifest or anchor failure
 
-`BlehManifestOverdue`, `BlehManifestFailures`, `BlehAnchorOverdue`,
-`BlehAnchorFailures`.
+`BlehManifestOverdue`, `BlehArchiveDailyStale`, `BlehArchiveStepFailed`,
+`BlehArchiveVerifyFailed`, `BlehAnchorOverdue`.
+
+- Replay fails with "set BLEH_ARCHIVE_REGISTRY" or a missing file: the
+  origin's registry has not reached the mirror. Check
+  `/srv/archive/_registry/hyperliquid/registry.json` on the home server,
+  `up.sh node-box logs registry-sync` on the node box and the mirror's
+  `/srv/archive/.last-sync`.
 
 - Pipeline: `journalctl -u bleh-archive-daily` shows which step failed
   (`bleh_archive_step_ok` names it). Re-run a day with

@@ -30,16 +30,22 @@ prev_tag=$(get_env BLEH_TAG)
 prev_registry=$(get_env BLEH_REGISTRY)
 
 healthy() {
-  local ip url
+  local ip urls u ok
   ip=$(get_env BLEH_OVERLAY_IP); ip=${ip:-127.0.0.1}
   case "$profile" in
-    # The reader's health (the origin gateway runs inside it once wired).
-    node-box|origin) url="http://${ip}:9184/health" ;;
-    relay) url="http://${ip}:8080/health" ;;
-    home-archive) url="http://${ip}:8081/health" ;;
+    # The origin's reader health (9184) and its embedded gateway (8080:
+    # 200 once a block closed within BLEH_GATEWAY_MAX_STALENESS_SECS).
+    node-box) urls=("http://${ip}:9184/health" "http://${ip}:8080/health") ;;
+    origin) urls=("http://${ip}:9184/health" "http://${ip}:8080/health" "http://${ip}:8081/health") ;;
+    relay) urls=("http://${ip}:8080/health") ;;
+    home-archive) urls=("http://${ip}:8081/health") ;;
   esac
   for _ in $(seq 1 60); do
-    curl -fsS --max-time 3 "$url" >/dev/null 2>&1 && return 0
+    ok=1
+    for u in "${urls[@]}"; do
+      curl -fsS --max-time 3 "$u" >/dev/null 2>&1 || { ok=0; break; }
+    done
+    ((ok)) && return 0
     sleep 5
   done
   return 1

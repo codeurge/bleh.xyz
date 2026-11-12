@@ -4,7 +4,13 @@
 # separate target with a distroless, non-root final image (no shell, no
 # package manager):
 #
-#   hl-node-reader  gateway  archive  history-api  swap-pollers  hl-backfill
+#   origin          node-box service: reader + book builder + block signer +
+#                   embedded gateway + live raw capture (crates/origin)
+#   hl-node-reader  standalone reader (synthetic replay, debugging)
+#   gateway         demo and relay modes
+#   archive         archive CLI with the reader's filters and parser wired in
+#                   (built from crates/origin)
+#   history-api  swap-pollers  hl-backfill
 #   mesh-client     tools (mesh-client + hl-synth)
 #
 # Build through deploy/docker/build.sh, which feeds `git archive` of a commit
@@ -12,7 +18,7 @@
 # .git never enter the context) and tags images by git SHA:
 #
 #   deploy/docker/build.sh                 # every target, tagged with HEAD's SHA
-#   deploy/docker/build.sh gateway archive # selected targets
+#   deploy/docker/build.sh origin archive  # selected targets
 #
 # Reproducibility: base images are pinned by digest, Debian packages come
 # from snapshot.debian.org at a fixed date, the toolchain comes from
@@ -32,7 +38,7 @@ FROM ${RUST_IMAGE} AS build
 # the live mirrors (faster, not reproducible).
 ARG DEBIAN_SNAPSHOT=20261110T000000Z
 ARG SOURCE_DATE_EPOCH=0
-ARG BINS="hl-node-reader gateway archive history-api swap-pollers hl-backfill mesh-client hl-synth"
+ARG BINS="origin hl-node-reader gateway archive history-api swap-pollers hl-backfill mesh-client hl-synth"
 
 ENV CARGO_INCREMENTAL=0 \
     CARGO_TERM_COLOR=never \
@@ -107,10 +113,21 @@ COPY --from=build --chown=65532:65532 /state/ /var/lib/bleh/
 # (deploy/README.md, "Service contract"); every listen address is set by
 # flag or environment at run time. archive and hl-backfill are batch tools.
 # ---------------------------------------------------------------------------
+# origin: 8080 is the embedded gateway (/v0/ws, /health, /freshness, /proof,
+# /signers, gateway/bus/signer /metrics), 9184 the reader and origin metrics
+# (HL_METRICS_ADDR). docs/operations/origin.md.
+FROM runtime AS origin
+LABEL org.opencontainers.image.title="bleh origin"
+COPY --from=build /out/origin /usr/local/bin/origin
+EXPOSE 8080 9184
+ENTRYPOINT ["/usr/local/bin/origin"]
+
+# Standalone reader: synthetic replay (HL_REPLAY, HL_WRITE_FILTERED) and
+# debugging. Production node boxes run origin instead.
 FROM runtime AS hl-node-reader
 LABEL org.opencontainers.image.title="bleh hl-node-reader"
 COPY --from=build /out/hl-node-reader /usr/local/bin/hl-node-reader
-EXPOSE 8080 9184
+EXPOSE 9184
 ENTRYPOINT ["/usr/local/bin/hl-node-reader"]
 
 FROM runtime AS gateway
@@ -119,6 +136,8 @@ COPY --from=build /out/gateway /usr/local/bin/gateway
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/gateway"]
 
+# The archive binary is built from crates/origin (archive library + the
+# reader's line filters and the origin's replay parser).
 FROM runtime AS archive
 LABEL org.opencontainers.image.title="bleh archive"
 COPY --from=build /out/archive /usr/local/bin/archive

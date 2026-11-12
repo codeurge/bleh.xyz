@@ -13,14 +13,20 @@
 #   PROBE_INSTRUMENT  instrument to subscribe to [hyperliquid:perp:BTC]
 #   PROBE_KIND        channel kind [trade]
 #   PROBE_TIMEOUT     seconds allowed from connect to first block [5]
-#   PROBE_CLIENT      websocat | mesh-client | docker [websocat]
+#   PROBE_SIGNERS     comma-separated signer addresses the gateway must
+#                     announce in hello (optional)
+#   PROBE_CLIENT      auto | mesh-client | docker | websocat [auto]
+#                     auto: mesh-client if on PATH, else docker
 #   PROBE_IMAGE       image for PROBE_CLIENT=docker [bleh/tools:local]
 #   TEXTFILE_DIR      node_exporter textfile directory
 #                     [/var/lib/node_exporter/textfile]
 #
-# With PROBE_CLIENT=mesh-client the reference client does the work
-# (`mesh-client probe`, provided by the gateway/client lane) and prints one
-# JSON line {"ok":bool,"first_block_seconds":f,"block_time_ms":n}.
+# The reference client does the work: `mesh-client probe --url URL
+# --instrument ID --kind KIND --timeout 5s` prints one JSON line
+# {"ok":bool,"first_block_seconds":f,"block_time_ms":n} (plus "error" when
+# not ok) and exits 1 when not ok. PROBE_CLIENT=docker runs it from the
+# tools image; websocat is a legacy fallback without the client. jq is
+# required in every mode.
 set -uo pipefail
 
 url=${PROBE_URL:-wss://live.bleh.xyz/v0/ws}
@@ -28,7 +34,11 @@ target=${PROBE_TARGET:-live}
 instrument=${PROBE_INSTRUMENT:-hyperliquid:perp:BTC}
 kind=${PROBE_KIND:-trade}
 timeout_s=${PROBE_TIMEOUT:-5}
-client=${PROBE_CLIENT:-websocat}
+signers=${PROBE_SIGNERS:-}
+client=${PROBE_CLIENT:-auto}
+if [[ "$client" == auto ]]; then
+  if command -v mesh-client >/dev/null; then client=mesh-client; else client=docker; fi
+fi
 textfile_dir=${TEXTFILE_DIR:-/var/lib/node_exporter/textfile}
 stdout_only=0
 [[ "${1:-}" == "--once-stdout" ]] && stdout_only=1
@@ -81,18 +91,27 @@ probe_websocat() {
 }
 
 probe_mesh_client_inner() {
-  local out
-  if out=$(mesh-client probe --url "$url" --instrument "$instrument" --kind "$kind" \
-      --timeout "${timeout_s}s" 2>/dev/null); then
-    ok=$(jq -r 'if .ok then 1 else 0 end' <<<"$out")
-    first_block_s=$(jq -r '.first_block_seconds // "NaN"' <<<"$out")
-    local bt
-    bt=$(jq -r '.block_time_ms // empty' <<<"$out")
-    if [[ -n "$bt" ]]; then
-      block_age_s=$(awk -v a="$bt" -v b="$(now_ms)" 'BEGIN{printf "%.3f", (b-a)/1000}')
-    fi
-  else
-    error="mesh-client probe failed"
+  command -v jq >/dev/null || { error="jq not installed"; return; }
+  local out bt s x args=(probe --url "$url" --instrument "$instrument" --kind "$kind" --timeout "${timeout_s}s")
+  if [[ -n "$signers" ]]; then
+    IFS=, read -r -a s <<<"$signers"
+    for x in "${s[@]}"; do args+=(--signer "$x"); done
+  fi
+  # Exit status 1 means "not ok"; the JSON line says why, so read it either way.
+  out=$(mesh-client "${args[@]}" 2>/dev/null | tail -n 1)
+  if ! jq -e 'type == "object" and has("ok")' >/dev/null 2>&1 <<<"$out"; then
+    error="mesh-client probe produced no result"
+    return
+  fi
+  if [[ "$(jq -r '.ok' <<<"$out")" != true ]]; then
+    error=$(jq -r '.error // "not ok"' <<<"$out")
+    return
+  fi
+  ok=1
+  first_block_s=$(jq -r '.first_block_seconds // "NaN"' <<<"$out")
+  bt=$(jq -r '.block_time_ms // empty' <<<"$out")
+  if [[ -n "$bt" ]]; then
+    block_age_s=$(awk -v a="$bt" -v b="$(now_ms)" 'BEGIN{printf "%.3f", (b-a)/1000}')
   fi
 }
 
@@ -105,7 +124,9 @@ probe_docker() {
 
 case "$client" in
   websocat) probe_websocat ;;
-  mesh-client) command -v mesh-client >/dev/null || error="mesh-client not installed"; [[ -z "$error" ]] && probe_mesh_client_inner ;;
+  mesh-client)
+    if command -v mesh-client >/dev/null; then probe_mesh_client_inner; else error="mesh-client not installed"; fi
+    ;;
   docker) probe_docker ;;
   *) error="unknown PROBE_CLIENT $client" ;;
 esac

@@ -27,7 +27,7 @@ detect them:
 
 A new `hl-node` can add, rename or reshape fields. Two independent checks:
 
-1. **Live, in the reader.** Lines the reader cannot parse and blocks it
+1. **Live, in the origin's reader.** Lines the reader cannot parse and blocks it
    rejects are counted (`hl_reader_parse_errors_total`,
    `hl_reader_rejected_blocks_total`; see
    [node-reader.md](node-reader.md)), and affected blocks are released
@@ -77,10 +77,18 @@ roles:
    [gateway-v0.md](../protocol/gateway-v0.md) § 10).
 2. The home-archive server (archive processing is replayable).
 3. Node boxes last, one origin at a time, waiting for `BlehPathBehind` to
-   clear before the next.
+   clear before the next. Restarting `origin` restarts that box's reader,
+   signer, gateway and live capture together (the node keeps running): its
+   relays fail over to the other origin (Tier 2+) or reconnect after the
+   restart (Tier 1, a short gap); capture continues the open hour.
 
 `update-host.sh` rolls a host back automatically if it does not become
-healthy; a manual rollback is promoting the previous SHA.
+healthy (node box: the origin's `:9184/health` and gateway `:8080/health`
+within five minutes); a manual rollback is promoting the previous SHA.
+
+A change to `BLEH_BOOK_CHECKPOINT_SECS` must reach the origin and the
+archive replay together (set it in the node box's and the home server's
+`.env`), or replayed checkpoints stop matching the live ones.
 
 Archive and replay changes that alter partition bytes or content hashes
 are method changes: they need a new version and a decision record

@@ -1,13 +1,19 @@
 # Container alternative to docker compose for one bleh service per unit:
 #
-#   systemctl enable --now bleh@hl-node-reader bleh@archive-capture   (node box)
-#   systemctl enable --now bleh@relay                                 (relay)
+#   systemctl enable --now bleh@origin    (node box: reader, signer, gateway, capture)
+#   systemctl enable --now bleh@relay     (relay)
+#
+# bleh@archive-capture (standalone `archive capture run --follow`) is only
+# for a node box whose origin does not capture.
 #
 # Each instance reads /etc/bleh/<instance>.env (examples in
 # deploy/systemd/env/), which sets BLEH_IMAGE, BLEH_DOCKER_ARGS (mounts,
-# secrets, published ports) and the service's own variables. Containers use
-# host networking, so listen addresses in the env file must be loopback or
-# the overlay address; the host firewall admits nothing else.
+# secrets, published ports), optionally BLEH_ARGS (command-line arguments;
+# origin and the relay take everything from variables) and the service's
+# own variables. The env file is also passed to the container, so it must
+# stay mode 600 when it holds credentials. Containers use host networking:
+# listen on loopback, the overlay address, or all addresses only for ports
+# the host firewall admits on the overlay alone (8080, the gateway).
 [Unit]
 Description=bleh %i
 Documentation=file:///opt/bleh/src/deploy/README.md

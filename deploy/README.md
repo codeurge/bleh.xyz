@@ -18,18 +18,21 @@ Runbooks: [hosting](../docs/operations/hosting.md),
 
 ```bash
 deploy/up.sh synthetic        # whole pipeline on a laptop, no node (needs Docker)
-deploy/up.sh node-box         # on the rented node box
+deploy/up.sh node-box         # on the rented node box (hl-node + origin)
 deploy/up.sh home-archive     # on the self-hosted archive server
 deploy/up.sh relay            # on each relay
 deploy/up.sh origin           # node box and archive on one qualifying machine
 ```
+
+The `origin` profile name predates the `origin` service; the service runs
+in the `node-box` profile (and therefore in the `origin` profile too).
 
 ## Layout
 
 | Path | Contents |
 |---|---|
 | `up.sh` | One command per host role: creates `.env` and secrets placeholders, builds or pulls images, starts the profile |
-| `docker/Dockerfile` | Multi-stage build of every service binary; distroless non-root targets |
+| `docker/Dockerfile` | Multi-stage build of every service binary; distroless non-root targets (`origin`, `hl-node-reader`, `gateway`, `archive`, `history-api`, `swap-pollers`, `hl-backfill`, `mesh-client`, `tools`) |
 | `docker/hl-node/` | Hyperliquid node image (official hl-visor procedure, pinned release key) and its entrypoint |
 | `docker/build.sh` | Builds images from `git archive` of a commit, tagged by SHA |
 | `compose/compose.yaml` | Profiles `synthetic`, `node-box`, `home-archive`, `relay`, and one-off `backfill` and `archive-jobs` |
@@ -39,7 +42,8 @@ deploy/up.sh origin           # node box and archive on one qualifying machine
 | `scripts/` | `host-bootstrap.sh`, `disk-setup.sh`, `wg-mesh.sh`, `hl-prune.sh`, `schema-drift-check.sh`, `archive-pipeline.sh`, `node-install.sh`, `update-host.sh`, `peer-latency.sh`, `host-metrics.sh` |
 | `systemd/` | Timers (pruning, drift, probe, host facts, daily archive pipeline and anchor upgrades), `hl-visor.service` and `bleh@.service` as alternatives to compose, env templates |
 | `terraform/` | Root stacks `envs/edge`, `envs/relays-oci`, `envs/relays-hcloud`, `envs/tokyo`, `envs/fallback-dns` over modules `host`, `cloudflare-edge`, `cloudflare-tunnel`, `relay-oci`, `relay-hcloud`, `aws-node-box`, `vultr-node-box` |
-| `ci/deploy.yml` | Proposed workflow: build, sign, gated promote (the integrator moves it to `.github/workflows/`) |
+| [`../.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | Build, sign and push every image on push to main; manual, environment-gated promote and host update |
+| [`../.dockerignore`](../.dockerignore) | Build context filter for `docker build .` (the workflow); `build.sh` uses `git archive` instead |
 
 Example and template files carry `.example.` in their names, because the
 repository only admits known extensions (`scripts/check.sh`). Real copies
@@ -71,9 +75,8 @@ Every service:
 - reads configuration from environment variables (below) and logs JSON
   (`RUST_LOG` sets the level);
 - serves Prometheus metrics at `GET /metrics` and liveness at
-  `GET /health` on a configurable `ip:port` (`BLEH_METRICS_ADDR` for
-  services not yet built; the merged reader and pollers use their own
-  variable names, listed below);
+  `GET /health` on a configurable `ip:port` (each merged service has its
+  own variable, listed below);
 - reads secrets from files named by `*_FILE` variables, never from the
   environment;
 - runs as UID 65532 with a read-only root filesystem; writable paths are
@@ -82,53 +85,92 @@ Every service:
   cleanly on SIGTERM within 30 s;
 - labels nothing with a site: Prometheus adds `site` (and `path` where useful).
 
-For services not yet built (archive), object storage settings use the
-`object_store` conventions: `AWS_ENDPOINT`, `AWS_REGION` (`auto` for R2),
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ALLOW_HTTP` (MinIO only),
-plus `BLEH_PUBLIC_BUCKET` and `BLEH_PRIVATE_BUCKET`; also `BLEH_SITE`,
-`BLEH_NATS_URL` and `BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64
-hex characters, optional `0x` and trailing newline). Merged services keep
-their own names, mapped from the same `.env` values in compose.
+Every service is now merged and keeps its own variable names, mapped from
+the same `.env` values in compose. Shared conventions: object storage for
+the archive tiers is `BLEH_ARCHIVE_{PUBLIC,PRIVATE}_*` (the `x-archive-env`
+block in compose), the block-signing key is `BLEH_SIGNING_KEY_FILE`
+(32-byte secp256k1 secret as 64 hex characters, optional `0x` and trailing
+newline) and the NATS side tap is `BLEH_NATS_URL`.
 
-### hl-node-reader (node-reader lane, merged)
+### origin (integrator, merged)
 
-Implemented; full reference in
-[node-reader.md](../docs/operations/node-reader.md). What the
-configurations here use:
+Implemented ([`crates/origin`](../crates/origin); runbook
+[origin.md](../docs/operations/origin.md)). One process on the node box:
+the node reader (one or two node directories, active-active merge), the
+book builder and derived records, the block signer, the gateway in process
+("Library" mode in [gateway.md](../docs/operations/gateway.md)), an
+optional JetStream side tap and live capture of the private and filtered
+raw tiers. Image `origin`; compose service `origin` (profile `node-box`);
+systemd `bleh@origin` ([env/origin.example.conf](systemd/env/origin.example.conf)).
+The standalone `hl-node-reader` image remains for the synthetic replay and
+debugging.
 
 | | |
 |---|---|
-| Ports | `HL_METRICS_ADDR` (9184 on the overlay address): `/metrics`, `/health` |
-| Variables set | `HL_NODE_DIRS` (`/hl/data`; both nodes' directories in Tier 2, merged in one reader), `HL_INFO_URL`, `HL_REGISTRY_OUT`, `HL_CHECKPOINT` (under the `reader-state` volume, `/var/lib/bleh/reader`), `HL_SNAPSHOT_INTERVAL_SECS` (600), `HL_SNAPSHOT_PATH` (`/snapshots/l4.json`; the node writes it, the reader reads the same path), `HL_OUTPUT` (`none` until a consumer exists), `HL_LOG_FORMAT=json`; synthetic replay: `HL_REPLAY`, `HL_REGISTRY`, `HL_WRITE_FILTERED` |
-| Networking | Host network (the info server is loopback-only) |
-| Metrics used by rules and dashboards | `hl_reader_last_block`, `hl_reader_block_lag_seconds`, `hl_reader_emit_lag_seconds`, `hl_reader_parse_errors_total`, `hl_reader_rejected_blocks_total`, `hl_reader_incomplete_blocks_total`, `hl_output_last_block`, `hl_output_block_lag_seconds`, `hl_output_gaps_total`, `hl_merge_mismatches_total`, `hl_merge_one_sided_gap_blocks_total`, `hl_registry_refreshes_total`, `hl_checkpoint_writes_total` |
-| Still requested | (1) A network output the gateway can consume (`--output tcp://0.0.0.0:7400` or equivalent; the compose file reserves 7400 on the overlay); stdout JSON lines are not a production transport. (2) Live filtered and unfiltered raw capture (today `--write-filtered` exists only with `--replay`). (3) With archive-capture, the watermark file `<raw dir>/.captured-through` holding the last UTC hour (`YYYY-MM-DDTHH`) whose node files are fully read and whose raw is in object storage; `hl-prune.sh` deletes node output only up to it. (4) Block signing with `BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64 hex characters) and `bleh_signing_failures_total`. (5) A histogram for emit lag, so p99 does not depend on scrape sampling. (6) `hl_reader_snapshot_failures_total`, so failed `fileSnapshot` requests alert |
+| Ports | `BLEH_GATEWAY_LISTEN` (`0.0.0.0:8080`, admitted only on the overlay by the host firewall): `/v0/ws`, `/health` (503 after `BLEH_GATEWAY_MAX_STALENESS_SECS` without a block), `/freshness`, `/proof`, `/signers`, `/metrics` (gateway, bus and signer). `HL_METRICS_ADDR` (9184 on the overlay address): `/metrics` (reader and origin), `/health` |
+| Networking | Host network (the node's info server is loopback-only; NATS on `127.0.0.1:4222`). Relays connect to `ws://10.77.0.x:8080/v0/ws` |
+| Variables set | Reader (`HL_*`, names of [node-reader.md](../docs/operations/node-reader.md)): `HL_NODE_DIRS` (`/hl/data`; both nodes' directories in Tier 2; capture follows the first), `HL_INFO_URL`, `HL_REGISTRY_OUT` and `HL_CHECKPOINT` (under `/var/lib/bleh/reader`, host `BLEH_READER_DIR`), `HL_SNAPSHOT_INTERVAL_SECS` (600), `HL_SNAPSHOT_PATH` (`/snapshots/l4.json`; the node writes it, the origin reads the same path), `HL_METRICS_ADDR`, `HL_LOG_FORMAT=json`. Origin (`BLEH_*`): `BLEH_SIGNING_KEY_FILE` (`/run/secrets/signing_key`, 64 hex digits), `BLEH_SIGNING_KEY_ID`, `BLEH_GATEWAY_LISTEN`, `BLEH_NATS_URL`, `BLEH_RAW_DIR` (`/var/lib/bleh/raw`, host `BLEH_RAW_DIR` = `/srv/bleh/raw`), `BLEH_CAPTURE_UPLOAD=true`, `BLEH_CAPTURE_METRICS_OUT` (`/textfile/bleh_archive_capture.prom`), `BLEH_BOOK_CHECKPOINT_SECS` (600; the archive replay uses the same `.env` value), and `BLEH_ARCHIVE_{PUBLIC,PRIVATE}_*` for capture uploads. Every flag and default: [`config.rs`](../crates/origin/src/config.rs) |
+| Volumes and secrets | Node data (read-only), snapshots, raw staging, reader state, the node-exporter textfile directory (group 65532 writable; `host-bootstrap.sh`); secret `signing_key` (compose bind-mounts it with its host owner, so `up.sh`, run as root, hands the key files to UID 65532, mode 0400) |
+| Capture watermark | `<BLEH_RAW_DIR>/.captured-through` (`YYYY-MM-DDTHH`): the last hour sealed in every stream and uploaded. On the host it is `/srv/bleh/raw/.captured-through`, which `hl-prune.sh` reads (its default `BLEH_RAW_DIR`); stream files are deleted only up to it |
+| Registry for replay | `registry-sync` (compose, node-box) copies `registry.json` to `s3://<public bucket>/_registry/hyperliquid/registry.json` every 5 minutes; `archive-mirror` brings it to the home server, where `archive-job` reads it as `BLEH_ARCHIVE_REGISTRY` (override: `.env` `ARCHIVE_REGISTRY`) |
+| Health | Compose has no healthcheck (distroless image, no shell); `update-host.sh` waits for `:9184/health` and `:8080/health` and rolls back otherwise. Shutdown within 25 s of SIGTERM (checkpoint written, connections closed with 1001, open capture hour kept) |
+| Metrics used by rules and dashboards | Reader: `hl_reader_last_block`, `hl_reader_block_lag_seconds`, `hl_reader_emit_lag_seconds`, `hl_reader_parse_errors_total`, `hl_reader_rejected_blocks_total`, `hl_reader_incomplete_blocks_total`, `hl_output_last_block`, `hl_output_block_lag_seconds`, `hl_output_gaps_total`, `hl_merge_mismatches_total`, `hl_merge_one_sided_gap_blocks_total`, `hl_registry_refreshes_total`, `hl_checkpoint_writes_total`. Origin: `bleh_signing_failures_total`, `bleh_publish_errors_total`, `bleh_book_reconcile_mismatch_total`, `bleh_book_process_errors_total`, `bleh_book_desyncs_total`, `bleh_book_snapshots_unusable_total`, `hl_reader_snapshot_failures_total`. Gateway (`:8080`): see below. Capture (textfile): `archive_capture_files_sealed_total`, `archive_capture_upload_errors_total`, `archive_store_put_created_total`, `archive_store_put_conflict_total` and the file's age. Prometheus job `hl-node-reader` (name kept for series continuity) scrapes `:9184` |
+
+Resolved from the earlier requests to the reader, gateway and archive
+lanes: network output (the gateway runs in process, so there is no
+reader-to-gateway transport and no port 7400); live filtered and
+unfiltered raw capture; the `.captured-through` watermark; block signing
+with `BLEH_SIGNING_KEY_FILE` and `bleh_signing_failures_total`;
+`hl_reader_snapshot_failures_total`; `bleh_book_reconcile_mismatch_total`;
+environment variables for every gateway flag (`BLEH_GATEWAY_*`,
+`BLEH_GATEWAY_MODE`); the archive `Hooks` (filters and replay parser);
+periodic `--metrics-out` while capture runs; `_manifests/latest.json`.
+
+Still open:
+
+- Reader emit lag is a gauge (`hl_reader_emit_lag_seconds`), so its p99 is
+  taken over scrape samples. The end-to-end p99 against the 50 ms target
+  comes from the `gateway_send_latency_seconds` histogram, which covers
+  the reader; a reader histogram would only localise a regression.
+- L4 snapshots are not captured into the raw tiers, so book-dependent
+  derived records replayed by the archive equal the live ones only from an
+  empty book (`BLEH_ARCHIVE_BOOK_START=empty`, a first recorded day)
+  ([archive.md](../docs/operations/archive.md), "Known limits").
+- The origin does not publish its registry itself; `registry-sync` (deploy
+  side) does. With systemd instead of compose the copy is manual.
+- The `synthetic` profile still runs the demo gateway and a one-shot
+  `hl-node-reader` replay, not the origin; the origin's end-to-end path on
+  synthetic data is covered by `crates/origin/tests/e2e.rs` only.
+- Elsewhere in this contract: hl-backfill progress metrics while a copy
+  runs; swap-pollers ICE Trade Vault sources (not admitted yet).
 
 ### gateway (bus, gateway and client lane, merged)
 
-Implemented; reference in [gateway.md](../docs/operations/gateway.md). The
-binary takes flags, not environment variables; compose passes them.
+Implemented; reference in [gateway.md](../docs/operations/gateway.md).
+Every flag also has a `BLEH_GATEWAY_*` variable and `BLEH_GATEWAY_MODE`
+selects `demo` or `relay`, so systemd units need no `BLEH_ARGS`; compose
+passes flags.
 
 | | |
 |---|---|
-| Origin | "Library" mode: the gateway runs inside the reader process. The configurations expect it on `0.0.0.0:8080` of the node box (host network; overlay-only by firewall) serving `/v0/ws`, `/health`, `/freshness`, `/signers`, `/proof` and `/metrics` |
-| Relay | `gateway relay --listen=0.0.0.0:8080 --trust-forwarded-for --upstream=ws://10.77.0.1:8080/v0/ws --signer=0x...` (compose: `RELAY_UPSTREAM_1/2`, `BLEH_SIGNER_1/2`); Caddy in front sets `X-Forwarded-For` and hides `/metrics` |
+| Origin | In process in `origin` (above), not a separate service |
+| Relay | Compose: `gateway relay --listen=0.0.0.0:8080 --trust-forwarded-for --upstream=ws://10.77.0.1:8080/v0/ws --signer=0x...` (`RELAY_UPSTREAM_1/2`, `BLEH_SIGNER_1/2`); systemd: `BLEH_GATEWAY_MODE=relay`, `BLEH_GATEWAY_UPSTREAM`, `BLEH_GATEWAY_SIGNER` ([env/relay.example.conf](systemd/env/relay.example.conf)). Caddy in front sets `X-Forwarded-For` and hides `/metrics` |
 | Demo | `gateway demo --listen=0.0.0.0:8080 --signing-key=k1=file:/run/secrets/signing_key --nats-url=nats://nats:4222` |
 | Metrics used | `gateway_send_latency_seconds` (histogram; the 50 ms target), `gateway_blocks_total`, `gateway_connections`, `gateway_messages_sent_total`, `gateway_bytes_sent_total`, `gateway_forced_snapshots_sent_total`, `gateway_slow_consumer_disconnects_total`, `gateway_rate_limited_total`, `gateway_hub_lagged_total`, `relay_connected`, `relay_streams_rejected_total` |
-| Still requested | (1) The reader lane wiring the gateway into `hl-node-reader` (listen address flag, signing key from `BLEH_SIGNING_KEY_FILE` or `--signing-key`). (2) Optional: environment variables for the flags, so systemd templates need no `BLEH_ARGS`. (3) Book reconciliation metric `bleh_book_reconcile_mismatch_total` from wherever the book builder runs |
 
 ### archive (archive lane, merged)
 
 Implemented as a batch CLI; reference in
-[archive.md](../docs/operations/archive.md).
+[archive.md](../docs/operations/archive.md). The `archive` binary is built
+from `crates/origin` with the reader's line filters and the origin's
+replay parser wired in.
 
 | | |
 |---|---|
-| Node box | `archive-capture` service: `archive capture run --staging ... --stream fills=/hl/data/node_fills_by_block ... --upload --metrics-out /textfile/bleh_archive_capture.prom` |
+| Node box | Live capture runs inside `origin` (no separate service). Standalone alternative for a host whose origin does not capture: `archive capture run --follow --staging /var/lib/bleh/raw ... --upload --metrics-out /textfile/bleh_archive_capture.prom` ([env/archive-capture.example.conf](systemd/env/archive-capture.example.conf)) |
 | Home server | `archive-job` service (profile `archive-jobs`) run by `deploy/scripts/archive-pipeline.sh` from `bleh-archive-daily.timer` (replay, `manifest build --sign`, `anchor ots-stamp`/`evm-submit`, `publish --upload --kubo`, `verify`) and `bleh-archive-anchors.timer` (`ots-upgrade`, `evm-poll`, re-publish); by hand: `deploy/up.sh home-archive archive <command>` |
-| Variables set | `BLEH_ARCHIVE_{PUBLIC,PRIVATE}_{URL,ENDPOINT,REGION,ACCESS_KEY_ID,SECRET_ACCESS_KEY,ALLOW_HTTP,PATH_STYLE}` from the `.env` storage settings; `BLEH_ARCHIVE_SIGNING_KEY_FILE` (manifest key), `BLEH_ARCHIVE_KUBO_API`, `BLEH_ARCHIVE_EVM_RPC`, `BLEH_ARCHIVE_EVM_KEY_FILE` |
-| Metrics used | Textfile: `archive_store_put_created_total`, `archive_store_put_conflict_total`, `archive_capture_files_sealed_total` and the file's age (capture); `bleh_archive_step_ok{step,archive}`, `bleh_archive_manifest_last_success_timestamp_seconds`, `bleh_archive_anchor_last_success_timestamp_seconds{anchor}`, `bleh_archive_daily_last_run_timestamp_seconds` (written by archive-pipeline.sh) |
-| Still requested | (1) The integrator wiring the reader's line filter and parser into the archive binary (`Hooks`), without which filtered capture and replay report "not wired". (2) `capture run` rewriting `--metrics-out` periodically while it runs (the stale-capture alert reads the file's age). (3) The capture watermark for the pruner (see hl-node-reader). (4) A `latest.json` pointer per archive (blackbox probes it; cached 60 s) |
+| Variables set | `BLEH_ARCHIVE_{PUBLIC,PRIVATE}_{URL,ENDPOINT,REGION,ACCESS_KEY_ID,SECRET_ACCESS_KEY,ALLOW_HTTP,PATH_STYLE}` from the `.env` storage settings; `BLEH_ARCHIVE_SIGNING_KEY_FILE` (manifest key), `BLEH_ARCHIVE_KUBO_API`, `BLEH_ARCHIVE_EVM_RPC`, `BLEH_ARCHIVE_EVM_KEY_FILE`; replay: `BLEH_ARCHIVE_REGISTRY` (the origin's registry from the mirror, see origin above), `BLEH_ARCHIVE_BOOK_START` (`.env` `ARCHIVE_BOOK_START`, default `snapshot`), `BLEH_BOOK_CHECKPOINT_SECS` (same `.env` value as the origin) |
+| Metrics used | Textfile: capture counters (see origin); `bleh_archive_step_ok{step,archive}`, `bleh_archive_manifest_last_success_timestamp_seconds`, `bleh_archive_anchor_last_success_timestamp_seconds{anchor}`, `bleh_archive_daily_last_run_timestamp_seconds` (written by archive-pipeline.sh). Blackbox probes each archive's `_manifests/latest.json` (written by manifest refreshes, uploaded by `publish`) |
 
 ### history-api (historical API lane, merged)
 
@@ -164,18 +206,29 @@ Implemented; reference in [backfill.md](../docs/operations/backfill.md).
 
 ### mesh-client (client lane)
 
-Merged ([client.md](../docs/operations/client.md)). Requested: a
-`mesh-client probe --url URL --instrument ID --kind KIND --timeout 5s`
-mode printing one JSON line `{"ok":bool,"first_block_seconds":f,"block_time_ms":n}`,
-so the availability probe can run from the `tools` image
-(`PROBE_CLIENT=docker`) instead of websocat; and `mesh-client keys address
---key-file F`, so keys.md needs no Foundry.
+Merged ([client.md](../docs/operations/client.md)). `mesh-client probe --url
+URL --instrument ID --kind KIND --timeout 5s` prints one JSON line
+`{"ok":bool,"first_block_seconds":f,"block_time_ms":n}` (plus `error`) and
+does the availability probe (`deploy/observability/prober/ws-probe.sh`,
+`PROBE_CLIENT=auto|mesh-client|docker`; websocat is only a fallback).
+`mesh-client keys address --key-file F` derives a signer address
+([keys.md](../docs/operations/keys.md)).
 
 ## Validation status
 
-Checked in this repository: `docker compose config` for every profile,
-YAML parsing of every config, JSON validity of dashboards, `bash -n` on
-every script, the schema-drift check against the synthetic fixtures
-(including an injected unknown field), and `scripts/check.sh`. Not run
-here: image builds and the stack itself (no Docker daemon), `terraform
-validate` (Terraform not installed), `promtool check rules`, shellcheck.
+Checked for the origin integration: `docker compose config` for every
+profile (`synthetic`, `node-box`, `home-archive`, `relay`, `archive-jobs`,
+`backfill`, `synthetic-relay`) with the template `.env` and with host paths
+set; YAML parsing of `compose.yaml`, both Prometheus configs, the rule
+files and `.github/workflows/deploy.yml`; JSON validity of the dashboards;
+`bash -n` on every script; the prober against a stub `mesh-client`
+(success, failure with `error`, `PROBE_SIGNERS`); every metric named in
+rules and dashboards checked against the code that emits it. Earlier:
+the schema-drift check against the synthetic fixtures and
+`scripts/check.sh`.
+
+Not run: image builds (including the new `origin` target) and the stack
+itself, so the origin container, `registry-sync` (rclone as UID 65532),
+capture uploads to R2 and the watermark on a real host are unproven;
+`promtool check rules`, `actionlint`, shellcheck and `terraform validate`
+(tools not installed).
