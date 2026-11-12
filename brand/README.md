@@ -15,6 +15,17 @@ One small joke in a calm wordmark, so the data and docs can stay serious.
 All logos are drawn geometry, with no font dependency. The wordmark's ink
 uses `currentColor`, so it can also be recoloured inline.
 
+## Brand system
+
+[GUIDELINES.md](GUIDELINES.md) is the full system: logo usage, the extended
+palette, type scale, icons, motion, voice, and an index of every asset.
+
+| Folder | Contents |
+|---|---|
+| [site/](site/) | Marketing site (`index.html`, `manifesto.html`), static HTML and CSS |
+| [video/](video/) | 30 second brand film, logo sting and loop, with seekable source and render script |
+| [social/](social/) | Link previews, banners, avatar, favicon set, announcement cards, sticker sheet, launch copy |
+
 ## Palette
 
 | Name | Hex | Use |

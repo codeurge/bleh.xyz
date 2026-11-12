@@ -34,6 +34,9 @@ versions (see [AGENTS.md](AGENTS.md)).
   and gateway v0; hardened checks with a self-test; Rust and cargo-deny CI.
 - Brand: the tongue-out "e" wordmark, palette and type in `brand/`, with the
   first concept round and landing-page mocks in `brand/concepts/`.
+- Brand system: guidelines, marketing site and manifesto (`brand/site/`), a
+  30-second film in landscape and vertical plus a logo sting
+  (`brand/video/`), and a social kit with launch copy (`brand/social/`).
 
 ### Changed
 

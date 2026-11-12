@@ -1,0 +1,22 @@
+{
+  "name": "bleh.xyz",
+  "short_name": "bleh",
+  "description": "Open market data. Early preview.",
+  "start_url": "../",
+  "display": "browser",
+  "background_color": "#16141c",
+  "theme_color": "#16141c",
+  "icons": [
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

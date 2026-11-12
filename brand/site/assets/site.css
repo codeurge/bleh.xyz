@@ -103,7 +103,7 @@ h1 em{font-style:normal;color:var(--accent-lg);white-space:nowrap}
 .tape .t{color:var(--codemute)}.tape .p{text-align:right}.tape .s{text-align:right;color:#c9c0d1}
 .tape .buy .p,.tape .buy .d{color:var(--bid)}.tape .sell .p,.tape .sell .d{color:var(--ask)}
 .sig{display:flex;gap:10px;align-items:center;padding:9px 12px;border-top:1px solid #2b2735;color:var(--codemute);font-size:11.5px;white-space:nowrap;overflow:hidden}
-.sig b{color:var(--codefg);font-weight:500}.sig .ok{color:var(--tape)}
+.sig b{color:var(--codefg);font-weight:500}.sig .ok{color:var(--tape);flex:none}
 .sig span{overflow:hidden;text-overflow:ellipsis}
 .panel-note{color:var(--mute);font-size:13px;margin-top:12px;text-align:center}
 @media (max-width:559px){.tape{height:126px}.lvl:nth-child(n+6).a,.lvl.b:nth-last-child(-n+2){display:none}}

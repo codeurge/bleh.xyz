@@ -31,7 +31,7 @@ max_size_outside_fixtures=1048576   # 1 MiB
 max_size_in_fixtures=5242880        # 5 MiB
 max_size_brand=2097152              # 2 MiB
 max_size_brand_video=20971520       # 20 MiB
-brand_ext=' svg html css js json png ico webp gif jpg jpeg mp4 webm woff2 txt md '
+brand_ext=' svg html css js mjs json webmanifest png ico webp gif jpg jpeg mp4 webm woff2 txt md '
 brand_video_ext=' mp4 webm gif '
 
 # Every file the checks consider: tracked (including force-added ignored

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bleh.xyz brand film (seekable source)</title>
+<!--
+  Deterministic, seekable animation. Nothing here uses CSS animations, timers or Math.random:
+  every frame is a pure function of time, so window.renderAt(t) draws any moment exactly.
+
+  URL parameters
+    format = wide (1920x1080, 30 s) | tall (1080x1920, 30 s) | sting (1080x1080, 5 s) | loop (1080x1080, 3 s, seamless)
+    t      = seconds to show (default 0)
+    play   = 1 to play in real time in a browser
+    render = 1 to disable fit-to-window scaling (used by ../render/render.mjs)
+
+  API
+    window.FILM = { width, height, duration, fps }
+    window.renderAt(seconds)
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#16141c;--cream:#fff6e9;--pink:#ff4f8b;--groove:#c9245f;--tape:#ffd23f;--mute:#aba2b4;--line:#322d3d;--surf:#1e1b26}
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:10.8px;background:#000}
+body{overflow:hidden;font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+#stage{position:absolute;left:0;top:0;overflow:hidden;background:var(--ink);color:var(--cream);transform-origin:0 0}
+.sc{position:absolute;inset:0;overflow:hidden;display:none}
+.mono{font-family:"DM Mono",ui-monospace,monospace}
+.abs{position:absolute}
+.eyebrow{font:500 2.1rem/1 "DM Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--pink)}
+.h{font-weight:800;letter-spacing:-.045em;line-height:1}
+.pinkt{color:var(--pink)}
+svg{overflow:visible;display:block}
+
+/* scene 1 + 6: logo */
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.s1 svg{width:78rem;color:var(--cream)}
+.tall .s1 svg,.sq .s1 svg{width:80rem}
+.s1 .tagline{font:500 2.6rem/1 "DM Mono",monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-top:6rem}
+.s6 svg{width:86rem;color:var(--cream)}
+.tall .s6 svg{width:82rem}
+.s6 .big{font-size:5.4rem;font-weight:700;letter-spacing:-.03em;margin-top:6.5rem;text-align:center;line-height:1.1}
+.tall .s6 .big{font-size:6.4rem}
+.s6 .url{font:500 2.9rem/1 "DM Mono",monospace;margin-top:3.6rem;color:var(--ink);background:var(--tape);padding:1.5rem 2.2rem;border-radius:1.4rem}
+.s6 .fine{font:400 2.1rem/1 "DM Mono",monospace;letter-spacing:.08em;color:var(--mute);margin-top:3.4rem;text-align:center;line-height:1.6}
+
+/* scene 2: problem */
+.s2 .txt{left:10rem;top:0;bottom:0;width:76rem;display:flex;flex-direction:column;justify-content:center}
+.s2 .h{font-size:9.4rem}
+.s2 .h + .h{margin-top:3rem}
+.s2 .rows{right:10rem;top:50%;width:70rem;margin-top:-28rem}
+.tall .s2 .txt{left:8rem;right:8rem;width:auto;top:17rem;bottom:auto;display:block}
+.tall .s2 .h{font-size:10.4rem}
+.tall .s2 .rows{left:8rem;right:8rem;width:auto;top:93rem;margin:0}
+.row{position:relative;height:6.2rem;display:grid;grid-template-columns:15rem 1fr 14rem 9rem;align-items:center;gap:2rem;font:400 2.7rem/1 "DM Mono",monospace;border-bottom:1px solid var(--line);padding:0 1.4rem}
+.tall .row{height:7.2rem;font-size:3rem;grid-template-columns:17rem 1fr 16rem 10rem}
+.row .t{color:var(--mute)}.row .p,.row .z{text-align:right}
+.row .bar{position:absolute;left:15rem;right:0;top:1rem;bottom:1rem;background:#3a3446;border-radius:.8rem;transform-origin:0 50%}
+.stamp{position:absolute;font:800 4.2rem/1 "DM Sans",sans-serif;letter-spacing:.02em;text-transform:uppercase;padding:1.5rem 2.2rem;border:.5rem solid currentColor;border-radius:1.2rem;white-space:nowrap;background:var(--ink)}
+.tall .stamp{font-size:4.6rem}
+
+/* scene 3: bleh */
+.s3{background:var(--tape);color:var(--ink)}
+.s3 svg{width:92rem;color:var(--ink)}
+.tall .s3 svg{width:84rem}
+.s3 .sub{font-size:5.2rem;font-weight:700;letter-spacing:-.03em;margin-top:6rem;text-align:center;line-height:1.12}
+.tall .s3 .sub{font-size:6.6rem;margin-top:9rem}
+.s3 .eyebrow{color:var(--ink);margin-bottom:6rem}
+.tall .s3 .eyebrow{font-size:2.6rem;margin-bottom:9rem}
+
+/* tongue wipe */
+#wipe{position:absolute;left:-15%;width:130%;top:0;height:128%;background:var(--pink);border-radius:0 0 50% 50%/0 0 22% 22%;display:none;z-index:50}
+#wipe i{position:absolute;left:50%;width:2.4rem;margin-left:-1.2rem;top:52%;height:34%;background:var(--groove);border-radius:2rem}
+
+/* scene 4: what you get */
+.s4 .txt{left:10rem;top:0;bottom:0;width:72rem;display:flex;flex-direction:column;justify-content:center}
+.s4 .eyebrow{margin-bottom:5rem}
+.s4 .item{display:flex;align-items:center;gap:2.4rem;font-size:5rem;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-bottom:3.4rem}
+.s4 .item i{flex:none;width:1.8rem;height:1.8rem;border-radius:50%;background:var(--pink)}
+.s4 .panel{right:9rem;top:50%;width:80rem;margin-top:-33rem}
+.tall .s4 .txt{left:8rem;right:6rem;width:auto;top:13rem;bottom:auto;display:block}
+.tall .s4 .item{font-size:5.3rem;margin-bottom:3.6rem}
+.tall .s4 .panel{left:6rem;right:6rem;width:auto;top:96rem;margin:0}
+.panel{background:#0f0d14;border:1px solid #2b2735;border-radius:2.4rem;font:400 2.2rem/1 "DM Mono",monospace;overflow:hidden;box-shadow:0 4rem 9rem -3rem rgba(0,0,0,.8)}
+.ptop{display:flex;justify-content:space-between;align-items:center;padding:1.6rem 2rem;border-bottom:1px solid #2b2735}
+.ptop b{font-weight:500;background:#262230;padding:1.1rem 1.5rem;border-radius:1rem}
+.ptop span{font-size:1.7rem;letter-spacing:.12em;background:var(--tape);color:var(--ink);padding:.9rem 1.2rem;border-radius:.8rem;font-weight:500}
+.pbody{display:grid;grid-template-columns:1.12fr 1fr}
+.pcol{padding:2rem}
+.pcol + .pcol{border-left:1px solid #2b2735}
+.phead{display:flex;justify-content:space-between;color:#8b8296;font-size:1.6rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:1.4rem}
+.lvl{display:grid;grid-template-columns:10.5rem 1fr 7.5rem;gap:1.2rem;align-items:center;height:3.7rem}
+.lvl .px{text-align:right}.lvl .sz{text-align:right;color:#c9c0d1}
+.lvl.a .px{color:var(--pink)}.lvl.b .px{color:var(--tape)}
+.ords{display:flex;gap:.35rem;height:1.9rem;overflow:hidden}
+.ords i{display:block;height:100%;border-radius:.35rem;flex:none;opacity:.88}
+.lvl.a .ords i{background:var(--pink)}.lvl.b .ords i{background:var(--tape)}
+.ords i.new{opacity:1;box-shadow:0 0 0 .28rem var(--cream)}
+.spread{display:flex;justify-content:space-between;color:#8b8296;border-block:1px dashed #2b2735;margin:.9rem 0;padding:.9rem 0;font-size:1.9rem}
+.spread b{color:var(--cream);font-weight:500}
+.tp{height:48.2rem;overflow:hidden}
+.tr{display:grid;grid-template-columns:auto 1fr 7rem 2rem;gap:1rem;height:3.7rem;align-items:center}
+.tr .t{color:#8b8296}.tr .p{text-align:right}.tr .s{text-align:right;color:#c9c0d1}
+.tr.buy .p,.tr.buy .d{color:var(--tape)}.tr.sell .p,.tr.sell .d{color:var(--pink)}
+.sig{display:flex;gap:1.6rem;padding:1.5rem 2rem;border-top:1px solid #2b2735;color:#8b8296;font-size:1.9rem;white-space:nowrap}
+.sig b{color:var(--cream);font-weight:500}.sig .ok{color:var(--tape)}
+.corner{position:absolute;left:0;right:0;bottom:4.2rem;text-align:center;font:400 1.9rem/1 "DM Mono",monospace;letter-spacing:.14em;text-transform:uppercase;color:#8b8296}
+.tall .corner{bottom:7rem;font-size:2.2rem}
+
+/* scene 5: how it stays up */
+.s5{background:var(--cream);color:var(--ink)}
+.s5 .eyebrow{color:var(--groove);left:10rem;top:8.5rem}
+.tall .s5 .eyebrow{left:8rem;top:22rem;font-size:2.6rem}
+.s5 .corner{color:#5d5566}
+.box{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:.35rem solid var(--ink);border-radius:2rem;background:#fffcf6;font:500 3rem/1.15 "DM Mono",monospace}
+.tall .box{font-size:2.7rem}
+.box small{font-size:2rem;color:#5d5566;margin-top:.9rem;letter-spacing:.02em}
+.box.blk{background:var(--ink);color:var(--cream)}
+.box.blk small{color:var(--mute)}
+.box .dot{width:1.6rem;height:1.6rem;border-radius:50%;background:var(--tape);border:.3rem solid var(--ink);margin-bottom:1.1rem}
+.box .tick{position:absolute;right:-1.8rem;top:-1.8rem;width:5rem;height:5rem;border-radius:50%;background:var(--pink);display:grid;place-items:center}
+.box .tick svg{width:2.8rem}
+.box.chip{border-style:dashed;background:none;font-size:2.3rem}
+.tall .box.chip{font-size:2.1rem;padding:0 1rem}
+.box .x{position:absolute;inset:0}
+.cap{position:absolute;left:0;right:0;text-align:center;font-size:7.2rem;font-weight:800;letter-spacing:-.045em;line-height:1}
+.tall .cap{font-size:9.6rem}
+#lines{position:absolute;left:0;top:0}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="sc s2" id="s2">
+    <div class="abs txt">
+      <div class="h" id="p1">Prices are made in&nbsp;public.</div>
+      <div class="h" id="p2">Then somebody <span class="pinkt">fences them off.</span></div>
+    </div>
+    <div class="abs rows" id="rows"></div>
+  </div>
+
+  <div class="sc s4" id="s4">
+    <div class="abs txt">
+      <div class="eyebrow" id="w0">What we're building</div>
+      <div class="item"><i></i><span>Trades with aggressor side</span></div>
+      <div class="item"><i></i><span>Order-level books. No&nbsp;embargo.</span></div>
+      <div class="item"><i></i><span>Bars and open order-flow analytics</span></div>
+      <div class="item"><i></i><span>History back to day one</span></div>
+      <div class="item"><i></i><span>Python · TypeScript · Rust · MCP</span></div>
+    </div>
+    <div class="abs panel" id="panel">
+      <div class="ptop"><b>BTC-PERP</b><span>ILLUSTRATIVE</span></div>
+      <div class="pbody">
+        <div class="pcol"><div class="phead"><span>Book · order by order</span><span>size</span></div><div id="book"></div></div>
+        <div class="pcol"><div class="phead"><span>Trades · aggressor</span><span>size</span></div><div class="tp" id="tape"></div></div>
+      </div>
+      <div class="sig"><span class="ok">✓ signed</span><span id="sig"></span></div>
+    </div>
+    <div class="corner">Early preview · in development · figures illustrative</div>
+  </div>
+
+  <div class="sc s5" id="s5">
+    <div class="abs eyebrow">How it stays up</div>
+    <svg id="lines"></svg>
+    <div id="boxes"></div>
+    <div class="cap" id="cap"></div>
+    <div class="corner">Planned design · early preview</div>
+  </div>
+
+  <div class="sc s3" id="s3"><div class="center">
+    <div class="eyebrow" id="b0">Our considered response</div>
+    <div id="logo3"></div>
+    <div class="sub" id="b1">Open market data.<br>No permission slip.</div>
+  </div></div>
+
+  <div class="sc s6" id="s6"><div class="center">
+    <div id="logo6"></div>
+    <div class="big" id="e1">Open market data. No&nbsp;permission&nbsp;slip.</div>
+    <div class="url" id="e2">github.com/codeurge/bleh.xyz</div>
+    <div class="fine" id="e3">Early preview · in development<br>Signed per block · Code Apache-2.0 · Data CC0 · No token</div>
+  </div></div>
+
+  <div class="sc s1" id="s1"><div class="center" id="s1c">
+    <div id="logo1"></div>
+    <div class="tagline" id="tag">Open market data</div>
+  </div></div>
+
+  <div id="wipe"><i></i></div>
+</div>
+
+<script>
+(function () {
+'use strict';
+var Q = new URLSearchParams(location.search);
+var FORMAT = Q.get('format') || 'wide';
+var DIM = { wide: [1920, 1080, 30], tall: [1080, 1920, 30], sting: [1080, 1080, 5], loop: [1080, 1080, 3] }[FORMAT];
+var W = DIM[0], H = DIM[1], DUR = DIM[2], U = 10.8, SQ = FORMAT === 'sting' || FORMAT === 'loop';
+var stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+stage.className = FORMAT === 'wide' ? 'wide' : FORMAT === 'tall' ? 'tall' : 'sq';
+window.FILM = { width: W, height: H, duration: DUR, fps: 30, format: FORMAT };
+var $ = function (id) { return document.getElementById(id); };
+
+// ---------- maths ----------
+function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+function seg(t, a, b) { return clamp((t - a) / (b - a)); }
+var out = function (x) { return 1 - Math.pow(1 - x, 3); };
+var out5 = function (x) { return 1 - Math.pow(1 - x, 5); };
+var io = function (x) { return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+var back = function (x) { var c = 1.70158; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+// The signature "tongue pop": a damped spring from 0 to 1. Returns [scaleX, scaleY].
+function pop(p) { if (p <= 0) return [1, 0]; if (p >= 1) return [1, 1]; var d = Math.exp(-6.5 * p); return [1 + .16 * d * Math.sin(11 * p), 1 - d * Math.cos(11 * p)]; }
+function rng(seed) { var s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function fmt(v, dp) { return v.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }); }
+function show(el, p, dy) { el.style.opacity = p; el.style.transform = 'translateY(' + ((1 - p) * (dy == null ? 3 : dy)) + 'rem)'; }
+function vis(el, on) { el.style.display = on ? 'block' : 'none'; }
+
+// ---------- logo ----------
+var LP = ['M0 10V80', 'M0 60a20 20 0 1 0 40 0a20 20 0 1 0-40 0', 'M61 10V80', 'M122 60A20 20 0 1 0 102 80', 'M143 10V80', 'M143 57a17 17 0 0 1 34 0V80'];
+var XP = ['M217.9 40L251.9 80', 'M251.9 40L217.9 80', 'M272.9 40L290.9 78', 'M308.9 40L280.5 100', 'M329.9 40H361.9L329.9 80H361.9'];
+function makeLogo(host, xyz) {
+  var h = '<svg viewBox="' + (xyz ? '0 0 377.9 110' : '0 0 215 100') + '"><g transform="translate(8 0)" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">';
+  LP.forEach(function (d) { h += '<path class="l" pathLength="1" d="' + d + '"/>'; });
+  if (xyz) XP.forEach(function (d) { h += '<path class="x" pathLength="1" opacity=".55" d="' + d + '"/>'; });
+  h += '<g class="tg"><path d="M103 60h19v25a9.5 9.5 0 0 1-19 0z" fill="#ff4f8b" stroke="none"/><path d="M112.5 73v12" stroke="#c9245f" stroke-width="2.6"/></g>';
+  h += '<path class="bar" pathLength="1" d="M82 60H122"/><circle class="dot" cx="197.4" cy="78.6" r="7.4" fill="#ff4f8b" stroke="none"/></g></svg>';
+  host.innerHTML = h;
+  return { l: host.querySelectorAll('.l'), x: host.querySelectorAll('.x'), tg: host.querySelector('.tg'), bar: host.querySelector('.bar'), dot: host.querySelector('.dot') };
+}
+function dash(el, p) { el.style.visibility = p > 0.001 ? 'visible' : 'hidden'; el.setAttribute('stroke-dasharray', p >= 1 ? 'none' : p + ' 2'); }
+// draw: 0..1 letters, tongue: [sx, sy], dot: scale, xyz: 0..1
+function setLogo(L, draw, tongue, dot, xyz) {
+  for (var i = 0; i < L.l.length; i++) dash(L.l[i], io(seg(draw, i * .1, i * .1 + .42)));
+  dash(L.bar, io(seg(draw, .34, .62)));
+  L.tg.setAttribute('transform', 'translate(112.5 60) scale(' + tongue[0] + ' ' + tongue[1] + ') translate(-112.5 -60)');
+  L.tg.style.visibility = tongue[1] > 0.001 ? 'visible' : 'hidden';
+  L.dot.setAttribute('transform', 'translate(197.4 78.6) scale(' + dot + ') translate(-197.4 -78.6)');
+  for (var j = 0; j < L.x.length; j++) dash(L.x[j], out(seg(xyz, j * .15, j * .15 + .4)));
+}
+var L1 = makeLogo($('logo1'), true), L3 = makeLogo($('logo3'), false), L6 = makeLogo($('logo6'), true);
+
+// ---------- scene 2 rows ----------
+var NAMES = ['INDEX', 'CRUDE', 'GOLD', 'RATES', 'FX', 'GRAINS', 'METALS', 'ENERGY', 'INDEX'], BASE = [5512.25, 71.36, 4012.4, 96.105, 1.0842, 462.5, 4.512, 3.184, 5512.5], DP = [2, 2, 1, 3, 4, 2, 3, 3, 2];
+var rowsEl = $('rows'), rowEls = [], stamps = [];
+NAMES.forEach(function (n, i) {
+  var r = document.createElement('div'); r.className = 'row';
+  r.innerHTML = '<span class="t">09:30:0' + i + '</span><span>' + n + '</span><span class="p"></span><span class="z"></span><span class="bar"></span>';
+  rowsEl.appendChild(r); rowEls.push(r);
+});
+[['Delayed', 'tape', 4, 8, -7], ['Per user · per device', 'pink', 20, 34, 5], ['Do not redistribute', 'tape', 6, 62, -4], ['Call sales', 'pink', 44, 84, 6]].forEach(function (s) {
+  var e = document.createElement('div'); e.className = 'stamp'; e.textContent = s[0]; e.style.color = 'var(--' + s[1] + ')';
+  e.style.left = s[2] + '%'; e.style.top = s[3] + '%'; e._r = s[4]; rowsEl.appendChild(e); stamps.push(e);
+});
+
+// ---------- scene 4 book simulation (pure function of step count) ----------
+function simulate(steps) {
+  var r = rng(11), mid = 104250, A = [], B = [], tape = [], clock = 0, blk = 812440112, fresh = null, root = '3fa9d2…c1e0';
+  function lv() { var n = 1 + (r() * 5 | 0), o = []; for (var i = 0; i < n; i++) o.push(.15 + r() * r() * 1.6); return o; }
+  function hex(n) { var s = ''; for (var i = 0; i < n; i++) s += '0123456789abcdef'[r() * 16 | 0]; return s; }
+  function trade() { var buy = r() > .48; clock += 40 + (r() * 900 | 0); tape.unshift({ buy: buy, t: new Date(34200000 + clock).toISOString().substr(11, 8), p: mid + (buy ? 1 : -1), s: (.05 + r() * r() * 2) * .9 }); return buy; }
+  for (var i = 0; i < 7; i++) { A.push(lv()); B.push(lv()); }
+  for (var k = 0; k < 13; k++) trade();
+  for (var n = 0; n < steps; n++) {
+    var x = r(), side = r() > .5 ? A : B, idx = r() * 7 | 0, Lv = side[idx]; fresh = null;
+    if (x < .36) { var buy = trade(), mine = buy ? A : B, other = buy ? B : A; mine[0].shift(); if (!mine[0].length) { mine.shift(); mine.push(lv()); other.unshift([.3 + r()]); other.pop(); mid += buy ? 2 : -2; } }
+    else if (x < .74) { if (Lv.length < 7) { Lv.push(.15 + r() * r() * 1.6); fresh = [side === A ? 'a' : 'b', idx]; } }
+    else if (Lv.length > 1) Lv.splice(r() * Lv.length | 0, 1);
+    if (r() < .3) { blk++; root = hex(6) + '…' + hex(4); }
+  }
+  return { mid: mid, A: A, B: B, tape: tape.slice(0, 13), blk: blk, root: root, fresh: fresh };
+}
+var lastStep = -1;
+function drawBook(steps) {
+  if (steps === lastStep) return; lastStep = steps;
+  var S = simulate(steps), h = '';
+  function row(c, i, o) {
+    var tot = 0, b = ''; o.forEach(function (q, j) { tot += q; b += '<i' + (S.fresh && S.fresh[0] === c && S.fresh[1] === i && j === o.length - 1 ? ' class="new"' : '') + ' style="width:' + Math.max(.7, q * 4.4).toFixed(2) + 'rem"></i>'; });
+    return '<div class="lvl ' + c + '"><span class="px">' + fmt(S.mid + (c === 'a' ? 1 : -1) * (2 * i + 1), 0) + '</span><span class="ords">' + b + '</span><span class="sz">' + fmt(tot * .9, 3) + '</span></div>';
+  }
+  for (var i = 5; i >= 0; i--) h += row('a', i, S.A[i]);
+  h += '<div class="spread"><span>spread <b>2</b></span><span>mid <b>' + fmt(S.mid, 0) + '</b></span></div>';
+  for (var j = 0; j < 6; j++) h += row('b', j, S.B[j]);
+  $('book').innerHTML = h;
+  $('tape').innerHTML = S.tape.map(function (x) { return '<div class="tr ' + (x.buy ? 'buy' : 'sell') + '"><span class="t">' + x.t + '</span><span class="p">' + fmt(x.p, 0) + '</span><span class="s">' + fmt(x.s, 3) + '</span><span class="d">' + (x.buy ? '▲' : '▼') + '</span></div>'; }).join('');
+  $('sig').innerHTML = 'block <b>' + fmt(S.blk, 0) + '</b> · root <b>0x' + S.root + '</b>';
+}
+var items = document.querySelectorAll('.s4 .item');
+
+// ---------- scene 5 diagram ----------
+var WR = W / U, HR = H / U, TALL = FORMAT === 'tall';
+var G = TALL ? {
+  nodes: [[28, 46], [72, 46]], blk: [34, 76], chip: [78, 76], mir: [[14.5, 110], [38.2, 110], [61.8, 110], [85.5, 110]],
+  nw: 38, nh: 14, bw: 44, bh: 17, mw: 21.5, mh: 15, cw: 32, ch: 12, cap: 136
+} : {
+  nodes: [[29, 33], [29, 55]], blk: [84, 44], chip: [84, 67], mir: [[144, 20], [144, 36], [144, 52], [144, 68]],
+  nw: 40, nh: 14, bw: 44, bh: 17, mw: 38, mh: 12.5, cw: 44, ch: 9.5, cap: 80
+};
+var boxes = $('boxes'), lines = $('lines');
+lines.setAttribute('viewBox', '0 0 ' + WR + ' ' + HR); lines.setAttribute('width', W); lines.setAttribute('height', H);
+function box(cls, c, w, h, html) { var e = document.createElement('div'); e.className = 'box ' + cls; e.style.cssText = 'left:' + (c[0] - w / 2) + 'rem;top:' + (c[1] - h / 2) + 'rem;width:' + w + 'rem;height:' + h + 'rem'; e.innerHTML = html; boxes.appendChild(e); return e; }
+var nodeEls = G.nodes.map(function (c, i) { return box('', c, G.nw, G.nh, 'node ' + 'AB'[i] + '<small>our own, every market</small>'); });
+var blkEl = box('blk', G.blk, G.bw, G.bh, 'signed block<small>Merkle root · secp256k1</small><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#16141c" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></span>');
+var chipEl = box('chip', G.chip, G.cw, G.ch, 'timestamped on Bitcoin');
+var MN = ['CDN', 'BitTorrent', 'IPFS', 'Arweave'];
+var mirEls = G.mir.map(function (c, i) { return box('', c, G.mw, G.mh, '<span class="dot"></span>' + MN[i] + (i === 0 ? '<svg class="x" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" stroke="#ff4f8b" stroke-width="5" stroke-linecap="round"><path pathLength="1" d="M8 12L92 88"/><path pathLength="1" d="M92 12L8 88"/></svg>' : '')); });
+var tickEl = blkEl.querySelector('.tick'), xEls = mirEls[0].querySelectorAll('.x path');
+function edge(a, b) { return TALL ? [a[0], a[1], b[0], b[1]] : [a[0], a[1], b[0], b[1]]; }
+var E1 = G.nodes.map(function (n, i) { return TALL ? [n[0], n[1] + G.nh / 2, G.blk[0] + (i ? 10 : -10), G.blk[1] - G.bh / 2] : [n[0] + G.nw / 2, n[1], G.blk[0] - G.bw / 2, G.blk[1] + (i ? 3.5 : -3.5)]; });
+var E2 = G.mir.map(function (m) { return TALL ? [G.blk[0], G.blk[1] + G.bh / 2, m[0], m[1] - G.mh / 2] : [G.blk[0] + G.bw / 2, G.blk[1], m[0] - G.mw / 2, m[1]]; });
+var E3 = TALL ? [G.blk[0] + G.bw / 2, G.blk[1], G.chip[0] - G.cw / 2, G.chip[1]] : [G.blk[0], G.blk[1] + G.bh / 2, G.chip[0], G.chip[1] - G.ch / 2];
+var lh = '';
+E1.concat(E2, [E3]).forEach(function (e, i) { lh += '<path pathLength="1" fill="none" stroke="#16141c" stroke-width=".3" stroke-linecap="round"' + (i === 6 ? ' stroke-dasharray=".04 .04"' : '') + ' d="M' + e[0] + ' ' + e[1] + 'L' + e[2] + ' ' + e[3] + '"/>'; });
+for (var pk = 0; pk < 12; pk++) lh += '<circle r=".9" fill="#ff4f8b"/>';
+lines.innerHTML = lh;
+var lineEls = lines.querySelectorAll('path'), pkEls = lines.querySelectorAll('circle');
+var CAPS = [[21.2, 'Signed per block.'], [22.8, 'Mirrored four ways.'], [24.0, 'Anchored. Public domain.'], [24.95, 'Take one down.'], [25.65, 'Nothing happens.']];
+$('cap').style.top = G.cap + 'rem';
+function popBox(el, p) { el.style.opacity = clamp(p * 3); el.style.transform = 'scale(' + (p <= 0 ? .6 : .6 + .4 * back(p)) + ')'; }
+
+// ---------- wipe ----------
+var wipe = $('wipe');
+function doWipe(t, t0) { // covers at t0+.45, uncovers by t0+1.0; scene swaps at t0+.5
+  var on = t > t0 && t < t0 + 1.05; vis(wipe, on); if (!on) return;
+  var y = t < t0 + .5 ? -128 + 128 * out5(seg(t, t0, t0 + .45)) : -128 * io(seg(t, t0 + .55, t0 + 1.02));
+  wipe.style.transform = 'translateY(' + (y / 128 * 100) + '%)';
+}
+
+// ---------- scenes ----------
+function scene1(t) {
+  var s = $('s1'), on = SQ || t < 3.55; vis(s, on); if (!on) return;
+  if (FORMAT === 'loop') { // seamless: tongue in, pop, lick, back in
+    var p = pop(seg(t, .35, 1.25)), r = io(seg(t, 2.25, 2.7));
+    var wig = 1 + .1 * Math.sin((t - 1.3) * 9) * seg(t, 1.3, 1.5) * (1 - seg(t, 1.9, 2.2));
+    setLogo(L1, 1, [p[0] * (1 - .1 * r), p[1] * wig * (1 - r)], 1, 1);
+    $('tag').style.opacity = 0; return;
+  }
+  var lick = SQ ? 1 + .12 * Math.sin((t - 3.3) * 10) * seg(t, 3.3, 3.45) * (1 - seg(t, 3.8, 4.1)) : 1;
+  var tg = pop(seg(t, 1.25, 2.15));
+  setLogo(L1, seg(t, .2, 1.35), [tg[0], tg[1] * lick], t < 1.7 ? 0 : back(seg(t, 1.7, 2.0)), seg(t, 1.85, 2.5));
+  show($('tag'), out(seg(t, 2.3, 2.8)), 2);
+  var ex = SQ ? 0 : io(seg(t, 3.1, 3.55));
+  $('s1c').style.opacity = 1 - ex; $('s1c').style.transform = 'translateY(' + (-6 * ex) + 'rem) scale(' + (1 - .04 * ex) + ')';
+}
+function scene2(t) {
+  var s = $('s2'), on = t >= 3.3 && t < 9.75; vis(s, on); if (!on) return;
+  show($('p1'), out(seg(t, 3.5, 4.1)), 4); show($('p2'), out(seg(t, 5.0, 5.6)), 4);
+  var f = Math.floor(t * 6);
+  rowEls.forEach(function (r, i) {
+    show(r, out(seg(t, 3.6 + i * .07, 4.1 + i * .07)), 2);
+    var q = rng(f * 31 + i * 7 + 1), red = out5(seg(t, 5.15 + i * .09, 5.6 + i * .09));
+    r.children[2].textContent = fmt(BASE[i] * (1 + (q() - .5) * .0012), DP[i]);
+    r.children[3].textContent = fmt(1 + q() * 40, 0);
+    r.children[4].style.transform = 'scaleX(' + red + ')';
+  });
+  stamps.forEach(function (e, i) {
+    var p = seg(t, 6.2 + i * .55, 6.42 + i * .55);
+    e.style.opacity = clamp(p * 4); e.style.transform = 'rotate(' + e._r + 'deg) scale(' + (2.1 - 1.1 * out5(p)) + ')';
+  });
+}
+function scene3(t) {
+  var s = $('s3'), on = t >= 9.7 && t < 13.1; vis(s, on); if (!on) return;
+  var tg = pop(seg(t, 10.35, 11.25));
+  setLogo(L3, 1, tg, back(seg(t, 10.1, 10.45)), 0);
+  show($('b0'), out(seg(t, 10.0, 10.4)), 0); show($('b1'), out(seg(t, 10.9, 11.4)), 3);
+  s.style.transform = 'translateY(' + (-100 * io(seg(t, 12.45, 13.05))) + '%)';
+}
+function scene4(t) {
+  var s = $('s4'), on = t >= 12.4 && t < 21.3; vis(s, on); if (!on) return;
+  show($('w0'), out(seg(t, 12.9, 13.4)), 2);
+  var cur = Math.min(4, Math.floor((t - 13.3) / 1.45));
+  for (var i = 0; i < 5; i++) {
+    var a = 13.3 + i * 1.45, p = out(seg(t, a, a + .5));
+    items[i].style.opacity = p * (i === cur || t > 20.0 ? 1 : .38 + .62 * (1 - seg(t, a + 1.45, a + 1.75)));
+    items[i].style.transform = 'translateX(' + ((1 - p) * -4) + 'rem)';
+  }
+  var pp = out5(seg(t, 12.75, 13.6)); $('panel').style.opacity = pp; $('panel').style.transform = 'translateY(' + ((1 - pp) * 8) + 'rem)';
+  drawBook(Math.max(0, Math.floor((t - 13.2) * 5)));
+}
+function scene5(t) {
+  var s = $('s5'), on = t >= 20.6 && t < 26.75; vis(s, on); if (!on) return;
+  s.style.transform = 'translateY(' + (100 * (1 - io(seg(t, 20.6, 21.25)))) + '%)';
+  nodeEls.forEach(function (e, i) { popBox(e, seg(t, 21.1 + i * .12, 21.5 + i * .12)); });
+  popBox(blkEl, seg(t, 21.55, 21.95));
+  var tk = seg(t, 22.05, 22.4); tickEl.style.transform = 'scale(' + (tk <= 0 ? 0 : back(tk)) + ')';
+  mirEls.forEach(function (e, i) { popBox(e, seg(t, 22.85 + i * .13, 23.2 + i * .13)); });
+  popBox(chipEl, seg(t, 24.0, 24.35));
+  var dead = seg(t, 24.95, 25.3);
+  mirEls[0].style.opacity = (1 - .62 * dead) * clamp(seg(t, 22.85, 23.2) * 3); mirEls[0].style.borderStyle = dead > .5 ? 'dashed' : 'solid';
+  xEls[0].setAttribute('stroke-dasharray', out(seg(dead, 0, .6)) + ' 2'); xEls[1].setAttribute('stroke-dasharray', out(seg(dead, .35, 1)) + ' 2');
+  xEls[0].style.visibility = xEls[1].style.visibility = dead > 0 ? 'visible' : 'hidden'; xEls[1].style.visibility = dead > .35 ? 'visible' : 'hidden';
+  var alive = t > 25.65 ? 1 + .07 * Math.sin((t - 25.65) * 12) * (1 - seg(t, 26.1, 26.5)) : 1;
+  for (var m = 1; m < 4; m++) if (t > 25.65) mirEls[m].style.transform = 'scale(' + alive + ')';
+  var prog = [seg(t, 21.5, 21.8), seg(t, 21.6, 21.9), seg(t, 22.5, 22.85), seg(t, 22.6, 22.95), seg(t, 22.7, 23.05), seg(t, 22.8, 23.15), seg(t, 23.9, 24.2)];
+  for (var i = 0; i < 7; i++) { var pr = out(prog[i]); if (i === 6) { lineEls[i].style.opacity = pr; } else dash(lineEls[i], pr); if (i === 2) lineEls[i].style.opacity = 1 - .8 * dead; }
+  var ED = E1.concat(E2);
+  for (var k = 0; k < 12; k++) {
+    var ei = k % 6, e = ED[ei], ph = ((t * .95 + k * .37) % 1 + 1) % 1, onp = prog[ei] >= 1 && !(ei === 2 && dead > 0);
+    pkEls[k].style.visibility = onp ? 'visible' : 'hidden';
+    pkEls[k].setAttribute('cx', e[0] + (e[2] - e[0]) * ph); pkEls[k].setAttribute('cy', e[1] + (e[3] - e[1]) * ph);
+    pkEls[k].setAttribute('opacity', Math.sin(ph * Math.PI));
+  }
+  var ci = -1; for (var c = 0; c < CAPS.length; c++) if (t >= CAPS[c][0]) ci = c;
+  var cap = $('cap'); if (ci < 0) { cap.style.opacity = 0; } else { if (cap._i !== ci) { cap.textContent = CAPS[ci][1]; cap._i = ci; } show(cap, out5(seg(t, CAPS[ci][0], CAPS[ci][0] + .3)), 3); }
+}
+function scene6(t) {
+  var s = $('s6'), on = t >= 26.7; vis(s, on); if (!on) return;
+  setLogo(L6, 1, pop(seg(t, 27.2, 28.1)), back(seg(t, 27.0, 27.35)), 1);
+  show($('e1'), out(seg(t, 27.5, 28.0)), 3); show($('e2'), out(seg(t, 27.8, 28.3)), 3); show($('e3'), out(seg(t, 28.1, 28.6)), 2);
+}
+
+window.renderAt = function (t) {
+  t = Math.max(0, Math.min(DUR, +t || 0));
+  scene1(t);
+  if (SQ) { ['s2', 's3', 's4', 's5', 's6'].forEach(function (id) { vis($(id), false); }); vis(wipe, false); return; }
+  scene2(t); scene3(t); scene4(t); scene5(t); scene6(t);
+  if (t < 15) doWipe(t, 9.2); else doWipe(t, 26.2);
+};
+
+// ---------- preview helpers ----------
+if (!Q.get('render')) {
+  var fit = function () { var k = Math.min(innerWidth / W, innerHeight / H); stage.style.transform = 'translate(' + (innerWidth - W * k) / 2 + 'px,' + (innerHeight - H * k) / 2 + 'px) scale(' + k + ')'; };
+  fit(); addEventListener('resize', fit);
+}
+renderAt(+Q.get('t') || 0);
+if (Q.get('play')) { var t0 = performance.now(); (function loop() { renderAt(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); }
+})();
+</script>
+</body>
+</html>
