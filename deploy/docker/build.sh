@@ -4,7 +4,8 @@
 #   deploy/docker/build.sh [options] [target...]
 #
 # Targets: origin hl-node-reader gateway archive history-api swap-pollers
-#          hl-backfill mesh-client tools hl-node   (default: all but hl-node)
+#          reference-pollers hl-backfill mesh-client tools hl-node
+#          (default: all but hl-node)
 #          origin is the node-box service; archive is built from
 #          crates/origin; hl-node-reader is the standalone reader.
 #
@@ -37,7 +38,7 @@ push=0
 platform=linux/amd64
 extra_tags=()
 targets=()
-all_targets=(origin hl-node-reader gateway archive history-api swap-pollers hl-backfill mesh-client tools)
+all_targets=(origin hl-node-reader gateway archive history-api swap-pollers reference-pollers hl-backfill mesh-client tools)
 
 while (($#)); do
   case "$1" in

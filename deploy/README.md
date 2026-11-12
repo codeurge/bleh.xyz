@@ -32,7 +32,7 @@ in the `node-box` profile (and therefore in the `origin` profile too).
 | Path | Contents |
 |---|---|
 | `up.sh` | One command per host role: creates `.env` and secrets placeholders, builds or pulls images, starts the profile |
-| `docker/Dockerfile` | Multi-stage build of every service binary; distroless non-root targets (`origin`, `hl-node-reader`, `gateway`, `archive`, `history-api`, `swap-pollers`, `hl-backfill`, `mesh-client`, `tools`) |
+| `docker/Dockerfile` | Multi-stage build of every service binary; distroless non-root targets (`origin`, `hl-node-reader`, `gateway`, `archive`, `history-api`, `swap-pollers`, `reference-pollers`, `hl-backfill`, `mesh-client`, `tools`) |
 | `docker/hl-node/` | Hyperliquid node image (official hl-visor procedure, pinned release key) and its entrypoint |
 | `docker/build.sh` | Builds images from `git archive` of a commit, tagged by SHA |
 | `compose/compose.yaml` | Profiles `synthetic`, `node-box`, `home-archive`, `relay`, and one-off `backfill` and `archive-jobs` |
@@ -193,6 +193,19 @@ Implemented; reference in [swap-pollers.md](../docs/operations/swap-pollers.md).
 | Variables set | `SWAP_POLLERS_RAW_DIR`, `SWAP_POLLERS_STATE_DIR`, `SWAP_POLLERS_OUT_DIR` (under the `swap-data` volume), `SWAP_POLLERS_USER_AGENT`, `SWAP_POLLERS_S3_BUCKET`/`_PREFIX`/`_ENDPOINT`/`_REGION` with `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (raw mirrored to the private bucket), `SWAP_POLLERS_LOG_JSON` |
 | Metrics used | `swap_last_successful_poll_timestamp_seconds{listing}`, `swap_raw_persist_errors_total{store}`, `swap_unknown_columns_total{bucket,column}`, `swap_lag_seconds{bucket}` |
 | Still requested | ICE Trade Vault sources once admitted fields are confirmed (today DTCC only) |
+
+### reference-pollers (reference-pollers lane)
+
+Implemented; reference in [reference-pollers.md](../docs/operations/reference-pollers.md).
+
+| | |
+|---|---|
+| Ports | `REFERENCE_POLLERS_LISTEN` (9188): `/metrics`, `/health` |
+| Variables set | `REFERENCE_POLLERS_RAW_DIR`, `REFERENCE_POLLERS_STATE_DIR`, `REFERENCE_POLLERS_OUT_DIR` (under the `reference-data` volume), `REFERENCE_POLLERS_USER_AGENT`, `REFERENCE_POLLERS_SOURCES`, `REFERENCE_POLLERS_ERCOT_PRODUCTS`, `REFERENCE_POLLERS_LOG_JSON` |
+| Backfill | `docker compose --profile backfill run --rm reference-backfill` (archive `reference-backfill` under the `reference-data` volume), or `bleh-reference-backfill.service` |
+| systemd alternative | `bleh@reference-pollers` with `systemd/env/reference-pollers.example.conf` |
+| Metrics used | `ref_last_success_timestamp_seconds{source}`, `ref_unknown_fields_total{source,field}`, `ref_parse_errors_total{source}`, `ref_stale_reports_total{source}` |
+| Still requested | Partitioning `records/` into a daily `reference-normalized` archive in `archive-pipeline.sh` (the JSON lines and `_notices.json` are ready for it) |
 
 ### hl-backfill (backfill lane, merged)
 

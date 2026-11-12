@@ -460,6 +460,45 @@ groups:
           summary: "Swap dissemination layout changed: unknown column {{ $labels.column }} in {{ $labels.bucket }}"
           runbook: docs/operations/incident.md#swap-pollers-stalled
 
+      - alert: BlehReferencePollStale
+        # ERCOT listings keep real-time files for 7 days and day-ahead files
+        # for 31: capture is time-critical (docs/operations/reference-pollers.md).
+        expr: time() - ref_last_success_timestamp_seconds{source="ercot"} > 1800
+        labels: {severity: ticket}
+        annotations:
+          summary: "ERCOT reference poller has not completed a clean cycle for 30 minutes"
+          runbook: docs/operations/incident.md#reference-pollers-stalled
+
+      - alert: BlehReferenceSourceStale
+        # Other sources publish daily, weekly or monthly; a day and a half
+        # without a clean cycle means repeated failures.
+        expr: time() - ref_last_success_timestamp_seconds{source!="ercot"} > 129600
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reference poller {{ $labels.source }} has not completed a clean cycle for 36 hours"
+          runbook: docs/operations/incident.md#reference-pollers-stalled
+
+      - alert: BlehReferenceUnknownFields
+        expr: increase(ref_unknown_fields_total[1h]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reference source {{ $labels.source }} layout changed: undocumented {{ $labels.field }} (not emitted until reviewed)"
+          runbook: docs/operations/incident.md#reference-pollers-stalled
+
+      - alert: BlehReferenceParseErrors
+        expr: increase(ref_parse_errors_total[1h]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reference source {{ $labels.source }} returned a response that cannot be read (kept in the raw directory)"
+          runbook: docs/operations/incident.md#reference-pollers-stalled
+
+      - alert: BlehReferenceStaleReport
+        expr: increase(ref_stale_reports_total[1d]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reference report file of {{ $labels.source }} is older than its freshness limit"
+          runbook: docs/operations/incident.md#reference-pollers-stalled
+
       - alert: BlehHistoryApiDown
         expr: up{job="history-api"} == 0
         for: 5m

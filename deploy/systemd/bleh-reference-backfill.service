@@ -1,0 +1,25 @@
+[Unit]
+Description=bleh: reference-source history backfill (one year per unit, resumable)
+Documentation=file:///opt/bleh/src/docs/operations/reference-pollers.md
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+# Started by hand (systemctl start bleh-reference-backfill); safe to
+# re-run: finished years are skipped and partitions are write-once. Reads
+# the image and paths from /etc/bleh/reference-pollers.env
+# (systemd/env/reference-pollers.example.conf).
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/bleh/reference-pollers.env
+ExecStart=/usr/bin/docker run --rm --name bleh-reference-backfill \
+  --network host --read-only --tmpfs /tmp:size=1g \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --log-driver journald --log-opt tag=bleh-reference-backfill \
+  --env-file /etc/bleh/reference-pollers.env \
+  $BLEH_DOCKER_ARGS $BLEH_IMAGE \
+  backfill --archive-root /var/lib/bleh/reference/archive/reference-backfill
+TimeoutStartSec=infinity
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
