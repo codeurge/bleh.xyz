@@ -27,6 +27,8 @@ and [manifest-v0](../../docs/specs/manifest-v0.md).
 | `derived` | `DerivedHeader`, `Footprint`, `VolumeProfile` |
 | `analytics` | `ActivityBar`, `DeltaBar` (`SignedSize`), `ProfileSummary`, `OrderActivity`, `QueuePositions`, `Sweep`, `HeatmapTile`, `LiquidityGrade`, venue `Coverage` |
 | `swap` | `SwapPrint` (Part 43 / SBSR: lifecycle actions, event type, option terms, quantities) |
+| `reference` | `ReferenceValue` (published rates, yields, prices; `Compounding`, `DayCount`) |
+| `synthetic` | `SyntheticMonth` (fair value of a contract month; `SyntheticQuality`, `CarrySource`) |
 | `batch` | `BlockBatch` (bus unit), gap detection |
 | `registry` | `InstrumentSpec::hyperliquid`, `Registry` (`insert`, `replace`, `remove`) |
 | `allowlist` | `check_record`, `check_batch`, `EXCLUDED_SOURCE_FIELDS` |

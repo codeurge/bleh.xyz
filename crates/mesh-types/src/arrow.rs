@@ -17,7 +17,8 @@
 //! - Derived kinds add `method`, `inputs_hash` (32-byte fixed binary) and
 //!   `input_count`.
 //!
-//! - Analytics kinds and coverage ([`RecordKind::is_analytics`]) are flat
+//! - Analytics kinds, coverage, reference values and synthetic months
+//!   ([`RecordKind::is_analytics`]) are flat
 //!   too, with one column per top-level field. Each column's
 //!   [`META_ENCODING`] field metadata says how its value is stored:
 //!   `price` or `size` (an `Int64` mantissa at the row's `price_scale` or
@@ -118,8 +119,16 @@ fn json_col(name: &str, nullable: bool) -> Field {
     )
 }
 
+fn opt_price_col(name: &str) -> Field {
+    enc(opt(name, DataType::Int64), ColumnEncoding::Price)
+}
+
 fn ms_col(name: &str) -> Field {
     req(name, utc(TimeUnit::Millisecond))
+}
+
+fn opt_ms_col(name: &str) -> Field {
+    opt(name, utc(TimeUnit::Millisecond))
 }
 
 /// Kind-specific columns of the analytics kinds and coverage.
@@ -215,6 +224,42 @@ fn analytics_fields(kind: RecordKind) -> Vec<Field> {
             req("blocks", DataType::UInt64),
             req("missing_blocks", DataType::UInt64),
             req("gap_blocks", DataType::UInt64),
+        ],
+        RecordKind::ReferenceValue => vec![
+            req("measure", DataType::Utf8),
+            decimal_col("value", false),
+            opt("tenor", DataType::Utf8),
+            opt("maturity_date", DataType::Utf8),
+            opt("day_count", DataType::Utf8),
+            opt("compounding", DataType::Utf8),
+            opt("currency", DataType::Utf8),
+            req("as_of_date", DataType::Utf8),
+            req("revision", DataType::UInt32),
+        ],
+        RecordKind::SyntheticMonth => vec![
+            req("exposure", DataType::Utf8),
+            req("family", DataType::Utf8),
+            req("month", DataType::Utf8),
+            req("rank", DataType::UInt32),
+            ms_col("as_of_ms"),
+            req("last_trade_date", DataType::Utf8),
+            ms_col("expiry_ms"),
+            decimal_col("year_fraction", false),
+            price_col("fair_value"),
+            opt_price_col("spot"),
+            opt_ms_col("spot_ms"),
+            req("spot_sources", DataType::UInt32),
+            decimal_col("financing_rate", false),
+            ms_col("rates_ms"),
+            decimal_col("carry_rate", true),
+            req("carry_source", DataType::Utf8),
+            req("anchors", DataType::UInt32),
+            opt_ms_col("anchor_ms"),
+            decimal_col("implied_rate", true),
+            json_col("quality", false),
+            json_col("admissions", false),
+            opt("grade", DataType::Utf8),
+            req("label", DataType::Utf8),
         ],
         _ => Vec::new(),
     }
@@ -377,7 +422,9 @@ fn kind_fields(kind: RecordKind) -> Vec<Field> {
         | RecordKind::Sweep
         | RecordKind::HeatmapTile
         | RecordKind::LiquidityGrade
-        | RecordKind::Coverage => analytics_fields(kind),
+        | RecordKind::Coverage
+        | RecordKind::ReferenceValue
+        | RecordKind::SyntheticMonth => analytics_fields(kind),
     }
 }
 

@@ -11,6 +11,8 @@
 //! | `swap_print` | [`crate::SwapPrint`] | Part 43 / SBSR public dissemination |
 //! | `activity_bar` … `liquidity_grade` | [`crate::analytics`] | Derived from trades and book events |
 //! | `coverage` | [`crate::Coverage`] | What the recorder observed of a venue |
+//! | `reference_value` | [`crate::ReferenceValue`] | A published public reference value (rate, yield, price) |
+//! | `synthetic_month` | [`crate::SyntheticMonth`] | Derived fair value of one contract month |
 //!
 //! The [`Record`] enum is the tagged union of all kinds. In JSON it is an
 //! object with a `kind` field, a `prov` object ([`Provenance`]) and the
@@ -32,7 +34,9 @@ use crate::decimal::{Price, Size};
 use crate::derived::{DerivedHeader, Footprint, VolumeProfile};
 use crate::ids::{OrderId, TradeId};
 use crate::provenance::Provenance;
+use crate::reference::ReferenceValue;
 use crate::swap::SwapPrint;
+use crate::synthetic::SyntheticMonth;
 use crate::time::UnixMillis;
 
 /// Error from validating a record's internal consistency.
@@ -637,11 +641,15 @@ pub enum RecordKind {
     LiquidityGrade,
     /// [`Coverage`].
     Coverage,
+    /// [`ReferenceValue`].
+    ReferenceValue,
+    /// [`SyntheticMonth`].
+    SyntheticMonth,
 }
 
 impl RecordKind {
     /// Every kind, in canonical order.
-    pub const ALL: [RecordKind; 16] = [
+    pub const ALL: [RecordKind; 18] = [
         RecordKind::Trade,
         RecordKind::BookEvent,
         RecordKind::BookSnapshot,
@@ -658,6 +666,8 @@ impl RecordKind {
         RecordKind::HeatmapTile,
         RecordKind::LiquidityGrade,
         RecordKind::Coverage,
+        RecordKind::ReferenceValue,
+        RecordKind::SyntheticMonth,
     ];
 
     /// The `kind` tag in JSON, and the `kind=` partition value.
@@ -680,6 +690,8 @@ impl RecordKind {
             Self::HeatmapTile => "heatmap_tile",
             Self::LiquidityGrade => "liquidity_grade",
             Self::Coverage => "coverage",
+            Self::ReferenceValue => "reference_value",
+            Self::SyntheticMonth => "synthetic_month",
         }
     }
 
@@ -705,12 +717,14 @@ impl RecordKind {
                 | Self::Sweep
                 | Self::HeatmapTile
                 | Self::LiquidityGrade
+                | Self::SyntheticMonth
         )
     }
 
-    /// True for the analytics kinds of [`crate::analytics`] and coverage,
-    /// whose Arrow schemas keep nested parts as canonical JSON text (see
-    /// [`crate::arrow`]).
+    /// True for the flat, schema-driven kinds: the analytics kinds of
+    /// [`crate::analytics`], coverage, reference values and synthetic
+    /// months, whose Arrow schemas have one column per top-level field and
+    /// keep nested parts as canonical JSON text (see [`crate::arrow`]).
     #[must_use]
     pub const fn is_analytics(self) -> bool {
         matches!(
@@ -724,6 +738,8 @@ impl RecordKind {
                 | Self::HeatmapTile
                 | Self::LiquidityGrade
                 | Self::Coverage
+                | Self::ReferenceValue
+                | Self::SyntheticMonth
         )
     }
 }
@@ -770,6 +786,10 @@ pub enum Record {
     LiquidityGrade(LiquidityGrade),
     /// Venue coverage.
     Coverage(Coverage),
+    /// A public reference value.
+    ReferenceValue(ReferenceValue),
+    /// A synthetic contract month.
+    SyntheticMonth(SyntheticMonth),
 }
 
 /// Evaluates `$e` with `$v` bound to the record inside any variant.
@@ -792,6 +812,8 @@ macro_rules! each {
             Record::HeatmapTile($v) => $e,
             Record::LiquidityGrade($v) => $e,
             Record::Coverage($v) => $e,
+            Record::ReferenceValue($v) => $e,
+            Record::SyntheticMonth($v) => $e,
         }
     };
 }
@@ -817,6 +839,8 @@ impl Record {
             Record::HeatmapTile(_) => RecordKind::HeatmapTile,
             Record::LiquidityGrade(_) => RecordKind::LiquidityGrade,
             Record::Coverage(_) => RecordKind::Coverage,
+            Record::ReferenceValue(_) => RecordKind::ReferenceValue,
+            Record::SyntheticMonth(_) => RecordKind::SyntheticMonth,
         }
     }
 
@@ -846,11 +870,13 @@ impl Record {
             Record::Sweep(r) => Some(&r.derived),
             Record::HeatmapTile(r) => Some(&r.derived),
             Record::LiquidityGrade(r) => Some(&r.derived),
+            Record::SyntheticMonth(r) => Some(&r.derived),
             Record::Trade(_)
             | Record::BookEvent(_)
             | Record::BookSnapshot(_)
             | Record::SwapPrint(_)
-            | Record::Coverage(_) => None,
+            | Record::Coverage(_)
+            | Record::ReferenceValue(_) => None,
         }
     }
 
@@ -899,7 +925,9 @@ from_variant!(
     Sweep,
     HeatmapTile,
     LiquidityGrade,
-    Coverage
+    Coverage,
+    ReferenceValue,
+    SyntheticMonth
 );
 
 #[cfg(test)]

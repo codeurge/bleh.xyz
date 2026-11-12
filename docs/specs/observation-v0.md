@@ -50,6 +50,8 @@ fields.
 | `heatmap_tile` | Resting size by time and price (§ 2.10) | yes |
 | `liquidity_grade` | A market's liquidity grade (§ 2.10) | yes |
 | `coverage` | What the recorder observed of a venue over an interval (§ 2.11) | no |
+| `reference_value` | A published public reference value: rate, yield, price or index level (§ 2.12) | no |
+| `synthetic_month` | Fair value of one contract month of an exposure (§ 2.13) | yes |
 
 The order of this table is the canonical kind order (§ 6.2).
 
@@ -269,6 +271,76 @@ from the raw block lines.
   `missing_blocks = 0` and `gap_blocks = 0` was quiet, not unrecorded. An
   interval with no coverage record was not recorded.
 
+### 2.12 `reference_value`
+
+One value published by a public-data source admitted for that field (for
+example a government yield curve point or an overnight reference rate),
+emitted by future reference pollers and read by the synthetic-month engine
+(§ 2.13). Not derived.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `measure` | `rate`, `par_yield`, `zero_yield`, `price`, `index_level` | What the value is |
+| `value` | decimal | Percent per annum for rates and yields; currency units for prices |
+| `tenor` | string or null | `ON`, `TN`, or 1 to 3 digits and a unit `D`, `W`, `M`, `Y` (`3M`) |
+| `maturity_date` | `YYYY-MM-DD` or null | Maturity of the instrument the value refers to |
+| `day_count` | `act_360`, `act_365_fixed`, `act_act`, `thirty_360` or null | Required for simple and discount rates |
+| `compounding` | `simple`, `discount`, `annual`, `semi_annual`, `continuous` or null | Required for rates and yields; null otherwise |
+| `currency` | ISO 4217 or null | Prices only |
+| `as_of_date` | `YYYY-MM-DD` | The business day the value is for |
+| `revision` | integer | 0 for the first publication; a higher revision for the same series, tenor and `as_of_date` supersedes |
+
+- `prov.venue` is the source; `prov.instrument` is `<source>:ref:<series>`
+  with the source's own series name. A curve publishes one record per
+  tenor under one instrument.
+- Rates and yields need a `tenor` or a `maturity_date`.
+- `prov.seq` is `(batch, index)` as for swap prints;
+  `prov.ts_source_ms` is the publication time.
+
+### 2.13 `synthetic_month`
+
+The fair value of one contract month of an exposure at one valuation time,
+computed by `synthetic-months@1`
+([method-synthetic-months-v1.md](method-synthetic-months-v1.md),
+[ADR 0013](../decisions/0013-synthetic-contract-months.md)) from
+independent-venue prices, reference values, rulebook calendars, carry
+inputs and swap-print forward anchors. No exchange price is an input; the
+record is a model value, not a traded price.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `derived` | DerivedHeader | Method `synthetic-months@1`; inputs are every record used |
+| `exposure` | `[a-z0-9][a-z0-9-]{0,47}` | Exposure ID from the registry |
+| `family` | `equity_index`, `energy`, `metal`, `short_rate` | Selects the formula |
+| `month` | `YYYY-MM` | Contract month, neutral notation |
+| `rank` | integer | 1 is the front month after the roll rule, 2 the next; 0 is a month past its roll date that still trades until expiry (always with `rolling`) |
+| `as_of_ms` | ms | Valuation time |
+| `last_trade_date` | `YYYY-MM-DD` | Last trading day under the family's rulebook calendar |
+| `expiry_ms` | ms | Last trading day at the family's settlement time; `as_of_ms <= expiry_ms` |
+| `year_fraction` | decimal, eight places | Act/365F years from `as_of_ms` to `expiry_ms` |
+| `fair_value` | decimal | At the exposure's price scale; short-rate months as 100 minus the implied rate |
+| `spot`, `spot_ms` | decimal, ms, or null | Spot composite used and its newest observation time |
+| `spot_sources` | integer | Sources in the composite (0 exactly when `spot` is null) |
+| `financing_rate` | decimal | Continuously compounded zero rate to expiry, percent, six places |
+| `rates_ms` | ms | Newest rate input used |
+| `carry_rate` | decimal or null | Carry used, continuously compounded percent, six places |
+| `carry_source` | `observed`, `estimated`, `swap_anchor`, `none` | `carry_rate` is null exactly for `none` |
+| `anchors`, `anchor_ms` | integer, ms or null | Swap-print anchors used and the newest print's time |
+| `implied_rate` | decimal or null | Short-rate months only: the implied rate over the reference period, percent |
+| `quality` | array | Quality flags in canonical order (method spec § 9): `spot_stale`, `spot_single_source`, `spot_dispersed`, `spot_tape`, `rates_stale`, `curve_extrapolated`, `fixings_missing`, `carry_estimated`, `carry_unobserved`, `anchor_interpolated`, `anchor_extrapolated`, `anchor_stale`, `rolling`, `expiring` |
+| `admissions` | array of AdmissionId | Every input's admission, ascending; the first is `prov.admission` |
+| `grade` | `A` to `D` or null | Inherited from the spot sources (method spec § 10); null without a traded input |
+| `label` | `benchmark`, `tape` | `benchmark` only for grades A and B |
+
+- `prov.venue` is the pseudo-venue `synthetic` (not a trading venue) and
+  `prov.instrument` is `synthetic:month:<exposure>:<month>`.
+- `prov.ts_source_ms` is the newest input's time and `prov.ts_ingest_ns`
+  the newest input's ingest time, so the record is a pure function of its
+  inputs. `prov.flags` carries `oracle_anchored_venue` if a spot input
+  did, and `backfill` and `replayed` if any input did.
+- `prov.seq` follows § 2.8. The standalone engine, which has no blocks,
+  uses `(floor(as_of_ms / 1000), 0)`.
+
 ## 3. Sequence numbers
 
 `seq = {block_number: u64, event_index: u32}`, ordered by block, then index.
@@ -441,15 +513,18 @@ normalized partitions:
 - Snapshot sides and analytics levels are lists of structs.
 - Derived kinds add `method`, `inputs_hash` (fixed binary 32) and
   `input_count`.
-- Analytics kinds and coverage (§§ 2.10–2.11) are flat: one column per
-  top-level field. Field metadata `bleh.encoding` says how a column holds
+- Analytics kinds, coverage, reference values and synthetic months
+  (§§ 2.10–2.13) are flat: one column per top-level field. Field metadata `bleh.encoding` says how a column holds
   its value: `price` or `size` (an `Int64` mantissa at the row's
   `price_scale` or `size_scale`; signed values allowed), `decimal` (exact
   decimal text, for method-defined scales such as basis points with two
   places), `json` (the canonical JSON of a nested value: activity-bar
   `spec`, `first_seq`, order lifetimes, queue levels, heatmap cells);
   otherwise a plain scalar. Kinds with no `price` or `size` column
-  (`liquidity_grade`, `coverage`) have no scale columns. Parquet does not
+  (`liquidity_grade`, `coverage`, `reference_value`) have no scale
+  columns. `synthetic_month` stores `fair_value` and `spot` as `price`;
+  its rates and `year_fraction` are `decimal`, `quality` and `admissions`
+  are `json`, and dates are text. Parquet does not
   keep field metadata, so readers take the encoding from the schema.
 - Swap prints add `quantity`, `quantity_scale`, `quantity_unit`,
   `event_type`, `strike_type`, `strike`, `strike_scale`, `option_premium`,
@@ -472,6 +547,6 @@ every hash and signature.
 | `ts_source` in nanoseconds | `ts_source_ms` in milliseconds | The venue reports milliseconds |
 | `node`, `sig` per record | Per-block, per-stream commitments (§ 7) | One signature per block and stream instead of per record; proofs on demand |
 | `seq`: venue sequence where one exists | `(block_number, event_index)` for every record | Total order and per-subscription gap detection |
-| `quote`, `rate`, `reference` kinds | Not yet defined | Not needed for Phases 1 and 2 |
+| `quote`, `rate`, `reference` kinds | `reference_value` (§ 2.12) covers published rates and reference prices; `quote` is not yet defined | Reference values feed the synthetic-month method (ADR 0013) |
 | `source_ref` | `seq` (block and index) | Points back to the raw record |
 | Kinds `book_add`, `book_modify`, `book_cancel` | `book_event` with `action` | One kind per stream; fills distinguished from cancels |

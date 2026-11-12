@@ -284,6 +284,20 @@ pub(crate) fn analytics() -> Vec<Record> {
     let entry = |id: u64, size: &str, ahead: &str| serde_json::json!({"order_id": id, "size": size, "size_ahead": ahead, "ts_order_ms": DAY_MS - 5000});
     let mut cov = self::prov("hyperliquid:perp:SYN", 120, 0, DAY_MS + 59_900);
     cov.instrument = InstrumentId::venue_wide(&VenueId::new("hyperliquid").unwrap());
+    let mut rv = self::prov("example-rates:ref:OVERNIGHT", 40, 0, DAY_MS + 30_000);
+    rv.venue = VenueId::new("example-rates").unwrap();
+    rv.admission = mesh_types::AdmissionId::new("ADM-9001").unwrap();
+    let rv_prov = serde_json::to_value(&rv).unwrap();
+    let mut rv_prov2 = rv_prov.clone();
+    rv_prov2["instrument"] = serde_json::json!("example-rates:ref:BILL");
+    let mut sm = self::prov(
+        "synthetic:month:example-index:2026-03",
+        1_767_225_660,
+        0,
+        DAY_MS + 59_000,
+    );
+    sm.venue = VenueId::new("synthetic").unwrap();
+    let sm_prov = serde_json::to_value(sm).unwrap();
     let values = vec![
         serde_json::json!({
             "kind": "activity_bar", "prov": prov(6, 1, DAY_MS + 200), "derived": derived("tick-bars@1", 2),
@@ -345,6 +359,27 @@ pub(crate) fn analytics() -> Vec<Record> {
             "kind": "coverage", "prov": serde_json::to_value(cov).unwrap(),
             "interval": "1m", "start_ms": DAY_MS, "first_block": 1, "last_block": 120,
             "blocks": 118, "missing_blocks": 2, "gap_blocks": 1
+        }),
+        serde_json::json!({
+            "kind": "reference_value", "prov": rv_prov.clone(), "measure": "rate", "value": "4.31",
+            "tenor": "ON", "maturity_date": null, "day_count": "act_360", "compounding": "simple",
+            "currency": null, "as_of_date": "2025-12-31", "revision": 0
+        }),
+        serde_json::json!({
+            "kind": "reference_value", "prov": rv_prov2, "measure": "price", "value": "98.7650",
+            "tenor": null, "maturity_date": "2026-06-30", "day_count": null, "compounding": null,
+            "currency": "USD", "as_of_date": "2025-12-31", "revision": 1
+        }),
+        serde_json::json!({
+            "kind": "synthetic_month", "prov": sm_prov, "derived": derived("synthetic-months@1", 5),
+            "exposure": "example-index", "family": "equity_index", "month": "2026-03", "rank": 1,
+            "as_of_ms": DAY_MS + 60_000, "last_trade_date": "2026-03-20", "expiry_ms": DAY_MS + 6_800_000_000,
+            "year_fraction": "0.21543379", "fair_value": "5032.75", "spot": "5000.00",
+            "spot_ms": DAY_MS + 59_000, "spot_sources": 3, "financing_rate": "4.250000",
+            "rates_ms": DAY_MS + 30_000, "carry_rate": "1.300000", "carry_source": "estimated",
+            "anchors": 1, "anchor_ms": DAY_MS + 1_000, "implied_rate": null,
+            "quality": ["carry_estimated"], "admissions": ["ADM-0001", "ADM-9001"],
+            "grade": "B", "label": "benchmark"
         }),
     ];
     values

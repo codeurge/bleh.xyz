@@ -37,6 +37,8 @@
 //! | [`derived`] | Derived-record header, footprint and volume profile |
 //! | [`analytics`] | Analytics kinds (activity bars, delta, value area, order activity, queues, sweeps, heatmaps, liquidity grades) and venue coverage |
 //! | [`swap`] | Part 43 / SBSR swap prints |
+//! | [`reference`] | Public reference values (rates, yields, prices) |
+//! | [`synthetic`] | Synthetic contract months |
 //! | [`batch`] | [`BlockBatch`], the unit published on the bus |
 //! | [`registry`] | Instrument specifications built from venue metadata |
 //! | [`allowlist`] | Runtime field allowlist |
@@ -65,10 +67,12 @@ pub mod manifest;
 pub mod merkle;
 pub mod provenance;
 pub mod record;
+pub mod reference;
 pub mod registry;
 pub mod seq;
 pub mod signing;
 pub mod swap;
+pub mod synthetic;
 pub mod time;
 
 pub use analytics::{
@@ -88,6 +92,7 @@ pub use record::{
     AggressorSide, Bar, BarInterval, BookAction, BookEvent, BookSide, BookSnapshot, Level, Record,
     RecordKind, RestingOrder, SnapshotDepth, Trade, ValidationError,
 };
+pub use reference::{Compounding, DayCount, ReferenceMeasure, ReferenceValue};
 pub use registry::{InstrumentSpec, MarketClass, Registry};
 pub use seq::Seq;
 pub use signing::{BlockCommitment, EthAddress, EthSignature, SigningKey, StreamId};
@@ -95,6 +100,7 @@ pub use swap::{
     AssetClass, Notional, OptionStyle, OptionType, Quantity, SwapAction, SwapEventType, SwapPrice,
     SwapPrint,
 };
+pub use synthetic::{CarrySource, SyntheticFamily, SyntheticMonth, SyntheticQuality};
 pub use time::{UnixMillis, UnixNanos};
 
 /// Version tag of the observation data model implemented by this crate.
