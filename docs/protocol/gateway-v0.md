@@ -47,6 +47,8 @@ channel towards the limits.
 | `book_event` | a `snapshot`, then `batch` messages (`l4`) or `levels` messages (`l2`) |
 | `book_snapshot` | `record` messages (periodic L4 checkpoints) |
 | `bar` | `record` messages; `interval` selects one bar length (all if absent) |
+| `footprint`, `volume_profile`, `delta_bar`, `profile_summary`, `activity_bar`, `order_activity`, `queue_positions`, `sweep`, `heatmap_tile`, `liquidity_grade` | `record` messages, published (and committed) in the block that completed them (observation-v0 § 2.8) |
+| `coverage` | `record` messages on the venue-wide instrument `<venue>:venue:all`, one per interval (observation-v0 § 2.11) |
 | other kinds | `record` messages, when a producer publishes them |
 
 `book_event` subscriptions take `depth`:

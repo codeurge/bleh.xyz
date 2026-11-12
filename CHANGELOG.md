@@ -49,11 +49,57 @@ versions (see [AGENTS.md](AGENTS.md)).
   records carry `strike`, `option_premium`, `option_type`, `option_style`
   and `first_exercise_date` (the strike is no longer the `price`); monetary
   spreads are `spread_amount`; commodity quantities are `quantity`.
+- The `origin` service (`crates/origin`, ADR 0007 amendment): node files
+  (one or two nodes, active-active) → reader → book builder (books,
+  checkpoints, bars, analytics, venue coverage) → block signer → embedded
+  gateway on `:8080` (`/v0/ws`, `/health`, `/freshness`, `/metrics`,
+  `/proof`, `/signers`), optional JetStream side tap, and live capture of
+  the private and filtered raw tiers with the `.captured-through`
+  watermark. L4 snapshots read late are rolled forward over recent book
+  events; reset books are published as resyncs for gateways. Runbook:
+  `docs/operations/origin.md`.
+- End-to-end tests on synthetic data: node files → origin → localhost
+  websocket → reference client (books, signatures, roots, derived records),
+  then capture → replay → Parquet → history API matching the live trades,
+  bars and books, byte-identical across runs; backfill objects →
+  `hl-backfill process` → partitions read by the history API.
+- Observation kinds `activity_bar`, `delta_bar`, `profile_summary`,
+  `order_activity`, `queue_positions`, `sweep`, `heatmap_tile`,
+  `liquidity_grade` and `coverage`, the `replayed` flag, and swap print
+  lifecycle actions, event type, option terms, `spread_amount` and
+  commodity quantities, with allowlist, JSON Schema and Arrow schemas
+  (ADR 0011). `Registry::replace` and `Registry::remove`.
+- `archive capture run --follow`: live capture with sealing, write-once
+  upload, the `.captured-through` watermark and a periodically rewritten
+  `--metrics-out`; manifests now publish `_manifests/latest.json`.
+- `mesh-client probe` (one JSON line for availability probes) and
+  `mesh-client keys address`; every gateway flag can be set as a
+  `BLEH_GATEWAY_*` variable; gateway L2 level deltas for `depth: l2`.
+- Deploy: the node box runs the origin image; the deploy workflow lives in
+  `.github/workflows/deploy.yml` (manual promote); root `.dockerignore`.
+- ADR 0011: data model and gateway amendments for the integrated origin.
 
 ### Changed
 
 - Workflow: the repository owner may push directly to `main`; other
   contributors use pull requests.
+- Derived records are positioned at the block that completed them
+  (`seq = (block, i)`) and signed with it; `ts_source_ms` stays the time of
+  the last input (observation-v0 § 2.8).
+- The gateway `block` heartbeat carries `venue`; channel caps answer
+  `limit_exceeded`; `depth: l2` subscribers get `levels` messages instead
+  of L4 book events. Clients of the earlier v0 draft must update.
+- Partition paths write `#` as `%23` (`hyperliquid~outcome~%239001`).
+- The `archive` binary is built by `crates/origin` with the node reader's
+  filters and the origin's parser wired in; replay needs
+  `BLEH_ARCHIVE_REGISTRY`.
+- Shared dependencies are declared once in `[workspace.dependencies]`;
+  `duckdb` has default features off.
+- Order-level replay output from `hl-backfill` carries `replayed` as well
+  as `backfill`.
+- The node format spec records the reader's fill/modify classification,
+  the filtered-raw format and the spot exclusion; the gateway protocol
+  document matches the implementation.
 
 ## 0.0.0 — 2026-11-11
 

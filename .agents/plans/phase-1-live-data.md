@@ -1,7 +1,7 @@
 # Phase 1: live data — Plan
 
 Status: Active
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 ## Goal
 
@@ -56,6 +56,16 @@ Node facts to plan around (verify at provisioning):
 | Static history, small API and compatibility layers | [Phase 2](phase-2-historical-data.md) |
 | Parallel: Part 43 and SBSR pollers | This plan |
 | Parallel: backfill | [Phase 2](phase-2-historical-data.md), starting now |
+
+## Integration status (2026-11-12)
+
+Every lane is merged and integrated. `crates/origin` runs node files →
+reader → book builder → block signer → embedded gateway, with live raw
+capture, in one process; `crates/origin/tests/e2e.rs` proves it end to end
+on synthetic data (books equal the expected books, every signature and
+root verifies, derived records arrive, and the archive replay reproduces
+the live records). The acceptance criteria below need a live node and the
+staging soak; none is ticked yet.
 
 ## Acceptance criteria
 
@@ -112,75 +122,77 @@ Node facts to plan around (verify at provisioning):
    - Next action: None. ADR 0006 is Accepted.
 
 2. **cost-and-retention-model**
-   - Status: Ready
+   - Status: In progress
    - Owner: Repository owner
    - Dependencies: None (vendor figures first; refine with node-runbook)
    - PR: Not opened
-   - Next action: The infrastructure lane writes `docs/operations/costs.md`
-     and `docs/operations/hosting.md` for the budget-first tiers in
-     ADR 0010. Refine with measured node disk growth once the node runs.
+   - Next action: docs/operations/costs.md and hosting.md give the budget-first
+     tiers of ADR 0010 (estimates). Refine with measured node disk growth
+     once the node runs.
 
 3. **hosting-and-node-provisioning**
    - Status: Ready
    - Owner: Repository owner
    - Dependencies: cost-and-retention-model
    - PR: Not opened
-   - Next action: Launch per ADR 0010: rent one dedicated node box (16+
-     modern cores, 128 GB RAM, NVMe; provider's policy must allow blockchain
-     nodes) and set up the owner's home server as the archive, seed and
-     processing node behind a Cloudflare Tunnel; free relays in front. Write
-     `docs/operations/node.md`. Second origin and Tokyo follow usage.
+   - Next action: Rent the node box per ADR 0010 and docs/operations/node.md;
+     bring up `deploy/up.sh node-box` (the origin service) and
+     `home-archive`.
 
 4. **infrastructure-as-code**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: hosting-and-node-provisioning
    - PR: Not opened
-   - Next action: Staging and production on both providers in code, with a
-     deploy pipeline from tagged reproducible builds and rollback.
+   - Next action: Built: compose profiles, Terraform stacks, systemd units,
+     reproducible images and the manual-promote
+     `.github/workflows/deploy.yml` (deploy/). Next: apply in staging and
+     promote one build end to end.
 
 5. **secrets-handling**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: hosting-and-node-provisioning
    - PR: Not opened
-   - Next action: Storage credentials, CDN tokens and signing access in a
-     secrets manager; nothing in the repository or images; documented
-     rotation.
+   - Next action: Secrets are files mounted read-only (deploy/compose/secrets,
+     docs/operations/keys.md); nothing in images. Next: move the signing key
+     into a KMS or hardware key and document its rotation drill.
 
 6. **signing-keys**
    - Status: Ready
    - Owner: Repository owner
    - Dependencies: secrets-handling
    - PR: Not opened
-   - Next action: Generate the secp256k1 block-signing keys (one per
-     ingest path) and the manifest key in a KMS or hardware key; document
-     custody, rotation, publication in the registry and revocation.
+   - Next action: Tooling exists (`mesh-client keys address`, `archive manifest
+     keygen`, key rotation in docs/operations/bus.md). Generate the
+     block-signing and manifest keys on the hosts and publish their
+     addresses.
 
 7. **time-sync**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: hosting-and-node-provisioning
    - PR: Not opened
-   - Next action: chrony (or equivalent) on every host; export clock
-     offset; alert above 5 ms.
+   - Next action: host-bootstrap.sh configures chrony. Next: export the clock
+     offset and alert above 5 ms on the live hosts.
 
 8. **tls-cdn-front**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: infrastructure-as-code
    - PR: Not opened
-   - Next action: TLS and a CDN/DDoS front for gateways, the small API and
-     the archive, passing websockets.
+   - Next action: Built: Cloudflare edge Terraform, Caddy relays with TLS.
+     Next: apply and test websocket passthrough.
 
 9. **observability**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: infrastructure-as-code
    - PR: Not opened
-   - Next action: Metrics for block lag, `seq` gaps, path agreement, book
-     reconciliation, publish latency, clock offset and clients; the
-     external availability probe; alerts and a public status page.
+   - Next action: Built: Prometheus rules (latency, gaps, merge alarms,
+     reconciliation, signing, capture), dashboards, the availability probe
+     (`mesh-client probe`). Next: run on the hosts and publish a status
+     page.
 
 10. **public-endpoint-terms**
     - Status: Ready
@@ -198,178 +210,164 @@ Node facts to plan around (verify at provisioning):
     - Owner: Unassigned
     - Dependencies: hosting-and-node-provisioning
     - PR: Not opened
-    - Next action: Run both nodes with exactly the flags in § Source;
-      measure disk growth per day; document in `docs/operations/node.md`.
+    - Next action: Drafted in docs/operations/node.md. Blocked on hosting: run
+      the node with the flags in § Source and measure disk growth.
 
 12. **node-disk-and-pruning**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: node-runbook
     - PR: Not opened
-    - Next action: Prune node output and `periodic_abci_states` once
-      captured, with the node repository's pruner or our own job; alert on
-      disk use.
+    - Next action: deploy/scripts/hl-prune.sh prunes up to the origin's
+      `.captured-through` watermark (written by live capture,
+      crates/origin). Next: verify on the node box.
 
 13. **node-upgrade-runbook**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: node-runbook, node-reader
     - PR: Not opened
-    - Next action: Handle `hl-visor` upgrades one node at a time; detect
-      schema drift (unknown fields or shapes stop that kind and alert);
-      mark announced upgrades on the status page.
+    - Next action: docs/operations/upgrades.md and schema-drift-check.sh exist;
+      the reader rejects unknown fields. Next: rehearse a one-node-at-a-time
+      upgrade.
 
 14. **synthetic-fixtures**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 0 data-model-schema
     - PR: Not opened
-    - Next action: Synthetic `--batch-by-block` files (fills, order
-      statuses, book diffs, L4 snapshots) under `fixtures/synthetic/`:
-      two-fill trades, partial fills, cancels, modifies, liquidation,
-      settlement and HIP-4 settlement fills (to be dropped), new-market
-      metadata, gaps and block boundaries.
+    - Next action: None. tools/hl-synth and fixtures/synthetic/hl (base and gap
+      scenarios, L4 snapshot, expected books); `cargo test -p hl-synth`
+      keeps them current.
 
 15. **node-reader**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: synthetic-fixtures
     - PR: Not opened
-    - Next action: Clean-room reader: tail by-block files with inotify, pair
-      fills into book-matched trades, drop excluded fields and fills, assign
-      `seq`, emit per-instrument block batches, write unfiltered and
-      filtered raw, and dedupe the two paths with a mismatch alarm.
+    - Next action: Implemented and tested on synthetic data
+      (crates/hl-node-reader); live raw capture and the watermark run in the
+      origin. Verify the spec § 11 assumptions on a live node.
 
 16. **market-auto-registration**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 0 registry-schema, node-reader
     - PR: Not opened
-    - Next action: Register every market from node metadata (venue ID,
-      deployer, tick and lot size) with a neutral name and
-      `oracle_anchored_venue` where it applies; open a registry pull request
-      for each new market.
+    - Next action: Implemented (hl_node_reader::markets,
+      Registry::replace/remove). Open registry pull requests from
+      `HL_REGISTRY_OUT` as markets appear.
 
 ### Lane: book, bars and analytics
 
 17. **book-builder**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: synthetic-fixtures
     - PR: Not opened
-    - Next action: Order-level books from a `fileSnapshot` L4 snapshot plus
-      per-block order statuses and diffs; derive L2 and top of book;
-      reconcile at the checkpoint interval; emit checkpoints for the
-      archive.
+    - Next action: crates/book; the origin publishes checkpoints, rolls late L4
+      snapshots forward and resyncs (crates/origin/src/derive.rs, tests on
+      the gap scenario). Measure reconciliation against a live node's
+      snapshots.
 
 18. **bar-builder**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 0 data-model-schema
     - PR: Not opened
-    - Next action: Deterministic 1-second and 1-minute time bars plus tick,
-      volume and range bars, with buy and sell volume by aggressor side; no
-      bar for intervals without trades.
+    - Next action: None. bars@1, tick/volume/range bars; published live by the
+      origin and archived by replay.
 
 19. **orderflow-analytics**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: book-builder, bar-builder
     - PR: Not opened
-    - Next action: Live streams with `method@version` and input hash:
-      footprint, delta and CVD, volume profile, L3 heatmap tiles, order
-      lifetimes, queue position, cancel/replace ratios, sweep detection.
-      Document each method.
+    - Next action: None. Every analytic is an observation kind (observation-v0 §
+      2.10), published and signed per block by the origin and replayed
+      identically into the archive (crates/origin/tests/e2e.rs).
 
 20. **liquidity-grade**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: book-builder
     - PR: Not opened
-    - Next action: Publish spread, depth and trades per minute per market,
-      and the tape/benchmark label with its thresholds as a versioned
-      method.
+    - Next action: None. liquidity-grade@1 as the `liquidity_grade` kind.
 
 ### Lane: bus, gateway, relay and client SDKs
 
 21. **ring-and-side-tap**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: architecture-decision
     - PR: Not opened
-    - Next action: In-process ring buffer from reader to gateway; NATS
-      JetStream side tap for durability and replay; nothing archives from
-      it.
+    - Next action: None. crates/bus; the origin wires the JetStream tap when
+      BLEH_NATS_URL is set (integration tests need a local nats-server).
 
 22. **gateway**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: ring-and-side-tap, block-signing
     - PR: Not opened
-    - Next action: Websocket gateway: subscribe by instrument and kind;
-      snapshot tagged `(block, seq)`, contiguous deltas, per-block
-      heartbeats with signed roots, forced re-snapshot on gaps, proofs on
-      request; JSON and Arrow; per-IP caps; slow consumers drop to
-      snapshot, then disconnect; `/health` and `/freshness`.
+    - Next action: Embedded in the origin on :8080 (JSON and CBOR; Arrow
+      encoding not built). Load-test the per-IP caps and slow-consumer
+      policy in staging.
 
 23. **relay**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: gateway
     - PR: Not opened
-    - Next action: A relay binary anyone can run that re-serves the signed
-      stream unchanged; document running one.
+    - Next action: None. `gateway relay` verifies every commitment before
+      re-serving (docs/operations/gateway.md).
 
 24. **protocol-docs**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: gateway
     - PR: Not opened
-    - Next action: Document the protocol, signing and proofs in
-      `docs/protocol/`.
+    - Next action: None. docs/protocol/gateway-v0.md matches the implementation
+      (ADR 0011).
 
 25. **client-sdks**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: gateway
     - PR: Not opened
-    - Next action: One Rust core that keeps a local book, verifies roots and
-      proofs and recovers from gaps; Python via PyO3 and TypeScript via
-      WASM; published packages.
+    - Next action: Rust reference client done (tools/mesh-client: books, L2,
+      signatures, roots, proofs, failover, probe). Next: Python (PyO3) and
+      TypeScript (WASM) bindings over it.
 
 ### Lane: archive (Phase 1 part)
 
 26. **block-signing**
-    - Status: Ready
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: Phase 0 data-model-schema, signing-keys (test keys
       first)
     - PR: Not opened
-    - Next action: Merkle root per block per stream over canonical record
-      encodings, signed with secp256k1; proof generation; a test contract
-      that verifies with `ecrecover`.
+    - Next action: Per-block per-stream Merkle roots and secp256k1 signatures
+      (crates/bus), signed by the origin and verified by the reference
+      client end to end. Remaining: the Solidity test contract that verifies
+      with `ecrecover`.
 
 ### Lane: Part 43 and SBSR pollers (parallel)
 
 27. **admission-part43-sbsr**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: None
     - PR: Not opened
-    - Next action: Complete ADM-0002 and ADM-0004: each repository's
-      formats, access methods and online retention; which leg each
-      commodity swap price is.
+    - Next action: None. ADM-0002 and ADM-0004 are Admitted.
 
 28. **swap-pollers**
-    - Status: Ready (build); merge after admission-part43-sbsr
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 0 data-model-schema
     - PR: Not opened
-    - Next action: Poll DTCC and ICE Trade Vault Part 43 and SBSR
-      dissemination into `swap_print` observations (SOFR and OIS, FX NDFs
-      and options, natural gas, power and refined products, swaptions and
-      caps, commodity options, equity-index swaps, single-name CDS), with
-      filtered raw capture. Capture is time-critical (43.3(c)(1)).
+    - Next action: DTCC Part 43 and SBSR polling with lifecycle actions, event
+      types and option terms (crates/swap-pollers). ICE Trade Vault is
+      excluded until admitted. Deploy on the home-archive server.
 
 ### Release
 
@@ -379,9 +377,9 @@ Node facts to plan around (verify at provisioning):
     - Dependencies: node-runbook, node-reader, gateway, observability,
       tls-cdn-front
     - PR: Not opened
-    - Next action: 7 days in staging on live data from both nodes; verify
-      every acceptance criterion, including a load test and an injected
-      path mismatch.
+    - Next action: Blocked on hosting. Then 7 days in staging on live data from
+      both nodes, checking every acceptance criterion, a load test and an
+      injected path mismatch.
 
 30. **production-launch**
     - Status: Blocked

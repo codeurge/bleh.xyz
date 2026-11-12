@@ -126,7 +126,10 @@ JSON lines on standard output, one object per line, tagged by `type`:
 - `alarm`: an integrity alarm (below).
 
 Library users take the same events from
-`hl_node_reader::pipeline::Pipeline::spawn`.
+`hl_node_reader::pipeline::Pipeline::spawn`. In production the reader runs
+inside the origin service ([origin.md](origin.md)), which publishes the
+blocks to the embedded gateway and captures raw; the standalone binary is
+for tools, replays and debugging.
 
 ## Filtered raw
 
@@ -265,10 +268,8 @@ Further assumptions of this reader, outside § 11:
   (`markets::parse_outcome_meta`).
 - `ts_ingest_ns` of a trade is the fills line's `local_time`; of a book
   event, the diffs line's `local_time`.
-- Classification refinement (spec § 6.1): a diff is a fill only if a maker
-  fill of the same order with the same size change is pending in the
-  block; an order that ends `filled` with a `remove` reserves its last
-  fill for that `remove`. This keeps a modify or cancel next to a partial
-  fill in the same block correct, which the spec's "a fill with this oid"
-  rule misclassifies. Equal size changes of a modify and a later partial
-  fill of one order in one block remain ambiguous.
+- Fill or modify classification follows spec § 6.1: a diff is a fill only
+  if a maker fill of the same order with the same size change is pending in
+  the block; an order that ends `filled` with a `remove` reserves its last
+  fill for that `remove`. Equal size changes of a modify and a later
+  partial fill of one order in one block remain ambiguous.

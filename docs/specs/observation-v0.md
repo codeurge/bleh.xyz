@@ -153,8 +153,8 @@ Shapes are fixed; the methods are not yet specified.
 
 ### 2.7 `swap_print`
 
-For CFTC Part 43 and SEC Regulation SBSR public dissemination, ready for
-ADM-0002. No reader emits it until that admission is `Admitted`.
+For CFTC Part 43 and SEC Regulation SBSR public dissemination (ADM-0002,
+ADM-0004, both Admitted), emitted by `crates/swap-pollers`.
 
 | Field | Type | Meaning |
 |---|---|---|

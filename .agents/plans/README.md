@@ -6,8 +6,8 @@ status in the same pull request as the work.
 | Plan | Status | Next action |
 |---|---|---|
 | [Phase 0: foundation](phase-0-foundation.md) | Active | Accept ADR 0007 (code layout); data-model and registry schemas |
-| [Phase 1: live data](phase-1-live-data.md) | Active | Cost model, then two-provider hosting; synthetic fixtures, node reader, book and bar builders, block signing; Part 43 and SBSR pollers |
-| [Phase 2: historical data](phase-2-historical-data.md) | Active | Copy Hyperliquid's public buckets now; manifest and anchoring spec; partition writer; `replica_cmds` replay |
+| [Phase 1: live data](phase-1-live-data.md) | Active | Lanes integrated into the origin service; provision the node box and run the staging soak; Python and TypeScript SDKs; the `ecrecover` test contract |
+| [Phase 2: historical data](phase-2-historical-data.md) | Active | Archive, history API and backfill wired; run the bucket copy and backfill; capture L4 snapshots into raw; publish the first recorded day |
 
 Phases 3–6 get plans when Phases 1 and 2 near exit. See
 [docs/roadmap.md](../../docs/roadmap.md).

@@ -14,8 +14,8 @@
 //! [`Flag::BlockTradeDelayed`](crate::Flag::BlockTradeDelayed) in the
 //! provenance flags.
 //!
-//! This kind exists so the schema is ready for ADM-0002. No reader emits it
-//! until that admission is `Admitted`.
+//! ADM-0002 and ADM-0004 are `Admitted`; `crates/swap-pollers` emits this
+//! kind from the DTCC repository.
 
 use serde::{Deserialize, Serialize};
 
@@ -184,10 +184,11 @@ pub struct SwapPrint {
     pub repository: VenueId,
     /// The repository's identifier for this print.
     pub dissemination_id: String,
-    /// For cancels and corrections: the print being cancelled or corrected.
+    /// The print a cancel, correction or revival refers to (and, when the
+    /// repository gives it, a modification or termination).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub original_dissemination_id: Option<String>,
-    /// New, cancel or correct.
+    /// Effect on the public record.
     pub action: SwapAction,
     /// Asset class.
     pub asset_class: AssetClass,

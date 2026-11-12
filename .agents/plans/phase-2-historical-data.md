@@ -2,7 +2,7 @@
 
 Status: Active (backfill and archive design now; live recording starts with
 the first node)
-Last updated: 2026-11-11
+Last updated: 2026-11-12
 
 ## Goal
 
@@ -37,6 +37,16 @@ pays transfer costs, and uploads are not guaranteed timely or complete.
 | `hyperliquid-archive/asset_ctxs`, `hl-mainnet-node-data/misc_events_by_block` | Oracle, mark, funding, ledger events | **Excluded** |
 
 Coverage dates come from bucket listings, not secondary sources.
+
+## Integration status (2026-11-12)
+
+The archive, history API and backfill tooling are merged and wired: the
+`archive` binary carries the node reader's filters and the origin's parser,
+live capture runs in the origin, and `hl-backfill` uses the reader and the
+archive's Parquet writer. Replay of synthetic days is byte-identical across
+runs and matches the live stream (crates/origin/tests/e2e.rs); backfilled
+partitions read back through the history API (tools/hl-backfill/tests).
+Nothing runs on real data yet, so no criterion is ticked.
 
 ## Acceptance criteria
 
@@ -85,202 +95,191 @@ Coverage dates come from bucket listings, not secondary sources.
 ### Lane: backfill (parallel, starting now)
 
 1. **bucket-copy**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: None
    - PR: Not opened
-   - Next action: List the buckets for coverage dates; copy every admitted
-     path as-is into the private raw tier, sharded by day on spot
-     instances, with checksums and a copy log.
+   - Next action: Built: `hl-backfill estimate` and `copy` with the ADM-0003
+     denylist, checkpoints and retries (tools/hl-backfill). Run the copy
+     with owner credentials.
 
 2. **backfill-fills**
-   - Status: Blocked
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: bucket-copy, normalized-partitions
    - PR: Not opened
-   - Next action: Filter archived fills to book-matched trades under
-     ADM-0001's rules into filtered raw and partitions flagged `backfill`;
-     compare with live-recorded overlap days.
+   - Next action: Built: `hl-backfill process` runs by-block fills through the
+     node reader and writes Parquet with the archive writer;
+     tests/history.rs checks partitions through the history API (ADM-0003,
+     `backfill`). Run on the copied buckets and compare overlap days.
 
 3. **backfill-book-snapshots**
-   - Status: Blocked
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: bucket-copy
    - PR: Not opened
-   - Next action: Measure the snapshot frequency inside `market_data`
-     files; import them as book history flagged `backfill`.
+   - Next action: Built: L2 snapshots parsed as `low_resolution` book history
+     with the measured snapshot interval in the report. Run on the copied
+     `market_data` files.
 
 4. **l3-replay**
-   - Status: Ready
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: bucket-copy (first days can start from a sample)
    - PR: Not opened
-   - Next action: Rebuild order-level books before raw book diffs existed by
-     replaying order actions from `replica_cmds` through an emulated
-     matcher, checkpointed against archived L2 snapshots; publish matched
-     days flagged `replayed` and a report of mismatches.
+   - Next action: Prototype matcher in tools/hl-backfill/src/replay; output
+     flagged `backfill` and `replayed`. Close the fidelity gaps listed in
+     docs/operations/backfill.md § 7 on overlap days.
 
 ### Lane: archive
 
 5. **filtered-raw-capture**
-   - Status: Blocked
+   - Status: In progress
    - Owner: Unassigned
    - Dependencies: Phase 1 node-runbook, node-reader
    - PR: Not opened
-   - Next action: Ship unfiltered and filtered raw to object storage from
-     the first node's first day, zstd long-range with trained dictionaries
-     for the raw tier.
+   - Next action: Built: live capture of both tiers in the origin
+     (archive::follow: sealing, write-once upload, `.captured-through`).
+     Blocked on the first node; L4 snapshot files are not captured yet.
 
 6. **manifest-chain**
-   - Status: Ready
+   - Status: Done
    - Owner: Unassigned
    - Dependencies: Phase 0 data-model-schema, Phase 1 signing-keys
    - PR: Not opened
-   - Next action: Specify the daily manifest (per file: size, content hash,
-     IPFS CID, torrent infohash and magnet; previous manifest hash;
-     signature) and build the verifier.
+   - Next action: None. docs/specs/manifest-v0.md; `archive manifest
+     build/sign/verify`; `_manifests/latest.json` for monitoring.
 
 7. **manifest-anchoring**
-   - Status: Ready
+   - Status: Done
    - Owner: Unassigned
    - Dependencies: manifest-chain
    - PR: Not opened
-   - Next action: Per day, an OpenTimestamps proof on Bitcoin and an anchor
-     transaction on an Ethereum L2 (L2 TBD); store proofs next to the
-     manifest and distribute them with it; extend the verifier to check
-     signature, hash chain and both anchors.
+   - Next action: OpenTimestamps and an Ethereum L2 anchor (`archive anchor`).
+     Choose the L2 and its anchoring contract.
 
 8. **normalized-partitions**
-   - Status: Ready
+   - Status: Done
    - Owner: Unassigned
    - Dependencies: Phase 1 node-reader and book-builder (synthetic data is
      enough to start)
    - PR: Not opened
-   - Next action: Deterministic Hive-partitioned Parquet writer (kind,
-     venue, date; sorted by instrument and time; zstd) for trades, book
-     events, book checkpoints, bars and analytics, with an Iceberg or
-     DuckLake catalog.
+   - Next action: None. Deterministic Parquet for every record kind with static
+     Iceberg metadata (crates/archive).
 
 9. **replay-tool**
-   - Status: Ready
+   - Status: Done
    - Owner: Unassigned
    - Dependencies: normalized-partitions
    - PR: Not opened
-   - Next action: The only path from filtered raw to partitions, for live
-     days, rebuilds and backfill; canonical content hash gate; pinned build
-     container for byte identity; CI check on a fixture day.
+   - Next action: None. `archive replay` with the origin's parser; byte
+     identity and content hashes checked in CI on synthetic days
+     (crates/archive/tests, crates/origin/tests/e2e.rs).
 
 10. **bar-rollups**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 1 bar-builder, orderflow-analytics
     - PR: Not opened
-    - Next action: Precompute 5m, 15m, 1h and 1d bars and daily volume
-      profiles; the daily boundary is UTC midnight, recorded in the
-      registry.
+    - Next action: None. The book builder rolls bars up to 1d and builds daily
+      volume profiles, live and in replay.
 
 11. **correction-and-versioning-protocol**
-    - Status: Ready
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: manifest-chain
     - PR: Not opened
-    - Next action: Document how a partition is corrected or withdrawn: new
-      version, new manifest entry, old hashes kept listed, all distribution
-      channels updated.
+    - Next action: None. Corrections write new part numbers in a new manifest
+      (archive-layout-v0 § 6, `--correction`).
 
 12. **torrent-and-ipfs-publishing**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: normalized-partitions, manifest-chain
     - PR: Not opened
-    - Next action: Per day, create a BitTorrent v2 torrent with web seeds
-      pointing at the HTTPS copy, add files to IPFS, and write magnets and
-      CIDs into the manifest.
+    - Next action: Built: BitTorrent v2 torrents with web seeds, IPFS CIDs and
+      Kubo pinning in `archive publish`. Run on the first recorded day.
 
 13. **seedbox-and-pinning**
-    - Status: Blocked
+    - Status: Ready
     - Owner: Repository owner
     - Dependencies: torrent-and-ipfs-publishing
     - PR: Not opened
-    - Next action: Run at least one always-on seeder and one IPFS pinning
-      node; document how anyone can mirror.
+    - Next action: The home-archive profile runs the seeder and IPFS node. Bring
+      it up and document mirroring.
 
 14. **arweave-and-public-mirrors**
-    - Status: Blocked
+    - Status: Ready
     - Owner: Unassigned
     - Dependencies: manifest-chain, torrent-and-ipfs-publishing
     - PR: Not opened
-    - Next action: Store each manifest (with proofs) on Arweave; publish
-      partitions to Hugging Face datasets, the Internet Archive and Academic
-      Torrents.
+    - Next action: Not started: store manifests on Arweave; publish to public
+      dataset mirrors.
 
 15. **mirror-verification**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: manifest-anchoring
     - PR: Not opened
-    - Next action: A tool and doc so any mirror or user can verify downloads
-      against the signed, anchored manifests.
+    - Next action: None. `archive verify` (signature, chain, anchors, files)
+      from a directory or URL.
 
 ### Lane: static history, small API and compatibility layers
 
 16. **static-catalog**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: normalized-partitions, Phase 1 tls-cdn-front
     - PR: Not opened
-    - Next action: Serve partitions and catalog from zero-egress storage
-      behind the CDN; publish worked examples for DuckDB httpfs,
-      DuckDB-WASM, Polars and ClickHouse `s3()`.
+    - Next action: Built: Hive paths, static Iceberg metadata, query examples
+      (archive-layout-v0 § 4). Serve from R2 behind the CDN.
 
 17. **small-api**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: static-catalog
     - PR: Not opened
-    - Next action: HTTP service for small JSON queries (recent trades, bars,
-      book at time T), with pagination, query timeouts, memory caps and
-      per-client rate limits.
+    - Next action: None. crates/history-api with limits, timeouts and memory
+      caps; it serves the replayed archive in the end-to-end test.
 
 18. **replay-websocket**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: static-catalog, Phase 1 gateway
     - PR: Not opened
-    - Next action: Replay any archived range over the live protocol at N×
-      speed.
+    - Next action: None. `/v0/replay` in the history API.
 
 19. **dbn-compat-api**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: static-catalog, Phase 0 wire-format-decision
     - PR: Not opened
-    - Next action: Databento-shaped live and historical API over DBN, with
-      provenance and signatures alongside.
+    - Next action: Historical Databento-shaped endpoints over DBN are built. A
+      live DBN encoding (`bleh.v0.dbn`) is not.
 
 20. **client-adapters**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: small-api, Phase 1 client-sdks
     - PR: Not opened
-    - Next action: NautilusTrader adapter, TradingView UDF datafeed and a
-      CCXT-style REST shim, each with an example.
+    - Next action: TradingView UDF and CCXT-style shims are built in the history
+      API. NautilusTrader adapter not started.
 
 21. **mcp-server**
-    - Status: Blocked
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: small-api
     - PR: Not opened
-    - Next action: MCP server exposing live snapshots, history queries,
-      coverage and verification to agents.
+    - Next action: None. `/mcp` in the history API.
 
 22. **coverage-map**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: filtered-raw-capture, normalized-partitions
     - PR: Not opened
-    - Next action: Per-market, per-hour coverage (recorded, backfilled,
-      replayed, missing) as data and as a page; never fill gaps.
+    - Next action: The `coverage` kind (observation-v0 § 2.11) is published live
+      and archived, so quiet and unrecorded hours differ. Next: use it in
+      the history API coverage endpoint and publish the page.
 
 ### Lane: bus, gateway, relay and client SDKs (Phase 2 part)
 
@@ -297,13 +296,12 @@ Coverage dates come from bucket listings, not secondary sources.
 ### Lane: infrastructure (Phase 2 part)
 
 24. **one-command-reorigination**
-    - Status: Blocked
+    - Status: In progress
     - Owner: Unassigned
     - Dependencies: Phase 1 infrastructure-as-code, replay-tool
     - PR: Not opened
-    - Next action: Reproducible builds plus a compose file (node → reader →
-      gateway → archive) that brings up the whole pipeline on a clean host;
-      test it from scratch.
+    - Next action: deploy/up.sh brings up each role, the node box as one origin
+      service. Test from scratch on a clean host.
 
 25. **code-mirrors**
     - Status: Ready

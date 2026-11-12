@@ -54,8 +54,8 @@ From Phase 1, each block is signed per stream (owner decision, 2026-11-11):
 
 ### Wire format
 
-Phases 1–2 ship **JSON** (gateway) and **Arrow** (gateway binary encoding and
-Parquet in the archive). A DBN compatibility layer, with a Databento-shaped
+Phases 1–2 ship **JSON** and **CBOR** on the gateway (an Arrow gateway
+encoding is not built) and **Arrow/Parquet** in the archive. A DBN compatibility layer, with a Databento-shaped
 live and historical API, is planned for Phase 2
 ([ADR 0004](decisions/0004-wire-format.md)).
 
@@ -96,7 +96,8 @@ live and historical API, is planned for Phase 2
   T.
 - **Bars:** time, tick, volume and range bars, built from trades only. An
   interval with no trades emits no bar. Missing data (node or reader outage)
-  is published as a `gap` record and in the coverage map, never filled in.
+  shows as `gap_before` flags and in the venue `coverage` records (blocks
+  observed, missing and flagged per interval), never filled in.
 - **Order-flow analytics:** live and archived streams, each with
   `method@version` and an input hash: footprint, delta and CVD, volume
   profile, L3 heatmap tiles, order lifetimes, queue position, cancel/replace
@@ -163,8 +164,12 @@ carry_factor   = from financing (SOFR curve from Part 43 swaps and NY Fed),
 
 ## 8. Transport
 
-- **Hot path:** reader → in-process ring buffer → gateway. NATS JetStream is
-  a side tap for durability and replay, not on the hot path.
+- **Hot path:** reader → book builder → block signer → in-process ring
+  buffer → gateway, all in one origin process (`crates/origin`). NATS
+  JetStream is a side tap for durability and replay, not on the hot path.
+  Derived records are published and signed in the block that completed
+  them; the archive replay runs the same block-by-block code, so live and
+  archived derived records are identical.
 - **Gateway protocol:** a book snapshot tagged with `(block, seq)`, then
   contiguous deltas; a heartbeat with the signed block roots every block,
   including blocks with no events for that instrument; any detected gap
