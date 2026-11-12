@@ -34,7 +34,7 @@ Requires Node 22 or newer and ffmpeg. No npm packages, no network.
 | `sfx/make-sfx.sh` | Regenerates every effect; each recipe is documented in the script |
 | `music/placeholder-bed.wav`, `music/placeholder-sting.wav` | Placeholder music (30 s and 5 s), 106 BPM, E minor |
 | `music/make-placeholder.mjs` | Regenerates the placeholders |
-| `music/theme.wav` or `music/theme.flac`, `music/sting.wav` | **You add these.** The mixer picks them up automatically; the current theme is "Falling Figure" (Suno), stored as FLAC |
+| `music/theme.wav` or `music/theme.flac`, `music/sting.wav` | **You add these.** The mixer picks them up automatically; the current theme is "Deadpan Fuzz" (Suno, exactly 30 s, drop at about 10.2 s), stored as FLAC; "Falling Figure" is kept as an alternate |
 | `suno-prompts.md` | Prompts and handoff steps for the real theme |
 | `out/*-mix.wav`, `out/*-sfx.wav` | Written by the mixer: the mastered stereo mix and the effects-only stem, 48 kHz 24-bit. Ignored by git |
 
