@@ -1,0 +1,15 @@
+[package]
+name = "history-api"
+description = "Historical query API for the bleh.xyz mesh"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+mesh-types.workspace = true
+
+[lints]
+workspace = true
