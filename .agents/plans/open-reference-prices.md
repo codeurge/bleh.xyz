@@ -50,11 +50,15 @@ futures data, live and historical:
    - Next action: research each source's terms and lineage; write one record per source
 
 2. **synthetic-months-method-and-engine**
-   - Status: In progress
+   - Status: In review
    - Owner: synthetic lane
    - Dependencies: None (rates inputs are fixtures until task 4 lands)
-   - PR: Not opened
-   - Next action: ADR 0013, method spec v1, `crates/synthetic`
+   - PR: Not opened (branch with ADR 0013, method spec v1, the
+     `reference_value` and `synthetic_month` kinds, `crates/synthetic`)
+   - Next action: owner review of ADR 0013; then wire the engine into the
+     origin behind a configuration flag and replace the synthetic registry
+     entries with real venue markets once task 4 emits `reference_value`
+     records
 
 3. **bring-your-own-feed**
    - Status: In progress
