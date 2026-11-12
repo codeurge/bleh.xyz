@@ -43,11 +43,11 @@ futures data, live and historical:
 ## Tasks
 
 1. **reference-admissions**
-   - Status: In progress
+   - Status: Done
    - Owner: admissions lane
    - Dependencies: None
    - PR: Not opened (owner pushes to main)
-   - Next action: research each source's terms and lineage; write one record per source
+   - Next action: None. ADR 0012 and ADM-0005 to ADM-0019 decided (federal, Federal Reserve, USDA and ERCOT admitted with field exclusions; five grid operators and grain bids rejected; NYISO under review); access spec in `docs/specs/reference-sources.md`
 
 2. **synthetic-months-method-and-engine**
    - Status: In progress

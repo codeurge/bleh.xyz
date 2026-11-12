@@ -98,11 +98,53 @@ and which fields are matched rather than oracle-priced.
 |---|---|---|---|
 | CFTC Part 43 public swap dissemination (DTCC, ICE Trade Vault) | SOFR and OIS swaps, FX NDFs and options, natural gas, power and refined-product swaps, swaptions and caps, commodity options | Near real time; block trades delayed and sizes capped | Free of charge under 17 CFR 43.3(c)(2); repositories need only keep a year online (43.3(c)(1)), so capture is time-critical. Phases 1–2 lane ([ADM-0002](admissions/ADM-0002-cftc-part43-swaps.md)) |
 | SEC Regulation SBSR public dissemination (DTCC, ICE Trade Vault) | Equity-index swaps, single-name CDS | Near real time, with dissemination delays for some trades | Non-fee basis under 17 CFR 242.900(cc) and (tt). Phases 1–2 lane ([ADM-0004](admissions/ADM-0004-sec-sbsr-public-dissemination.md)) |
-| NY Fed | SOFR, EFFR, OBFR, repo rates | Daily | Public; check attribution terms |
-| US Treasury | Yield curves, auction results | Daily | Public domain |
-| USDA AMS, including mandatory livestock price reporting | Cash livestock and grain prices from actual transactions | Several times a day | Public domain |
+| NY Fed | SOFR, EFFR, OBFR, repo rates | Daily | Admitted under the NY Fed's Terms of Use, with notice ([ADM-0007](admissions/ADM-0007-nyfed-reference-rates.md)); see [public settlement anchors](#public-settlement-anchors-and-reference-data) |
+| US Treasury | Yield curves, auction results | Daily | Admitted ([ADM-0006](admissions/ADM-0006-us-treasury-rates-and-auctions.md)) |
+| USDA AMS, including mandatory livestock price reporting | Cash livestock and dairy prices from actual transactions | Several times a day | Admitted by purchase type ([ADM-0010](admissions/ADM-0010-usda-livestock-mandatory-reporting.md) to [ADM-0012](admissions/ADM-0012-usda-market-news-feeder-cattle-and-grain.md)); grain bids rejected as futures plus basis |
 | EIA | Energy spot prices, inventories, production | Daily or weekly | Public domain, **but** some series (e.g. NYMEX futures prices) credit a commercial vendor and are excluded |
-| CFTC Commitments of Traders | Positions by trader category for exchange futures | Weekly | Public domain |
+| CFTC Commitments of Traders | Positions by trader category for exchange futures | Weekly | Admitted ([ADM-0005](admissions/ADM-0005-cftc-commitments-of-traders.md)) |
+
+## Public settlement anchors and reference data
+
+Decided 2026-11-12 under the
+[open reference prices plan](../.agents/plans/open-reference-prices.md).
+Endpoints, formats and schedules are in
+[specs/reference-sources.md](specs/reference-sources.md).
+
+- **Anchors** names the futures families each source relates to, stated as
+  economic fact.
+- **Exclusions** are listed in each record.
+- Records marked `exchange_referenced` come from transactions that may be
+  privately priced against an exchange price
+  ([ADR 0012](decisions/0012-open-terms-route-for-public-bodies-and-market-operators.md)).
+
+### Admitted
+
+| Source | Record | Anchors | History | Cadence |
+|---|---|---|---|---|
+| CFTC Commitments of Traders (legacy, disaggregated, TFF, supplemental) | [ADM-0005](admissions/ADM-0005-cftc-commitments-of-traders.md) | Positioning in every US futures and options market the CFTC reports. Not a settlement anchor | Legacy from 1986-01-15; disaggregated and TFF from 2006-06-13; supplemental from 2006-01-03 | Weekly: Tuesday data, released Friday about 3:30 p.m. ET |
+| US Treasury par, real, bill and long-term rates | [ADM-0006](admissions/ADM-0006-us-treasury-rates-and-auctions.md) | Treasury futures are physically delivered, so these are carry and fair-value inputs for rates futures rather than settlement prices | Par curve from 1990; bills from 2002; real curve from 2003; long-term from 2000 | Daily, usually by 6:00 p.m. ET |
+| US Treasury auction results (Fiscal Data) | [ADM-0006](admissions/ADM-0006-us-treasury-rates-and-auctions.md) | Auction yields and prices of new issues. The 13-week bill high rate is the index rate of Treasury floating rate notes | From 1979-11-15 | Per auction |
+| NY Fed SOFR, BGCR, TGCR, SOFR averages and index | [ADM-0007](admissions/ADM-0007-nyfed-reference-rates.md) | SOFR is the rate that one-month and three-month SOFR futures settle against, averaged or compounded over the contract period | SOFR, BGCR and TGCR from 2018-04-02; averages and index from 2020-03-02 | Daily, about 8:00 a.m. ET |
+| NY Fed EFFR, OBFR | [ADM-0007](admissions/ADM-0007-nyfed-reference-rates.md) | EFFR is the rate that 30-day federal funds futures settle against, as a monthly average | EFFR from 2000-07-03 (API) and from 1954 via H.15; OBFR from 2016-03-01 | Daily, about 9:00 a.m. ET |
+| Federal Reserve Board H.15 | [ADM-0008](admissions/ADM-0008-federal-reserve-board-h15.md) | Long EFFR and Treasury constant-maturity history; commercial paper, prime and discount rates as rate inputs | EFFR from 1954; bills from 1954; CMTs from 1962; commercial paper from 1997 | Daily |
+| Federal Reserve Board H.10 noon buying rates | [ADM-0009](admissions/ADM-0009-federal-reserve-board-h10.md) | Spot FX references for currency futures fair values. Most currency futures are physically delivered | From 1971 for the major currencies | Weekly release of daily rates (Mondays) |
+| USDA Livestock Mandatory Reporting | [ADM-0010](admissions/ADM-0010-usda-livestock-mandatory-reporting.md) | Negotiated and formula barrow and gilt prices, from which the cash index that lean hog futures settle against is computed (formula prices flagged). The negotiated pork cutout, from which the cash index that pork cutout futures settle against is computed. Negotiated fed cattle prices, a fair-value input for live cattle futures, which are physically delivered | From 2001-04-01 | Several times a day; weekly and monthly summaries |
+| USDA NDPSR and announced FMMO prices | [ADM-0011](admissions/ADM-0011-usda-dairy-ndpsr-and-class-prices.md) | The announced Class III and Class IV prices that Class III and Class IV milk futures settle against. The NDPSR averages that cash-settled butter, cheese, dry whey and nonfat dry milk futures settle against. All flagged `exchange_referenced` | As held by the DataMart | NDPSR weekly (Wednesday, four-week revisions); class prices monthly |
+| USDA feeder cattle auction, direct and video reports | [ADM-0012](admissions/ADM-0012-usda-market-news-feeder-cattle-and-grain.md) | USDA and State market news feeder steer sales, from which the cash index that feeder cattle futures settle against is computed | Latest issue only on ams.usda.gov; archive channel pending | Daily and weekly |
+| ERCOT DAM and RTM settlement point prices, LMPs, AS clearing prices | [ADM-0013](admissions/ADM-0013-ercot-prices.md) | ERCOT hub and load-zone settlement point prices, which ERCOT power futures and swaps settle against | Hub and zone prices from 2010; node-level prices only within the 5-to-31-day listing window | Day-ahead daily by 13:30 CPT; real time every 15 minutes and per SCED run |
+
+### Rejected or under review
+
+| Source | Record | Status | Deciding clause, in short |
+|---|---|---|---|
+| USDA grain bids and basis | [ADM-0012](admissions/ADM-0012-usda-market-news-feeder-cattle-and-grain.md) | Rejected | Quoted as futures plus basis |
+| CAISO (NP15 and SP15 hub prices are settlement references for western power contracts) | [ADM-0014](admissions/ADM-0014-caiso-prices.md) | Rejected | API terms grant no rights in CAISO Data |
+| PJM (Western Hub prices are settlement references for eastern power contracts) | [ADM-0015](admissions/ADM-0015-pjm-prices.md) | Rejected | Non-members may not republish |
+| MISO | [ADM-0016](admissions/ADM-0016-miso-prices.md) | Rejected | Terms forbid publishing or distributing content |
+| NYISO | [ADM-0017](admissions/ADM-0017-nyiso-prices.md) | Under review | Rights reserved, no redistribution grant |
+| ISO New England | [ADM-0018](admissions/ADM-0018-iso-ne-prices.md) | Rejected | Duplication or non-personal use "may violate copyright" |
+| SPP | [ADM-0019](admissions/ADM-0019-spp-prices.md) | Rejected | Commercial use needs written authorization |
 
 ## Tier C: public, but under terms
 
