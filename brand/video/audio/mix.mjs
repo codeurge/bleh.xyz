@@ -86,7 +86,9 @@ function r128(file, start, dur) {
 function loudnormJson(log) { const i = log.lastIndexOf('{'), j = log.lastIndexOf('}'); return JSON.parse(log.slice(i, j + 1)); }
 
 function pickMusic(format) {
-  const theme = opt.music ? resolve(opt.music) : join(here, 'music/theme.wav');
+  const theme = opt.music
+    ? resolve(opt.music)
+    : ['music/theme.wav', 'music/theme.flac'].map((p) => join(here, p)).find((p) => existsSync(p)) ?? join(here, 'music/theme.wav');
   const haveTheme = existsSync(theme);
   if (opt.music && !haveTheme) die(`music file not found: ${opt.music}`);
   if (format !== 'sting') {
