@@ -97,6 +97,11 @@ bus ring ──▶ hub ──▶ fan-out ring ──▶ one task per connection 
   valid book that differs from a checkpoint is replaced (`reconcile`,
   `gateway_reconciliations_total`). **The book builder must publish
   checkpoints**; without them a gateway cannot serve snapshots.
+- While a book is valid, the hub also derives the price levels each
+  `book_event` batch changed and publishes them right after the batch as a
+  `levels` message; `depth: "l2"` subscribers get those instead of the L4
+  batch. Levels are not committed (verifiers subscribe at `l4`); while a
+  book is invalid no levels are sent and l2 clients resync like l4 ones.
 - Snapshots are published by the hub onto the fan-out ring, so a snapshot
   at block `B` is followed on every connection by exactly the batches after
   `B`. Batches for an instrument are still forwarded while a connection
@@ -107,13 +112,13 @@ bus ring ──▶ hub ──▶ fan-out ring ──▶ one task per connection 
 
 ## Limits
 
-Announced in `hello.limits`, set by flags:
+Announced in `hello.limits` (except channels per IP), set by flags:
 
 | Limit | Flag | Default |
 |---|---|---|
 | Connections per IP | `--connections-per-ip` | 10 (HTTP 429 beyond) |
-| Channels per connection | `--channels-per-connection` | 200 |
-| Channels per IP (all connections) | `--channels-per-ip` | 2000 |
+| Channels per connection | `--channels-per-connection` | 200 (`limit_exceeded` beyond) |
+| Channels per IP (all connections) | `--channels-per-ip` | 2000 (`limit_exceeded` beyond; not in `hello`) |
 | Client messages | `--messages-per-second`, `--message-burst` | 20/s, burst 50 |
 | `resnapshot` per instrument | fixed | 1 per 5 s |
 | Proof requests | `--proofs-per-second` | 50/s |
@@ -124,13 +129,16 @@ A wildcard channel (`*`, `prefix*`) counts as one channel.
 
 - **Rate limits:** a refused message gets `error` `rate_limited`; 10
   violations (rate limits or malformed messages) within 10 s close the
-  connection with 4029.
+  connection with 4029. Channel caps (`limit_exceeded`) are not violations.
 - **Slow consumers:** a connection whose next unread item is older than
-  the send-buffer time, whose cursor was overrun by the ring, or whose
-  socket write blocks that long, drops everything queued and resyncs every
-  book with a `slow_consumer` snapshot (first strike); a second strike
-  within 60 s closes it with 4008. The websocket write buffer is capped at
-  the send-buffer size. Nothing is ever dropped selectively.
+  the send-buffer time, or whose cursor was overrun by the ring, drops
+  everything queued and resyncs every book with a `slow_consumer` snapshot
+  (first strike, `gateway_slow_consumer_resnapshots_total`); a second
+  strike within 60 s closes it with 4008. A socket write that blocks for
+  the send-buffer time drops the connection without a close frame. Both
+  count in `gateway_slow_consumer_disconnects_total`. The websocket write
+  buffer is capped at the send-buffer size (at least 256 KiB). Nothing is
+  ever dropped selectively.
 - **Behind a CDN or proxy**, pass `--trust-forwarded-for` so per-IP limits
   apply to the client address from `X-Forwarded-For`; never set it on a
   directly exposed port.
@@ -174,7 +182,8 @@ increasing, p99 of `gateway_send_latency_seconds` above 50 ms, `/health` 503.
 2. Run `gateway relay` with every address as `--signer` and two or more
    `--upstream` URLs (rotated on failure, with backoff).
 3. The relay subscribes to every kind of every instrument with
-   commitments, holds each block until its heartbeat, and per stream
+   commitments, holds each venue's block until that venue's heartbeat
+   (heartbeats carry the venue), and per stream
    checks signer allowlist, signature, leaf count and Merkle root against
    the records received. Only verified streams are re-served, unchanged
    (records keep the upstream `ts_publish_ns`), and the trees feed its own

@@ -6,7 +6,7 @@ Public websocket gateway and relay for the bleh.xyz mesh.
 
 ## Responsibility
 
-Websocket gateway implementing [gateway-v0](../../docs/protocol/gateway-v0.md) in JSON and CBOR: subscriptions with wildcards, snapshot plus contiguous deltas, per-block heartbeats and commitments, forced re-snapshots, slow-consumer policy, per-IP and rate limits; relay mode that verifies every commitment before re-serving; `/health`, `/freshness`, `/metrics`, `/proof`, `/signers`; a synthetic demo feed. Runbook: [docs/operations/gateway.md](../../docs/operations/gateway.md).
+Websocket gateway implementing [gateway-v0](../../docs/protocol/gateway-v0.md) in JSON and CBOR: subscriptions with wildcards, snapshot plus contiguous deltas (L4 book events, or gateway-derived L2 level deltas), per-venue block heartbeats and commitments, forced re-snapshots, slow-consumer policy, per-IP and rate limits; relay mode that verifies every commitment before re-serving; `/health`, `/freshness`, `/metrics`, `/proof`, `/signers`; a synthetic demo feed; every flag also settable as a `BLEH_GATEWAY_*` environment variable. Runbook: [docs/operations/gateway.md](../../docs/operations/gateway.md).
 
 ## Rules
 
