@@ -208,17 +208,21 @@ pub fn compare(backfill: &[Record], live: &[Record]) -> Result<CompareReport, Co
     Ok(report)
 }
 
-/// Loads records from a JSON-lines file, or from every `*.jsonl` file
-/// under a directory (recursively, in path order).
+/// Loads records from a JSON-lines or Parquet partition file, or from
+/// every `*.jsonl` and `*.parquet` file under a directory (recursively, in
+/// path order). Parquet files are read with the archive crate's reader and
+/// must pass its content-hash check.
 ///
 /// # Errors
 ///
-/// Fails on I/O errors or a line that is not a record.
+/// Fails on I/O errors, a line that is not a record, or a Parquet file
+/// that cannot be read or whose declared content hash does not match.
 pub fn load_records(path: &Path) -> Result<Vec<Record>, CompareError> {
     let io = |p: &Path, source| CompareError::Io {
         path: p.display().to_string(),
         source,
     };
+    let is_parquet = |p: &Path| p.extension().is_some_and(|x| x == "parquet");
     let mut files = Vec::new();
     if path.is_dir() {
         let mut stack = vec![path.to_owned()];
@@ -227,7 +231,7 @@ pub fn load_records(path: &Path) -> Result<Vec<Record>, CompareError> {
                 let p = e.map_err(|e| io(&dir, e))?.path();
                 if p.is_dir() {
                     stack.push(p);
-                } else if p.extension().is_some_and(|x| x == "jsonl") {
+                } else if p.extension().is_some_and(|x| x == "jsonl") || is_parquet(&p) {
                     files.push(p);
                 }
             }
@@ -238,6 +242,21 @@ pub fn load_records(path: &Path) -> Result<Vec<Record>, CompareError> {
     }
     let mut out = Vec::new();
     for f in files {
+        if is_parquet(&f) {
+            let bytes = std::fs::read(&f).map_err(|e| io(&f, e))?;
+            let bad = |reason: String| CompareError::Parse {
+                path: f.display().to_string(),
+                line: 0,
+                reason,
+            };
+            let part =
+                archive::partition::read_parquet(bytes.into()).map_err(|e| bad(e.to_string()))?;
+            if !part.consistent() {
+                return Err(bad("declared content hash or count does not match".into()));
+            }
+            out.extend(part.records);
+            continue;
+        }
         let file = std::fs::File::open(&f).map_err(|e| io(&f, e))?;
         for (i, line) in std::io::BufReader::new(file).lines().enumerate() {
             let line = line.map_err(|e| io(&f, e))?;

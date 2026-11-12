@@ -10,9 +10,11 @@
 //! 2. **Process** ([`process`]): decompress raw objects, apply a field
 //!    filter ([`filter::RawLineFilter`]), write filtered raw, parse to
 //!    records ([`parse::RecordParser`]) flagged `backfill` under ADM-0003,
-//!    and hand them to a [`partition::PartitionWriter`]. The traits are
-//!    implemented locally for tests; the integrator wires the node reader's
-//!    filter and parser and the archive's partition writer. [`compare`]
+//!    and hand them to a [`partition::PartitionWriter`]. By default
+//!    ([`process::Pipeline::wired`]) by-block fills objects go through the
+//!    node reader's filter and parser (the live code path), the other
+//!    bucket formats through this crate's own, and partitions are written
+//!    by the archive crate's deterministic Parquet writer. [`compare`]
 //!    checks backfilled hours against live-recorded overlap days.
 //! 3. **Replay** ([`replay`]): a prototype emulated matching engine that
 //!    turns simplified `replica_cmds` actions into book events and trades,

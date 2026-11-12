@@ -1,22 +1,40 @@
 //! Writing records to partitions.
 //!
-//! [`PartitionWriter`] is the seam for the archive crate's Parquet writer
-//! (`docs/specs/archive-layout-v0.md` § 3). The pipeline calls it once per
-//! partition and hour, with the records already in canonical order, so a
-//! writer that appends keeps each partition in canonical order as long as
-//! hours are processed in order.
+//! [`PartitionWriter`] is the seam. The pipeline calls
+//! [`PartitionWriter::write_partition`] once per partition and hour, with
+//! the records already in canonical order, then
+//! [`PartitionWriter::finish_hour`] after each hour and
+//! [`PartitionWriter::flush`] at the end of the run.
 //!
-//! Local implementations: [`MemoryWriter`] (tests) and [`JsonlWriter`],
-//! which writes canonical JSON lines under the same Hive paths. JSON lines
-//! are a development and comparison format, not the published one.
+//! Implementations:
+//!
+//! - [`ParquetWriter`] (the binary's default): the archive crate's
+//!   deterministic Parquet partition writer
+//!   ([`archive::partition::write_partitions`], archive-layout-v0 § 3),
+//!   under the backfill archive's own root ([`BACKFILL_ARCHIVE`] by
+//!   default; archive-layout-v0 § 1). Parquet files cannot be appended to
+//!   and partitions are daily, so it buffers each partition until its day
+//!   is complete (one hour after the day ends, for records whose source
+//!   time falls just before the hourly file they arrive in) and writes it
+//!   once.
+//! - [`JsonlWriter`]: canonical JSON lines under the same Hive paths, a
+//!   debugging and comparison format (`process --format jsonl`), not the
+//!   published one.
+//! - [`MemoryWriter`], for tests.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::PathBuf;
 
+use archive::partition::{PartitionOptions, WrittenFile, write_partitions};
 use mesh_types::{InstrumentId, Record, RecordKind, UnixMillis, VenueId};
+use serde::Serialize;
 
 use crate::buckets::Day;
+
+/// Name of the backfill archive (archive-layout-v0 § 1: a backfill is its
+/// own archive, with its own manifest chain and admission ID).
+pub const BACKFILL_ARCHIVE: &str = "hyperliquid-backfill";
 
 /// The partition a record belongs to.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -72,6 +90,13 @@ pub enum WriteError {
     /// Encoding.
     #[error("encoding a record: {0}")]
     Encode(String),
+    /// The archive crate's writer failed (invalid or duplicate records,
+    /// a write-once conflict, a failed read-back check, I/O).
+    #[error("archive partition writer: {0}")]
+    Archive(String),
+    /// Records arrived for a partition that was already written.
+    #[error("partition {0} was already written; process whole days in order")]
+    Closed(String),
 }
 
 /// Writes records to partitions.
@@ -84,6 +109,162 @@ pub trait PartitionWriter: Send {
     /// Fails if the records cannot be written.
     fn write_partition(&mut self, key: &PartitionKey, records: &[Record])
     -> Result<(), WriteError>;
+
+    /// Called after the hour starting at `hour_start` has been handed over
+    /// in full. Hours arrive in order.
+    ///
+    /// # Errors
+    ///
+    /// Fails if buffered partitions cannot be written.
+    fn finish_hour(&mut self, hour_start: UnixMillis) -> Result<(), WriteError> {
+        let _ = hour_start;
+        Ok(())
+    }
+
+    /// Called once at the end of a run: writes everything still buffered.
+    ///
+    /// # Errors
+    ///
+    /// Fails if buffered partitions cannot be written.
+    fn flush(&mut self) -> Result<(), WriteError> {
+        Ok(())
+    }
+}
+
+/// One partition file written by [`ParquetWriter`], for the run report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PartitionFile {
+    /// Path relative to the archive root.
+    pub path: String,
+    /// Records in the file.
+    pub record_count: u64,
+    /// Canonical content hash of the records (`bleh.content_hash`).
+    pub content_hash: String,
+    /// SHA-256 of the file bytes.
+    pub sha256: String,
+    /// File size in bytes.
+    pub size: u64,
+    /// True if an identical file was already there (a rerun).
+    pub already_present: bool,
+}
+
+impl From<&WrittenFile> for PartitionFile {
+    fn from(w: &WrittenFile) -> Self {
+        Self {
+            path: w.path.clone(),
+            record_count: w.record_count,
+            content_hash: w.content_hash.to_string(),
+            sha256: w.sha256.to_string(),
+            size: w.size,
+            already_present: w.already_present,
+        }
+    }
+}
+
+/// Writes daily Parquet partitions with the archive crate's writer under
+/// an archive root (see the module docs).
+///
+/// Files are write-once: rerunning a day with identical input finds
+/// byte-identical files and reports them `already_present`; different
+/// content for an existing file is an error. Book snapshots that resolve
+/// to the same block in two consecutive hourly files keep the later one
+/// (as within one file); any other duplicate `seq` is an error.
+#[derive(Debug)]
+pub struct ParquetWriter {
+    root: PathBuf,
+    opts: PartitionOptions,
+    pending: BTreeMap<PartitionKey, Vec<Record>>,
+    written_keys: BTreeSet<PartitionKey>,
+    /// Files written so far, in write order.
+    pub files: Vec<PartitionFile>,
+}
+
+impl ParquetWriter {
+    /// A writer for the archive rooted at `root` (for example
+    /// `<out-dir>/hyperliquid-backfill`), with the archive crate's default
+    /// options: validation, read-back check, write-once.
+    #[must_use]
+    pub fn new(root: impl Into<PathBuf>) -> Self {
+        Self {
+            root: root.into(),
+            opts: PartitionOptions::default(),
+            pending: BTreeMap::new(),
+            written_keys: BTreeSet::new(),
+            files: Vec::new(),
+        }
+    }
+
+    /// The archive root.
+    #[must_use]
+    pub fn root(&self) -> &std::path::Path {
+        &self.root
+    }
+
+    fn write_keys(&mut self, keys: Vec<PartitionKey>) -> Result<(), WriteError> {
+        let mut records = Vec::new();
+        for key in keys {
+            let Some(mut rs) = self.pending.remove(&key) else {
+                continue;
+            };
+            if key.kind == RecordKind::BookSnapshot {
+                // Stable sort keeps arrival order among equal seqs; keep
+                // the last of each run.
+                rs.sort_by_key(|r| r.prov().seq);
+                let mut kept: Vec<Record> = Vec::with_capacity(rs.len());
+                for r in rs {
+                    match kept.last_mut() {
+                        Some(last) if last.prov().seq == r.prov().seq => *last = r,
+                        _ => kept.push(r),
+                    }
+                }
+                rs = kept;
+            }
+            records.extend(rs);
+            self.written_keys.insert(key);
+        }
+        if records.is_empty() {
+            return Ok(());
+        }
+        let written = write_partitions(&self.root, records, &self.opts)
+            .map_err(|e| WriteError::Archive(e.to_string()))?;
+        self.files.extend(written.iter().map(PartitionFile::from));
+        Ok(())
+    }
+}
+
+impl PartitionWriter for ParquetWriter {
+    fn write_partition(
+        &mut self,
+        key: &PartitionKey,
+        records: &[Record],
+    ) -> Result<(), WriteError> {
+        if self.written_keys.contains(key) {
+            return Err(WriteError::Closed(key.hive_dir("")));
+        }
+        self.pending
+            .entry(key.clone())
+            .or_default()
+            .extend_from_slice(records);
+        Ok(())
+    }
+
+    fn finish_hour(&mut self, hour_start: UnixMillis) -> Result<(), WriteError> {
+        // A day is complete once the first hour after it has been handed
+        // over: write partitions of days that ended at or before the start
+        // of the hour just finished.
+        let done: Vec<PartitionKey> = self
+            .pending
+            .keys()
+            .filter(|k| k.date.succ().start_ms() <= hour_start)
+            .cloned()
+            .collect();
+        self.write_keys(done)
+    }
+
+    fn flush(&mut self) -> Result<(), WriteError> {
+        let all: Vec<PartitionKey> = self.pending.keys().cloned().collect();
+        self.write_keys(all)
+    }
 }
 
 /// Keeps partitions in memory.
@@ -217,5 +398,48 @@ pub(crate) mod tests {
             .collect();
         assert_eq!(back, [a, b]);
         assert_eq!(hour_of(UnixMillis(3_600_001)), UnixMillis(3_600_000));
+    }
+
+    #[test]
+    fn parquet_writer_writes_each_day_once_it_is_complete() {
+        // 2025-07-27T00:00:01Z and the next day's first hour.
+        let (t, day_end) = (1_753_574_401_000, 1_753_660_800_000);
+        let a = trade("hyperliquid:perp:BTC", 2, 0, t + 1000);
+        let b = trade("hyperliquid:perp:BTC", 1, 0, t);
+        let k = PartitionKey::of(&a);
+        let mut runs = Vec::new();
+        for _ in 0..2 {
+            let dir = crate::testutil::tempdir().join(BACKFILL_ARCHIVE);
+            let mut w = ParquetWriter::new(&dir);
+            w.write_partition(&k, std::slice::from_ref(&a)).unwrap();
+            w.finish_hour(UnixMillis(day_end - 3_600_000)).unwrap();
+            assert!(w.files.is_empty(), "the slack hour has not passed");
+            w.write_partition(&k, std::slice::from_ref(&b)).unwrap();
+            w.finish_hour(UnixMillis(day_end)).unwrap();
+            assert_eq!(w.files.len(), 1);
+            assert!(matches!(
+                w.write_partition(&k, std::slice::from_ref(&a)),
+                Err(WriteError::Closed(_))
+            ));
+            w.flush().unwrap();
+            let f = &w.files[0];
+            assert_eq!(
+                f.path,
+                "kind=trade/venue=hyperliquid/instrument=hyperliquid~perp~BTC/date=2025-07-27/part-00000.parquet"
+            );
+            let bytes = std::fs::read(dir.join(&f.path)).unwrap();
+            let back = archive::partition::read_parquet(bytes.into()).unwrap();
+            assert!(back.consistent());
+            assert_eq!(back.records, [b.clone(), a.clone()], "sorted by seq");
+            assert_eq!(back.content_hash.to_string(), f.content_hash);
+
+            // A rerun with the same records finds the identical file.
+            let mut again = ParquetWriter::new(&dir);
+            again.write_partition(&k, &[b.clone(), a.clone()]).unwrap();
+            again.flush().unwrap();
+            assert!(again.files[0].already_present);
+            runs.push(f.clone());
+        }
+        assert_eq!(runs[0], runs[1], "byte-identical across runs");
     }
 }

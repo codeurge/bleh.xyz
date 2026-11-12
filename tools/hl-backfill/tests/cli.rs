@@ -96,10 +96,59 @@ fn process_compare_and_replay_on_local_files() {
         root.join("filtered/stream=node_fills_by_block/date=2025-07-27/09.jsonl.zst")
             .is_file()
     );
+    // Parquet partitions under the backfill archive, listed in the report.
+    let trade_part = "kind=trade/venue=hyperliquid/instrument=hyperliquid~perp~SOL/date=2025-07-27/part-00000.parquet";
     assert!(
         parts
-            .join("kind=trade/venue=hyperliquid/instrument=hyperliquid~perp~SOL/date=2025-07-27/records.jsonl")
+            .join("hyperliquid-backfill")
+            .join(trade_part)
             .is_file()
+    );
+    let listed: Vec<&str> = report["partitions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["path"].as_str().unwrap())
+        .collect();
+    assert!(listed.contains(&trade_part), "{listed:?}");
+
+    // The JSON-lines debugging format writes the same partitions.
+    let jsonl = root.join("parts-jsonl");
+    let out = bin()
+        .args(["process", "--datasets", "node_fills_by_block,market_data"])
+        .args(["--format", "jsonl"])
+        .arg("--raw")
+        .arg(format!("file://{}", raw.display()))
+        .arg("--filtered")
+        .arg(format!("file://{}", root.join("filtered-jsonl").display()))
+        .arg("--out-dir")
+        .arg(&jsonl)
+        .arg("--registry")
+        .arg(&registry)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        jsonl
+            .join("hyperliquid-backfill/kind=trade/venue=hyperliquid/instrument=hyperliquid~perp~SOL/date=2025-07-27/records.jsonl")
+            .is_file()
+    );
+    let out = bin()
+        .arg("compare")
+        .arg("--backfill")
+        .arg(&parts)
+        .arg("--live")
+        .arg(&jsonl)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "Parquet and JSON lines hold the same records: {}",
+        String::from_utf8_lossy(&out.stdout)
     );
 
     let out = bin()

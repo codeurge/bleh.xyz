@@ -15,9 +15,16 @@
 //! 4. stamp every record with admission `ADM-0003` and flag `backfill`,
 //!    validate it and check it against the mesh field allowlist;
 //! 5. group the hour's records by partition, sort them canonically and
-//!    hand them to the injected [`PartitionWriter`];
+//!    hand them to the injected [`PartitionWriter`], then tell it the hour
+//!    is done (and flush it at the end of the run);
 //! 6. report counts and a content hash per (kind, instrument) for the
 //!    hour, which [`compare`](crate::compare) checks against live data.
+//!
+//! The defaults ([`Pipeline::wired`], used by the binary) are the node
+//! reader's filter and parser for by-block fills objects, this crate's
+//! local ones for the other bucket formats ([`DefaultFilter`],
+//! [`DefaultParser`]) and the archive crate's Parquet writer
+//! ([`ParquetWriter`]).
 //!
 //! An object that fails any step contributes nothing, and the hour is
 //! reported as incomplete; the run continues with the next object.
@@ -33,10 +40,10 @@ use crate::buckets::{Dataset, Day};
 use crate::clock::{BlockClock, ChainClock, TableClock};
 use crate::codec::{DEFAULT_MAX_DECOMPRESSED, lz4_to_string, zstd_archive};
 use crate::copy::dest_key;
-use crate::filter::RawLineFilter;
+use crate::filter::{DefaultFilter, RawLineFilter};
 use crate::listing::SourceObject;
-use crate::parse::RecordParser;
-use crate::partition::{PartitionKey, PartitionWriter, hour_of};
+use crate::parse::{DefaultParser, RecordParser};
+use crate::partition::{ParquetWriter, PartitionKey, PartitionWriter, hour_of};
 
 /// Pipeline settings.
 #[derive(Debug, Clone)]
@@ -183,6 +190,29 @@ pub fn hashes_by_stream(records: &[&Record]) -> Result<BTreeMap<String, (u64, St
                 .map_err(|e| e.to_string())
         })
         .collect()
+}
+
+impl<'a> Pipeline<'a, DefaultFilter, DefaultParser, ParquetWriter> {
+    /// The default pipeline: the node reader's filter and parser for
+    /// by-block fills objects, the local ones for the other formats, and
+    /// Parquet partitions under the archive root `archive_root` (for
+    /// example `<out-dir>/hyperliquid-backfill`).
+    pub fn wired(
+        raw: &'a dyn ObjectStore,
+        filtered: &'a dyn ObjectStore,
+        cfg: ProcessConfig,
+        registry: mesh_types::Registry,
+        archive_root: impl Into<std::path::PathBuf>,
+    ) -> Self {
+        Self::new(
+            raw,
+            filtered,
+            cfg,
+            DefaultFilter::default(),
+            DefaultParser::new(registry),
+            ParquetWriter::new(archive_root),
+        )
+    }
 }
 
 impl<'a, F: RawLineFilter, P: RecordParser, W: PartitionWriter> Pipeline<'a, F, P, W> {
@@ -357,7 +387,9 @@ impl<'a, F: RawLineFilter, P: RecordParser, W: PartitionWriter> Pipeline<'a, F, 
             let start = UnixMillis(day.start_ms().0 + i64::from(hour) * 3_600_000);
             self.clock.retain_from(UnixMillis(start.0 - 3_600_000));
             report.hours.push(rep);
+            self.writer.finish_hour(start)?;
         }
+        self.writer.flush()?;
         Ok(report)
     }
 

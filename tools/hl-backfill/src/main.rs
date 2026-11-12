@@ -11,16 +11,17 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
+use archive::layout::check_archive;
 use clap::{Args, Parser, Subcommand};
 use hl_backfill::buckets::{Bucket, Dataset, Day};
 use hl_backfill::checkpoint::Checkpoint;
 use hl_backfill::clock::TableClock;
 use hl_backfill::copy::{Copier, CopyConfig};
 use hl_backfill::estimate::{Estimate, Prices};
-use hl_backfill::filter::LocalFilter;
+use hl_backfill::filter::DefaultFilter;
 use hl_backfill::listing::{Selection, SourceObject, list_dataset};
-use hl_backfill::parse::LocalParser;
-use hl_backfill::partition::JsonlWriter;
+use hl_backfill::parse::DefaultParser;
+use hl_backfill::partition::{BACKFILL_ARCHIVE, JsonlWriter};
 use hl_backfill::process::{Pipeline, ProcessConfig};
 use hl_backfill::replay::cmds::parse_blocks;
 use hl_backfill::replay::matcher::{AssetSpec, Matcher};
@@ -86,7 +87,8 @@ enum Command {
         dry_run: bool,
     },
     /// Filter and normalize raw-tier objects into filtered raw and
-    /// partitions (JSON lines; the integrator wires the Parquet writer).
+    /// partitions (the node reader's filter and parser for by-block fills,
+    /// Parquet partitions from the archive crate's writer).
     Process {
         #[command(flatten)]
         sel: SelectionArgs,
@@ -96,9 +98,17 @@ enum Command {
         /// Filtered raw output: s3://bucket[/prefix] or file:///dir.
         #[arg(long)]
         filtered: String,
-        /// Directory for record partitions (JSON lines, Hive layout).
+        /// Directory holding archives; partitions go to
+        /// `<out-dir>/<archive>/kind=.../part-NNNNN.parquet`.
         #[arg(long)]
         out_dir: PathBuf,
+        /// Archive name of the partitions (archive-layout-v0 § 1).
+        #[arg(long, default_value = BACKFILL_ARCHIVE)]
+        archive: String,
+        /// Partition format: Parquet (published) or canonical JSON lines
+        /// (`records.jsonl` per partition, for debugging).
+        #[arg(long, value_enum, default_value_t = OutputFormat::Parquet)]
+        format: OutputFormat,
         /// Instrument registry JSON (`{"instruments": [...]}`).
         #[arg(long)]
         registry: PathBuf,
@@ -109,10 +119,10 @@ enum Command {
     },
     /// Compare backfilled records with live-recorded records per hour.
     Compare {
-        /// Backfilled records: a JSON-lines file or a directory of them.
+        /// Backfilled records: a JSON-lines or Parquet file, or a directory of them.
         #[arg(long)]
         backfill: PathBuf,
-        /// Live records: a JSON-lines file or a directory of them.
+        /// Live records: a JSON-lines or Parquet file, or a directory of them.
         #[arg(long)]
         live: PathBuf,
     },
@@ -138,6 +148,15 @@ enum Command {
         #[arg(long, default_value_t = 1)]
         first_oid: u64,
     },
+}
+
+/// Partition output format of `process`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum OutputFormat {
+    /// Deterministic Parquet partitions (archive-layout-v0 § 3).
+    Parquet,
+    /// Canonical JSON lines under the same Hive paths.
+    Jsonl,
 }
 
 #[derive(Debug, Args)]
@@ -324,9 +343,12 @@ async fn run(cli: Cli) -> Result<bool> {
             raw,
             filtered,
             out_dir,
+            archive,
+            format,
             registry,
             clock_lines,
         } => {
+            check_archive(&archive)?;
             let datasets: Vec<Dataset> = sel
                 .datasets()?
                 .into_iter()
@@ -370,20 +392,44 @@ async fn run(cli: Cli) -> Result<bool> {
                 filtered_root: filtered_url.prefix().to_owned(),
                 ..ProcessConfig::default()
             };
-            let mut pipeline = Pipeline::new(
-                raw_store.as_ref(),
-                filtered_store.as_ref(),
-                cfg,
-                LocalFilter,
-                LocalParser::new(registry),
-                JsonlWriter::new(out_dir),
-            );
-            if let Some(c) = &external {
-                pipeline = pipeline.with_external_clock(c);
+            let archive_root = out_dir.join(&archive);
+            let (report, partitions) = match format {
+                OutputFormat::Parquet => {
+                    let mut pipeline = Pipeline::wired(
+                        raw_store.as_ref(),
+                        filtered_store.as_ref(),
+                        cfg,
+                        registry,
+                        &archive_root,
+                    );
+                    if let Some(c) = &external {
+                        pipeline = pipeline.with_external_clock(c);
+                    }
+                    let report = pipeline.run(&objects).await?;
+                    (report, Some(pipeline.writer.files))
+                }
+                OutputFormat::Jsonl => {
+                    let mut pipeline = Pipeline::new(
+                        raw_store.as_ref(),
+                        filtered_store.as_ref(),
+                        cfg,
+                        DefaultFilter::default(),
+                        DefaultParser::new(registry),
+                        JsonlWriter::new(&archive_root),
+                    );
+                    if let Some(c) = &external {
+                        pipeline = pipeline.with_external_clock(c);
+                    }
+                    (pipeline.run(&objects).await?, None)
+                }
+            };
+            let complete = report.hours.iter().all(|h| h.complete());
+            let mut json = serde_json::to_value(&report)?;
+            if let (Some(files), Some(obj)) = (partitions, json.as_object_mut()) {
+                obj.insert("partitions".into(), serde_json::to_value(files)?);
             }
-            let report = pipeline.run(&objects).await?;
-            print_json(&report)?;
-            Ok(report.hours.iter().all(|h| h.complete()))
+            print_json(&json)?;
+            Ok(complete)
         }
         Command::Compare { backfill, live } => {
             let b = hl_backfill::compare::load_records(&backfill)?;

@@ -1575,6 +1575,7 @@ name = "hl-backfill"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "archive",
  "async-trait",
  "bytes",
  "clap",
