@@ -18,9 +18,23 @@
 //! | Records from one block | [`mod@normalize`] | yes |
 //! | Joining the three streams per block | [`join`] | yes |
 //! | `prev_block_number` links and gap flags | [`sequence`] | yes |
+//! | L4 snapshots | [`snapshot`] | parse: yes |
+//! | Market registration from metadata | [`markets`] | specs: yes |
 //! | Hourly files, one-pass reading, tail cursors | [`files`] | no |
 //! | One-pass replay of a directory | [`replay`] | no |
 //! | Resume points and the checkpoint file | [`checkpoint`] | no |
+//! | Info server client | [`http`] | no |
+//! | Prometheus metrics | [`metrics`] | no |
+//!
+//! # What other components call
+//!
+//! - Archive: [`filter::filter_line`] / [`filter::filter_raw_line`] on every
+//!   raw line and [`snapshot::filter_l4_snapshot`] on snapshot files to
+//!   write filtered raw; [`replay::Replay`] (with
+//!   [`replay::Replay::sequenced`]) to rebuild records from filtered raw.
+//! - Book builder: [`snapshot::request_l4_snapshot`] and
+//!   [`snapshot::parse_l4_snapshot`] for checkpoints; the `book_event`
+//!   batches of [`sequence::BlockOutput`].
 
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 #![warn(missing_docs)]
@@ -30,11 +44,15 @@ pub mod checkpoint;
 pub mod files;
 pub mod fills;
 pub mod filter;
+pub mod http;
 pub mod join;
+pub mod markets;
+pub mod metrics;
 pub mod normalize;
 pub mod raw;
 pub mod replay;
 pub mod sequence;
+pub mod snapshot;
 
 pub use filter::{StreamDirs, filter_line, filter_raw_line};
 pub use normalize::{ReaderBlock, normalize};
