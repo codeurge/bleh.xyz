@@ -19,9 +19,11 @@ pub mod layout;
 pub mod manifest;
 pub mod metrics;
 pub mod partition;
+pub mod publish;
 pub mod replay;
 pub mod store;
 pub mod torrent;
+pub mod verify;
 
 #[cfg(test)]
 #[allow(dead_code)]
