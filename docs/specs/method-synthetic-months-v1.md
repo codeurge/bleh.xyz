@@ -48,8 +48,31 @@ reproducible ([AGENTS.md](../../AGENTS.md) rule 5).
 | Carry series | `reference_value` | Observed carry (§ 11.1) |
 
 Sources that feed `reference_value` and `swap_print` must be admitted for
-those fields; until the reference pollers exist, the engine is tested on
-synthetic records only.
+those fields.
+
+### 2.1 Rates from the reference pollers (informative)
+
+`crates/reference-pollers` emits the admitted rate series as
+`reference_value` records the engine reads unchanged. The preset curve
+(`CurveConfig::reference_pollers()`, `synthetic --curve
+reference-pollers`) maps them as follows; it changes no formula of this
+method.
+
+| Curve input | Instrument | Conventions | Admission |
+|---|---|---|---|
+| Overnight node and fixings | `nyfed:ref:SOFR` | rate, `ON`, simple act/360 | ADM-0007 |
+| Set 1 (short end) | `us-treasury:ref:bill_rates_coupon_equivalent` | rate, tenor `{n}W` and the bill's `maturity_date`; simple act/365F (52 weeks: semi-annual) | ADM-0006 |
+| Set 2 (beyond the longest bill) | `us-treasury:ref:par_yield_curve` | par yield, semi-annual, tenors `1M` to `30Y` (`1.5 Month` as `6W`) | ADM-0006 |
+
+- A revised value (higher `revision` for the same date and tenor or
+  maturity) replaces the earlier one, as § 7 already reads records.
+- Backfilled records carry an estimated publication time (the
+  pollers' documented release schedule), so a backfilled valuation sees a
+  value only after it would have been published.
+- Alternatives: the Board's H.15 constant maturities
+  (`frb-h15:ref:RIFLGFC<u><n>_N.B`, par yields, same lineage as the
+  Treasury curve) can replace set 2, and EFFR (`nyfed:ref:EFFR`) can be the
+  overnight series of an exposure on that rate.
 
 ## 3. Arithmetic and rounding
 

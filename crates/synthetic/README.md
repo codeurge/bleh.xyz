@@ -5,9 +5,10 @@ an exposure, computed without exchange data by the method
 `synthetic-months@1`.
 
 **Status:** library and binary implemented and tested on synthetic
-fixtures only. The reference sources (government yields, the overnight
-rate) are being admitted; until their pollers exist the engine has no real
-rate inputs. Not yet wired into the origin. **Owner:** synthetic
+fixtures only. Rates come from `crates/reference-pollers` records through
+the curve preset `CurveConfig::reference_pollers()` (`--curve
+reference-pollers`; mapping in the method spec § 2.1). Not yet wired into
+the origin. **Owner:** synthetic
 contract-month lane.
 
 ## Responsibility
