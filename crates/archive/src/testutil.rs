@@ -290,6 +290,20 @@ pub(crate) fn analytics() -> Vec<Record> {
     let rv_prov = serde_json::to_value(&rv).unwrap();
     let mut rv_prov2 = rv_prov.clone();
     rv_prov2["instrument"] = serde_json::json!("example-rates:ref:BILL");
+    let mut rv_prov3 = rv_prov.clone();
+    rv_prov3["instrument"] = serde_json::json!("example-rates:ref:HOURLY.NODE");
+    let mut pos = self::prov(
+        "example-cot:positioning:000001",
+        20_260_101,
+        0,
+        DAY_MS + 40_000,
+    );
+    pos.venue = VenueId::new("example-cot").unwrap();
+    pos.admission = mesh_types::AdmissionId::new("ADM-9001").unwrap();
+    let pos_prov = serde_json::to_value(&pos).unwrap();
+    let mut pos_prov2 = pos_prov.clone();
+    pos_prov2["seq"]["event_index"] = serde_json::json!(1);
+    pos_prov2["flags"] = serde_json::json!(["exchange_referenced"]);
     let mut sm = self::prov(
         "synthetic:month:example-index:2026-03",
         1_767_225_660,
@@ -369,6 +383,22 @@ pub(crate) fn analytics() -> Vec<Record> {
             "kind": "reference_value", "prov": rv_prov2, "measure": "price", "value": "98.7650",
             "tenor": null, "maturity_date": "2026-06-30", "day_count": null, "compounding": null,
             "currency": "USD", "as_of_date": "2025-12-31", "revision": 1
+        }),
+        serde_json::json!({
+            "kind": "reference_value", "prov": rv_prov3, "measure": "price", "value": "-12.50",
+            "tenor": null, "maturity_date": null, "day_count": null, "compounding": null,
+            "currency": "USD", "as_of_date": "2026-01-01", "revision": 0,
+            "period_start_ms": DAY_MS, "period_end_ms": DAY_MS + 3_600_000
+        }),
+        serde_json::json!({
+            "kind": "positioning", "prov": pos_prov, "report": "disaggregated", "combined": false,
+            "contract_market_code": "000001", "as_of_date": "2025-12-30", "category": "managed_money",
+            "long": 1200, "short": 800, "spreading": 150, "open_interest": 10000, "revision": 0
+        }),
+        serde_json::json!({
+            "kind": "positioning", "prov": pos_prov2, "report": "legacy", "combined": true,
+            "contract_market_code": "000001", "as_of_date": "2025-12-30", "category": "nonreportable",
+            "long": 300, "short": 450, "spreading": null, "open_interest": 12500, "revision": 0
         }),
         serde_json::json!({
             "kind": "synthetic_month", "prov": sm_prov, "derived": derived("synthetic-months@1", 5),

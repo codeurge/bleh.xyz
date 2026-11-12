@@ -1022,6 +1022,9 @@ fn flag_meaning(f: Flag) -> &'static str {
         Flag::Replayed => {
             "Reconstructed by replaying venue actions through an emulated matcher, not observed directly."
         }
+        Flag::ExchangeReferenced => {
+            "A public body's statistic whose underlying transactions may be priced against an exchange price, or that uses an exchange-supplied factor; never an exchange price."
+        }
     }
 }
 

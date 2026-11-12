@@ -22,4 +22,5 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0012](0012-open-terms-route-for-public-bodies-and-market-operators.md) | Admission policy amendment: open-terms route for public bodies and regulated market operators; `exchange_referenced` flag | Accepted |
 | [0013](0013-synthetic-contract-months.md) | Synthetic contract months without exchange data | Accepted |
 | [0014](0014-user-supplied-data-stays-local.md) | User-supplied data stays on the user's machine (bring your own feed) | Accepted |
+| [0015](0015-v0-amendments-for-reference-pollers.md) | Data model amendments for the reference pollers: `exchange_referenced` bit, `positioning` kind, reference-value periods, manifest notices | Proposed |
 

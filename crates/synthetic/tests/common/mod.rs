@@ -147,6 +147,8 @@ pub fn reference(
         currency: None,
         as_of_date: as_of_date.into(),
         revision,
+        period_start_ms: None,
+        period_end_ms: None,
     }
     .into()
 }

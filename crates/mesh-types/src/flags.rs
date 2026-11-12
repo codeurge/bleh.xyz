@@ -37,11 +37,17 @@ pub enum Flag {
     /// archive), not observed directly. Always set together with
     /// [`Flag::Backfill`].
     Replayed = 1 << 6,
+    /// A public body's statistic whose underlying transactions may be
+    /// privately priced by formula against an exchange price or an
+    /// exchange-published index, or whose computation uses a factor an
+    /// exchange supplies (ADR 0012, decision 6). The record is still the
+    /// public body's statistic, never an exchange price.
+    ExchangeReferenced = 1 << 7,
 }
 
 impl Flag {
     /// Every flag, in bit order.
-    pub const ALL: [Flag; 7] = [
+    pub const ALL: [Flag; 8] = [
         Flag::OracleAnchoredVenue,
         Flag::Backfill,
         Flag::GapBefore,
@@ -49,6 +55,7 @@ impl Flag {
         Flag::SizeCapped,
         Flag::BlockTradeDelayed,
         Flag::Replayed,
+        Flag::ExchangeReferenced,
     ];
 
     /// The flag's bit.
@@ -68,6 +75,7 @@ impl Flag {
             Flag::SizeCapped => "size_capped",
             Flag::BlockTradeDelayed => "block_trade_delayed",
             Flag::Replayed => "replayed",
+            Flag::ExchangeReferenced => "exchange_referenced",
         }
     }
 
@@ -202,7 +210,7 @@ mod tests {
         assert_eq!(Flags::from_bits(0b11).unwrap(), f);
         assert_eq!(Flags::from_bits(1 << 31), Err(UnknownFlagBits(1 << 31)));
         let all: Flags = Flag::ALL.into_iter().collect();
-        assert_eq!(all.bits(), 0b111_1111);
+        assert_eq!(all.bits(), 0b1111_1111);
         for flag in Flag::ALL {
             assert_eq!(Flag::from_name(flag.name()), Some(flag));
         }
@@ -222,5 +230,12 @@ mod tests {
         );
         assert!(serde_json::from_str::<Flags>(r#"["backfill","backfill"]"#).is_err());
         assert!(serde_json::from_str::<Flags>(r#"["mark_price"]"#).is_err());
+        let x = Flags::NONE
+            .with(Flag::ExchangeReferenced)
+            .with(Flag::Backfill);
+        let json = serde_json::to_string(&x).unwrap();
+        assert_eq!(json, r#"["backfill","exchange_referenced"]"#);
+        assert_eq!(x.bits(), 0b1000_0010);
+        assert_eq!(Flags::from_bits(1 << 8), Err(UnknownFlagBits(1 << 8)));
     }
 }

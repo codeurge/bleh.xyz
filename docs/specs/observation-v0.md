@@ -52,6 +52,7 @@ fields.
 | `coverage` | What the recorder observed of a venue over an interval (§ 2.11) | no |
 | `reference_value` | A published public reference value: rate, yield, price or index level (§ 2.12) | no |
 | `synthetic_month` | Fair value of one contract month of an exposure (§ 2.13) | yes |
+| `positioning` | A regulator's futures positioning statistics for one trader category (§ 2.14) | no |
 
 The order of this table is the canonical kind order (§ 6.2).
 
@@ -221,6 +222,7 @@ identical.
 | 4 | `size_capped` | The source capped the size or notional |
 | 5 | `block_trade_delayed` | The source delayed the record as a block trade |
 | 6 | `replayed` | Reconstructed by replaying venue actions through an emulated matcher (for example order-level books rebuilt from a public action archive), not observed; always together with `backfill` |
+| 7 | `exchange_referenced` | A public body's statistic whose underlying transactions may be privately priced by formula against an exchange price or an exchange-published index, or whose computation uses an exchange-supplied factor ([ADR 0012](../decisions/0012-open-terms-route-for-public-bodies-and-market-operators.md), decision 6). The record is still the public body's statistic, never an exchange price. Each admission record says which records carry it |
 
 JSON lists names in bit order without duplicates; Arrow stores the `u32`.
 Unknown names and bits are rejected; a new flag is a new minor version.
@@ -288,7 +290,8 @@ emitted by future reference pollers and read by the synthetic-month engine
 | `compounding` | `simple`, `discount`, `annual`, `semi_annual`, `continuous` or null | Required for rates and yields; null otherwise |
 | `currency` | ISO 4217 or null | Prices only |
 | `as_of_date` | `YYYY-MM-DD` | The business day the value is for |
-| `revision` | integer | 0 for the first publication; a higher revision for the same series, tenor and `as_of_date` supersedes |
+| `revision` | integer | 0 for the first publication; a higher revision for the same series, tenor, maturity, period and `as_of_date` supersedes |
+| `period_start_ms`, `period_end_ms` | ms, optional | The delivery or settlement interval within the day that the value is for (for example one hour or 15 minutes of a grid operator's price), start inclusive, end exclusive. Both present or both omitted; omitted (not `null`) when absent, so records without a period keep their canonical encoding |
 
 - `prov.venue` is the source; `prov.instrument` is `<source>:ref:<series>`
   with the source's own series name. A curve publishes one record per
@@ -296,6 +299,11 @@ emitted by future reference pollers and read by the synthetic-month engine
 - Rates and yields need a `tenor` or a `maturity_date`.
 - `prov.seq` is `(batch, index)` as for swap prints;
   `prov.ts_source_ms` is the publication time.
+- Records admitted with `exchange_referenced` (for example USDA dairy
+  and swine formula prices) carry the flag on every record.
+- A source that requires a notice to travel with its data has the notice
+  in its registry entry and in the archive manifest
+  ([manifest-v0](manifest-v0.md) § 2.3), not in each record.
 
 ### 2.13 `synthetic_month`
 
@@ -340,6 +348,35 @@ record is a model value, not a traded price.
   did, and `backfill` and `replayed` if any input did.
 - `prov.seq` follows § 2.8. The standalone engine, which has no blocks,
   uses `(floor(as_of_ms / 1000), 0)`.
+
+### 2.14 `positioning`
+
+One trader category's open positions in one market on one report date,
+as a regulator publishes them (the CFTC's Commitments of Traders,
+ADM-0005). Not derived, and no price: positions and open interest are the
+regulator's own aggregates of mandatory position reports. Emitted by
+`crates/reference-pollers`.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `report` | `legacy`, `disaggregated`, `tff`, `supplemental` | Report family |
+| `combined` | boolean | True for futures-and-options-combined figures |
+| `contract_market_code` | 1 to 12 of `[A-Z0-9]` | The regulator's code for the market; also the instrument symbol |
+| `as_of_date` | `YYYY-MM-DD` | Report date (positions at that day's close) |
+| `category` | enum | `total_reportable` and `nonreportable` (every family); `noncommercial`, `commercial` (legacy, supplemental); `index_traders` (supplemental); `producer_merchant`, `swap_dealer`, `managed_money` (disaggregated); `other_reportable` (disaggregated, TFF); `dealer`, `asset_manager`, `leveraged_funds` (TFF) |
+| `long`, `short` | integer | Positions in contracts (futures equivalents when combined) |
+| `spreading` | integer or null | Spreading positions, for categories that report them |
+| `open_interest` | integer | The market's total open interest in the same form |
+| `revision` | integer | 0 for the first publication; a higher revision for the same market, family, form, category and `as_of_date` supersedes |
+
+- `prov.venue` is the source (`cftc-cot`) and `prov.instrument` is
+  `<source>:positioning:<contract_market_code>`. The regulator's market
+  and exchange names are source metadata, not identifiers.
+- Combined records convert options with exchange-supplied deltas, so they
+  carry `exchange_referenced`; futures-only records never do. Validation
+  enforces both, and that supplemental records are combined.
+- `prov.seq` is `(batch, index)` and `prov.ts_source_ms` the publication
+  time, as for reference values.
 
 ## 3. Sequence numbers
 
@@ -513,16 +550,17 @@ normalized partitions:
 - Snapshot sides and analytics levels are lists of structs.
 - Derived kinds add `method`, `inputs_hash` (fixed binary 32) and
   `input_count`.
-- Analytics kinds, coverage, reference values and synthetic months
-  (§§ 2.10–2.13) are flat: one column per top-level field. Field metadata `bleh.encoding` says how a column holds
+- Analytics kinds, coverage, reference values, synthetic months and
+  positioning (§§ 2.10–2.14) are flat: one column per top-level field. Field metadata `bleh.encoding` says how a column holds
   its value: `price` or `size` (an `Int64` mantissa at the row's
   `price_scale` or `size_scale`; signed values allowed), `decimal` (exact
   decimal text, for method-defined scales such as basis points with two
   places), `json` (the canonical JSON of a nested value: activity-bar
   `spec`, `first_seq`, order lifetimes, queue levels, heatmap cells);
   otherwise a plain scalar. Kinds with no `price` or `size` column
-  (`liquidity_grade`, `coverage`, `reference_value`) have no scale
-  columns. `synthetic_month` stores `fair_value` and `spot` as `price`;
+  (`liquidity_grade`, `coverage`, `reference_value`, `positioning`) have
+  no scale columns. `reference_value` stores `value` as `decimal` and the
+  optional period as nullable timestamps. `synthetic_month` stores `fair_value` and `spot` as `price`;
   its rates and `year_fraction` are `decimal`, `quality` and `admissions`
   are `json`, and dates are text. Parquet does not
   keep field metadata, so readers take the encoding from the schema.

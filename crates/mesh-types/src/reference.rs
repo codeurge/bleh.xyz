@@ -16,14 +16,20 @@
 //! - `prov.ts_source_ms` is the publication time; `as_of_date` is the
 //!   business day the value is for (an overnight rate for day `D` is often
 //!   published on `D + 1`).
-//! - A later publication for the same series, tenor and `as_of_date` with
-//!   a higher `revision` supersedes an earlier one.
+//! - A later publication for the same series, tenor, period and
+//!   `as_of_date` with a higher `revision` supersedes an earlier one.
+//! - Values for a delivery or settlement interval within the day (for
+//!   example a grid operator's hourly or 15-minute price) carry
+//!   `period_start_ms` and `period_end_ms`. Both are omitted (not `null`)
+//!   when absent, so records without a period keep their canonical
+//!   encoding.
 
 use serde::{Deserialize, Serialize};
 
 use crate::decimal::Price;
 use crate::provenance::Provenance;
 use crate::record::{RecordKind, ValidationError, ensure};
+use crate::time::UnixMillis;
 
 /// Market class of reference-value instruments (`<source>:ref:<series>`).
 pub const REFERENCE_CLASS: &str = "ref";
@@ -110,6 +116,14 @@ pub struct ReferenceValue {
     pub as_of_date: String,
     /// Revision number: 0 for the first publication.
     pub revision: u32,
+    /// Start of the delivery or settlement interval the value is for,
+    /// inclusive (intra-day values only). Omitted when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub period_start_ms: Option<UnixMillis>,
+    /// End of that interval, exclusive. Present exactly when
+    /// `period_start_ms` is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub period_end_ms: Option<UnixMillis>,
 }
 
 /// True for a real proleptic Gregorian date written `YYYY-MM-DD`.
@@ -175,9 +189,22 @@ impl ReferenceValue {
     /// malformed, a rate has no compounding or no tenor or maturity, a
     /// simple or discount rate has no day count, rate conventions are set
     /// on a price or index level, or a currency is set on anything but a
-    /// price or is not three uppercase letters.
+    /// price or is not three uppercase letters, or a period has only one
+    /// end or does not end after it starts.
     pub fn validate(&self) -> Result<(), ValidationError> {
         let k = RecordKind::ReferenceValue;
+        match (self.period_start_ms, self.period_end_ms) {
+            (None, None) => {}
+            (Some(s), Some(e)) => ensure(s.0 < e.0, k, || {
+                "period_end_ms must be after period_start_ms".into()
+            })?,
+            _ => {
+                return Err(ValidationError::new(
+                    k,
+                    "period_start_ms and period_end_ms go together",
+                ));
+            }
+        }
         ensure(
             self.prov.instrument.class_part() == REFERENCE_CLASS,
             k,
@@ -252,6 +279,8 @@ pub(crate) mod tests {
             currency: None,
             as_of_date: "2025-12-31".into(),
             revision: 0,
+            period_start_ms: None,
+            period_end_ms: None,
         }
     }
 
@@ -271,8 +300,20 @@ pub(crate) mod tests {
         r
     }
 
+    /// A synthetic price for one hourly delivery interval.
+    pub(crate) fn interval_price() -> ReferenceValue {
+        let mut r = price();
+        r.prov.instrument = crate::InstrumentId::new("example-rates:ref:HOURLY.NODE").unwrap();
+        r.maturity_date = None;
+        r.value = px("-12.50");
+        r.revision = 0;
+        r.period_start_ms = Some(UnixMillis(1_767_222_000_000));
+        r.period_end_ms = Some(UnixMillis(1_767_225_600_000));
+        r
+    }
+
     pub(crate) fn samples() -> Vec<Record> {
-        vec![overnight().into(), price().into()]
+        vec![overnight().into(), price().into(), interval_price().into()]
     }
 
     #[test]
@@ -287,6 +328,40 @@ pub(crate) mod tests {
         let json = serde_json::to_value(Record::from(overnight())).unwrap();
         assert_eq!(json["day_count"], "act_360");
         assert_eq!(json["kind"], "reference_value");
+        // No period: the fields are omitted, so the canonical encoding of
+        // records without a period is unchanged.
+        assert!(json.get("period_start_ms").is_none());
+        let json = serde_json::to_value(Record::from(interval_price())).unwrap();
+        assert_eq!(json["period_start_ms"], 1_767_222_000_000_i64);
+    }
+
+    #[test]
+    fn canonical_encoding_without_period_is_unchanged() {
+        // Pinned before the period fields existed.
+        let c = crate::hash::canonical_record(&Record::from(overnight())).unwrap();
+        assert_eq!(
+            String::from_utf8(c).unwrap(),
+            concat!(
+                r#"{"as_of_date":"2025-12-31","compounding":"simple","currency":null,"#,
+                r#""day_count":"act_360","kind":"reference_value","maturity_date":null,"#,
+                r#""measure":"rate","prov":{"admission":"ADM-9001","flags":[],"#,
+                r#""instrument":"example-rates:ref:OVERNIGHT","seq":{"block_number":40,"#,
+                r#""event_index":0},"ts_ingest_ns":"1767225600004000000","#,
+                r#""ts_source_ms":1767225600000,"venue":"example-rates"},"revision":0,"#,
+                r#""tenor":"ON","value":"4.31"}"#
+            )
+        );
+    }
+
+    #[test]
+    fn periods_are_checked() {
+        let mut r = interval_price();
+        r.period_end_ms = None;
+        assert!(r.validate().is_err());
+        let mut r = interval_price();
+        r.period_end_ms = r.period_start_ms;
+        assert!(r.validate().is_err());
+        interval_price().validate().unwrap();
     }
 
     #[test]
