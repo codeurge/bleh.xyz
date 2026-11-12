@@ -7,6 +7,7 @@ pub mod book;
 pub mod config;
 pub mod engine;
 pub mod error;
+pub mod http;
 pub mod metrics;
 pub mod params;
 pub mod rows;
