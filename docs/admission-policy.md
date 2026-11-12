@@ -69,3 +69,22 @@ once. The archive is versioned, so removal is a new version, not an edit:
   and is never published, so removal does not touch it.
 
 Composite methods tolerate any one source being removed.
+
+## User-supplied data stays local
+
+A feed that a user licenses themselves (from an exchange, a market-data
+vendor or a broker) is never a source. It is not admitted, and no admission
+can change that.
+
+- The reference client's bring-your-own-feed adapter processes such data
+  only on the user's machine, under the user's own license.
+- It is never sent to any bleh.xyz service, never signed with project keys,
+  and never written into an archive layout, a manifest or a publishing path.
+  Every output built from it is tagged `user_supplied`.
+- The project ships connectors (code that reads documented open formats and
+  APIs with the user's own credentials), never data, and tests them with
+  synthetic data only.
+- Comparisons a user derives from their feed stay theirs. They are not
+  contributions under the contributor rules above.
+
+See [ADR 0014](decisions/0014-user-supplied-data-stays-local.md).
