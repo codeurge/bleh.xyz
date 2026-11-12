@@ -6,7 +6,7 @@ Reference client for the bleh.xyz gateway.
 
 ## Responsibility
 
-Connects (rotating across gateway URLs), subscribes, keeps a correct L4 book from snapshot plus deltas, detects gaps and requests re-snapshots, verifies commitment signatures, full-stream roots and sampled inclusion proofs, and prints or records the stream as JSON lines. Runbook: [docs/operations/client.md](../../docs/operations/client.md).
+Connects (rotating across gateway URLs), subscribes, keeps a correct L4 book from snapshot plus deltas (or an L2 book from snapshot plus `levels` for `l2` channels), detects gaps and requests re-snapshots, verifies commitment signatures, full-stream roots and sampled inclusion proofs, and prints or records the stream as JSON lines. `mesh-client probe` checks one channel and prints one JSON line for monitoring; `mesh-client keys address` prints the address of a signing-key file. Runbook: [docs/operations/client.md](../../docs/operations/client.md).
 
 ## Rules
 

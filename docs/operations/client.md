@@ -5,6 +5,9 @@ Runbook for `tools/mesh-client` (library and binary). Wire protocol:
 
 ## Run
 
+Streaming is the default command (also available as `mesh-client stream`
+with the same flags); `probe` and `keys` are subcommands.
+
 ```bash
 cargo run -p mesh-client -- \
   --url wss://a.example/v0/ws --url wss://b.example/v0/ws \
@@ -28,6 +31,56 @@ cargo run -p mesh-client -- \
 
 On exit it prints its counters as JSON on stderr.
 
+## Probe
+
+`mesh-client probe` checks that a gateway serves one channel, for
+availability monitoring (`deploy/observability/prober/ws-probe.sh` with
+`PROBE_CLIENT=mesh-client` or `docker`):
+
+```bash
+mesh-client probe --url wss://a.example/v0/ws \
+  --instrument hyperliquid:perp:BTC --kind book_event --timeout 5s
+{"ok":true,"first_block_seconds":0.061,"block_time_ms":1767229197000,"snapshot_seconds":0.004}
+```
+
+It connects, subscribes (without commitments), waits for the first block
+heartbeat and, for `book_event`, the book snapshot, then prints exactly one
+JSON line on stdout and exits 0 when ok, 1 otherwise. Logs go to stderr
+(`warn` by default).
+
+| Field | |
+|---|---|
+| `ok` | Heartbeat (and snapshot) received within the timeout |
+| `first_block_seconds` | From start (before connecting) to the first heartbeat; `null` if none |
+| `block_time_ms` | Block time of the last heartbeat received; `null` if none |
+| `snapshot_seconds` | `book_event` only: from start to the snapshot |
+| `error` | Only when not ok: connect failure, disconnect, server error (with its code, e.g. `unknown_instrument`), missing signer, or `no block heartbeat within 5s` |
+
+| Flag | Default | |
+|---|---|---|
+| `--url` | required | One gateway URL; no failover |
+| `--instrument` | required | Instrument ID (or `*`, `prefix*`) |
+| `--kind` | required | Record kind, e.g. `trade`, `book_event` |
+| `--depth` | none | `l4` or `l2` (`book_event` only) |
+| `--interval` | none | Bar interval (`bar` only) |
+| `--signer` | none | Repeatable; the probe fails if `hello.signers` lacks any of them |
+| `--timeout` | `5s` | `500ms`, `5s`, `2m`, or plain seconds; covers the connection too |
+| `--encoding` | `json` | `json` or `cbor` |
+
+## Signing-key address
+
+```bash
+mesh-client keys address --key-file /run/secrets/block-key
+0x2c7536e3605d9c16a7a3d7b1898e529396a65c23
+```
+
+Reads a secp256k1 secret as 64 hex characters (optional `0x`, trailing
+whitespace allowed) and prints its Ethereum address. The key is never
+printed, and error messages never quote the file. A file that cannot be
+read, has the wrong format, or holds an invalid secret exits 1 with a
+message on stderr; a file readable or writable by group or others prints
+a warning on stderr (the address is still printed).
+
 ## What it guarantees
 
 - **Books.** Per `book_event` instrument it keeps an L4 book from the
@@ -38,14 +91,17 @@ On exit it prints its counters as JSON on stderr.
   book is discarded, `resnapshot` is sent (at most once per instrument per
   `hello.limits.resnapshot_interval_ms`), and the instrument is ignored
   until the next snapshot. Forced snapshots from the gateway replace the
-  book. With `l2` depth no order-level book can be kept (see the protocol
-  proposals); the snapshot is reported only.
+  book. With `l2` depth it keeps an L2 book from the L2 snapshot plus the
+  gateway's `levels` messages, under the same contiguity, gap and
+  resnapshot rules. Levels are derived by the gateway and are not
+  covered by commitments; to verify the book, subscribe at `l4`.
 - **Trades and other batched kinds:** contiguity is checked and gaps
   reported; data keeps flowing (backfill from the historical API).
 - **Signatures:** every commitment's signer must be trusted and its
   signature valid.
-- **Roots:** for kinds subscribed with `*` (the whole stream) the client
-  recomputes each block's root from the records it received and compares.
+- **Roots:** for kinds subscribed with `*` (the whole stream; for
+  `book_event` only at `l4` depth) the client recomputes each block's root
+  from the records it received and compares.
   Blocks before the first full block of a connection, and the block in
   progress when the gateway drops the client as a slow consumer, are not
   root-checked (they can be partial).
@@ -68,7 +124,7 @@ let mut client = mesh_client::Client::new(mesh_client::ClientConfig {
 });
 loop {
     let event = client.next_event().await?;   // ClientEvent
-    // client.book(&instrument), client.stats()
+    // client.book(&instrument), client.l2_book(&instrument), client.stats()
 }
 ```
 

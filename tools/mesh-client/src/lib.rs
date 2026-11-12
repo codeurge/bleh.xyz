@@ -7,6 +7,8 @@
 //! | [`book`] | [`L4Book`]: order-level book from snapshot plus book events; [`L2Book`]: level book from an L2 snapshot plus `levels` |
 //! | [`verify`] | Signer trust, full-stream root checks, proof checks |
 //! | [`client`] | [`Client`]: connect, subscribe, keep books, verify, recover, rotate URLs |
+//! | [`probe`] | One-shot availability probe (`mesh-client probe`) |
+//! | [`keys`] | Signing-key files: address of a secret (`mesh-client keys address`) |
 //!
 //! ```no_run
 //! # async fn demo() -> Result<(), mesh_client::ClientError> {
@@ -32,6 +34,8 @@
 pub mod book;
 pub mod client;
 pub mod codec;
+pub mod keys;
+pub mod probe;
 pub mod protocol;
 pub mod verify;
 
