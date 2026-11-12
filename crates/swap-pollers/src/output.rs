@@ -17,7 +17,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use mesh_types::{Record, SwapAction, SwapPrint, UnixMillis};
+use mesh_types::{Record, SwapAction, SwapEventType, SwapPrint, UnixMillis};
 use tokio::sync::mpsc;
 
 use crate::dedupe::{self, Seen, SeenStore};
@@ -93,6 +93,27 @@ impl JsonlWriter {
     }
 }
 
+/// Metric label for an event type (`none` when the row had none).
+#[must_use]
+pub const fn event_type_label(e: Option<SwapEventType>) -> &'static str {
+    use SwapEventType as E;
+    match e {
+        None => "none",
+        Some(E::Trade) => "trade",
+        Some(E::Novation) => "novation",
+        Some(E::Compression) => "compression",
+        Some(E::EarlyTermination) => "early_termination",
+        Some(E::Clearing) => "clearing",
+        Some(E::Exercise) => "exercise",
+        Some(E::Allocation) => "allocation",
+        Some(E::ClearingAllocation) => "clearing_allocation",
+        Some(E::CreditEvent) => "credit_event",
+        Some(E::Porting) => "porting",
+        Some(E::CorporateEvent) => "corporate_event",
+        Some(E::Update) => "update",
+    }
+}
+
 /// What happened to one parsed print.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Emitted {
@@ -152,15 +173,14 @@ impl Emitter {
                 .inc("swap_duplicates_total", &[("bucket", bucket)]);
             return Ok(Emitted::Duplicate);
         }
-        if print.action != SwapAction::New {
-            let original = print
-                .original_dissemination_id
-                .as_deref()
-                .map(|o| dedupe::key(venue, repo, o));
-            if !original.is_some_and(|o| self.seen.contains_any(o)) {
-                self.metrics
-                    .inc("swap_orphan_updates_total", &[("bucket", bucket)]);
-            }
+        // Updates that name an earlier print: count those whose original was
+        // not seen. `modify` and `terminate` may come without one.
+        if print.action != SwapAction::New
+            && let Some(o) = print.original_dissemination_id.as_deref()
+            && !self.seen.contains_any(dedupe::key(venue, repo, o))
+        {
+            self.metrics
+                .inc("swap_orphan_updates_total", &[("bucket", bucket)]);
         }
         if let Some(w) = &mut self.writer {
             w.write(&print)?;
@@ -175,7 +195,11 @@ impl Emitter {
         };
         self.metrics.inc(
             "swap_records_total",
-            &[("bucket", bucket), ("action", action)],
+            &[
+                ("bucket", bucket),
+                ("action", action),
+                ("event_type", event_type_label(print.event_type)),
+            ],
         );
         let dissem_secs = print.ts_dissemination_ms.0 as f64 / 1000.0;
         let prev = self

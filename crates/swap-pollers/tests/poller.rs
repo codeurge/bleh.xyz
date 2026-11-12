@@ -687,3 +687,87 @@ async fn metrics_and_health_endpoints() {
         server.await.unwrap().unwrap();
     }
 }
+
+#[tokio::test]
+async fn emitter_labels_event_types_and_counts_orphans() {
+    use swap_pollers::parse::{FileContext, ReportKind, parse_csv_reader};
+    use swap_pollers::repository::{DtccAsset, Regime, Repository};
+
+    let d = today();
+    let exec: &'static str = Box::leak(format!("{d}T10:00:00Z").into_boxed_str());
+    let upi = ("Unique Product Identifier", "QZSYN0000101");
+    let row = |id: &'static str, extra: &[(&'static str, &'static str)]| {
+        let mut r = base_trade(id, "IR", exec, exec);
+        r.push(upi);
+        r.extend_from_slice(extra);
+        r
+    };
+    let report = Report::standard()
+        .row(&row("500", &[]))
+        .row(&row("501", &[("Event type", "CLRG")]))
+        // Modifies 500 (seen): not an orphan.
+        .row(&row(
+            "502",
+            &[
+                ("Action type", "MODI"),
+                ("Original Dissemination Identifier", "500"),
+            ],
+        ))
+        // Terminates without naming an original: not an orphan.
+        .row(&row(
+            "503",
+            &[("Action type", "TERM"), ("Event type", "ETRM")],
+        ))
+        // Revives a print never seen: an orphan.
+        .row(&row(
+            "504",
+            &[
+                ("Action type", "REVI"),
+                ("Original Dissemination Identifier", "499"),
+            ],
+        ));
+    let ctx = FileContext {
+        bucket: DtccBucket::new(Regime::CftcPart43, DtccAsset::Rates),
+        repository: Repository::DtccDdr,
+        kind: ReportKind::Slice,
+        batch: 1,
+        fetched_at: None,
+        listing_dissemination: None,
+        backfill: false,
+    };
+    let mut prints = Vec::new();
+    let mut sink = |p| {
+        prints.push(p);
+        Ok(())
+    };
+    parse_csv_reader(report.csv().as_bytes(), &ctx, &mut sink).unwrap();
+    assert_eq!(prints.len(), 5);
+
+    let dir = tempfile::tempdir().unwrap();
+    let metrics = Arc::new(Metrics::new());
+    let seen = SeenStore::open(dir.path(), 3, &d).unwrap();
+    let mut emitter = Emitter::new(seen, None, None, metrics.clone());
+    for p in prints {
+        emitter.emit("CFTC_IR", p).await.unwrap();
+    }
+    let count = |action: &str, event_type: &str| {
+        metrics.counter(
+            "swap_records_total",
+            &[
+                ("bucket", "CFTC_IR"),
+                ("action", action),
+                ("event_type", event_type),
+            ],
+        )
+    };
+    assert_eq!(count("new", "trade"), 1);
+    assert_eq!(count("new", "clearing"), 1);
+    assert_eq!(count("modify", "trade"), 1);
+    assert_eq!(count("terminate", "early_termination"), 1);
+    assert_eq!(count("revive", "trade"), 1);
+    assert_eq!(metrics.counter_sum("swap_records_total"), 5);
+    assert_eq!(
+        metrics.counter("swap_orphan_updates_total", &[("bucket", "CFTC_IR")]),
+        1
+    );
+}

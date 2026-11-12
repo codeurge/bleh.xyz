@@ -4,18 +4,27 @@
 //! The mapping is specified in `docs/specs/swap-repositories.md` § 4. In
 //! short:
 //!
-//! - `NEWT` with event type `TRAD` (or none) is a `new` print; `CORR` is a
-//!   `correct` and `EROR` a `cancel`, both linking the original
-//!   dissemination ID. Other action types (`MODI`, `TERM`, `REVI`, ...) and
-//!   `NEWT` for non-trade events (clearing, novation, allocation,
-//!   compression, exercise) are skipped and counted: observation v0 has no
-//!   action for them. The raw file keeps them.
-//! - Prices keep the repository's notation: monetary amounts are `price`,
-//!   decimal rates become `rate` in percent, decimal and basis-point spreads
-//!   become `spread` in basis points. All conversions are exact.
-//! - A trailing `+` on the notional (capped by the repository) sets the
-//!   `size_capped` flag; a block or large-notional off-facility election
-//!   sets `block_trade_delayed`.
+//! - `NEWT` is a `new` print, `MODI` a `modify` and `TERM` a `terminate`;
+//!   `CORR` is a `correct`, `EROR` a `cancel` and `REVI` a `revive`, each
+//!   linking the original dissemination ID. Every print carries the event
+//!   type when the row has one, so `new` prints for non-trade events
+//!   (clearing, novation, allocation, compression, exercise) are emitted
+//!   and consumers filter on `event_type`. Action types with no
+//!   `SwapAction` (`PRTO`, `VALU`, `MARU`, which are Part 45 only, or an
+//!   unrecognized code) and `NEWT` with an unrecognized event type are
+//!   skipped and counted. The raw file keeps them.
+//! - Prices keep the repository's notation: monetary amounts are `price`
+//!   (`spread_amount` for monetary spreads), decimal rates become `rate` in
+//!   percent, decimal and basis-point spreads become `spread` in basis
+//!   points. All conversions are exact.
+//! - CFTC option terms (strike, premium, option type and style, first
+//!   exercise date) have their own fields (ADM-0002). They are not read for
+//!   SEC buckets: ADM-0004 admits price, spread and notional only.
+//! - A commodity print with no currency notional carries its total notional
+//!   quantity and unit of measure as `quantity`.
+//! - A trailing `+` on the notional or quantity (capped by the repository)
+//!   sets the `size_capped` flag; a block or large-notional off-facility
+//!   election sets `block_trade_delayed`.
 //! - Unknown columns are logged and counted, never fatal. A bad row is
 //!   counted and skipped; a bad optional cell drops that value only.
 
@@ -24,8 +33,8 @@ use std::io::{Read, Seek};
 use std::path::Path;
 
 use mesh_types::{
-    AssetClass, Flag, Flags, InstrumentId, Notional, Provenance, Seq, SwapAction, SwapPrice,
-    SwapPrint, UnixMillis, UnixNanos,
+    AssetClass, Flag, Flags, InstrumentId, Notional, OptionStyle, OptionType, Provenance, Quantity,
+    Seq, SwapAction, SwapEventType, SwapPrice, SwapPrint, UnixMillis, UnixNanos,
 };
 use sha2::{Digest, Sha256};
 
@@ -69,11 +78,14 @@ pub struct FileContext {
 /// Why a row produced no record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SkipReason {
-    /// An action type observation v0 cannot represent (`MODI`, `TERM`,
-    /// `REVI`, ...).
-    LifecycleAction,
-    /// `NEWT` for a non-trade event (clearing, novation, ...).
-    NonTradeEvent,
+    /// An action type with no [`SwapAction`]: `PRTO`, `VALU` and `MARU`
+    /// (Part 45 only, not expected in public dissemination) or an
+    /// unrecognized code.
+    UnsupportedAction,
+    /// `NEWT` with an event type that is not one of the documented codes,
+    /// so it cannot be told apart from a trade. Emitting it without an
+    /// event type would make it look like a trade and risk double counting.
+    UnknownEventType,
 }
 
 impl SkipReason {
@@ -81,8 +93,8 @@ impl SkipReason {
     #[must_use]
     pub const fn label(self) -> &'static str {
         match self {
-            SkipReason::LifecycleAction => "lifecycle_action",
-            SkipReason::NonTradeEvent => "non_trade_event",
+            SkipReason::UnsupportedAction => "unsupported_action",
+            SkipReason::UnknownEventType => "unknown_event_type",
         }
     }
 }
@@ -364,16 +376,63 @@ fn map_action(s: &str) -> Option<Result<SwapAction, SkipReason>> {
         "NEWT" | "NEW" => Some(Ok(SwapAction::New)),
         "CORR" | "CORRECT" | "CORRECTION" => Some(Ok(SwapAction::Correct)),
         "EROR" | "CANCEL" | "CANCELLATION" => Some(Ok(SwapAction::Cancel)),
+        "MODI" | "MODIFY" | "MODIFICATION" => Some(Ok(SwapAction::Modify)),
+        "TERM" | "TERMINATE" | "TERMINATION" => Some(Ok(SwapAction::Terminate)),
+        "REVI" | "REVIVE" => Some(Ok(SwapAction::Revive)),
         "" => None,
-        _ => Some(Err(SkipReason::LifecycleAction)),
+        _ => Some(Err(SkipReason::UnsupportedAction)),
     }
 }
 
-fn is_trade_event(s: &str) -> bool {
-    matches!(
-        s.trim().to_ascii_uppercase().as_str(),
-        "" | "TRAD" | "TRADE"
-    )
+/// Event type codes of the CFTC technical specification. `None` for a code
+/// that is not documented.
+fn map_event_type(code: &str) -> Option<SwapEventType> {
+    use SwapEventType as E;
+    Some(match code.trim().to_ascii_uppercase().as_str() {
+        "TRAD" | "TRADE" => E::Trade,
+        "NOVA" => E::Novation,
+        "COMP" => E::Compression,
+        "ETRM" => E::EarlyTermination,
+        "CLRG" => E::Clearing,
+        "EXER" => E::Exercise,
+        "ALOC" => E::Allocation,
+        "CLAL" => E::ClearingAllocation,
+        "CREV" => E::CreditEvent,
+        "PTNG" => E::Porting,
+        "CORP" => E::CorporateEvent,
+        "UPDT" => E::Update,
+        _ => return None,
+    })
+}
+
+/// Option type codes. `CALL` and `PUTO` are the technical specification's
+/// codes; `PUT` was seen once in the ticker. Anything else (including the
+/// chooser code `CHOO`) has no [`OptionType`].
+fn map_option_type(code: &str) -> Option<OptionType> {
+    match code.trim().to_ascii_uppercase().as_str() {
+        "CALL" => Some(OptionType::Call),
+        "PUTO" | "PUT" => Some(OptionType::Put),
+        _ => None,
+    }
+}
+
+/// Option style codes (`AMER`, `EURO`, `BERM`, `ASIA`; not yet verified
+/// against disseminated files), and the full words.
+fn map_option_style(code: &str) -> Option<OptionStyle> {
+    match code.trim().to_ascii_uppercase().as_str() {
+        "AMER" | "AMERICAN" => Some(OptionStyle::American),
+        "EURO" | "EUROPEAN" => Some(OptionStyle::European),
+        "BERM" | "BERMUDAN" => Some(OptionStyle::Bermudan),
+        "ASIA" | "ASIAN" => Some(OptionStyle::Asian),
+        _ => None,
+    }
+}
+
+/// An ISO 4217-shaped currency code (three letters, upper-cased).
+fn iso_currency(cell: &str) -> Option<String> {
+    values::text(cell)
+        .map(|c| c.to_ascii_uppercase())
+        .filter(|c| c.len() == 3 && c.bytes().all(|b| b.is_ascii_uppercase()))
 }
 
 /// Which price candidate to read and how.
@@ -387,13 +446,15 @@ enum PriceSource {
     FixedRate(u8),
     /// `Exchange rate` (a price).
     ExchangeRate,
-    /// `Strike Price` with its notation (CFTC options only).
+    /// `Strike Price` with its notation (CFTC options only; read into
+    /// `strike`, never `price`).
     Strike,
 }
 
 fn decimal_to(p: mesh_types::Price, notation: Option<&str>, spread: bool) -> Option<SwapPrice> {
     match (notation, spread) {
-        (Some("1"), _) => Some(SwapPrice::Price { value: p }),
+        (Some("1"), false) => Some(SwapPrice::Price { value: p }),
+        (Some("1"), true) => Some(SwapPrice::SpreadAmount { value: p }),
         (Some("2" | "3"), false) => values::shift(p, 2)
             .ok()
             .map(|v| SwapPrice::Rate { value: v }),
@@ -442,57 +503,34 @@ fn read_price(row: &Row<'_>, src: PriceSource, stats: &mut ParseStats) -> Option
     out
 }
 
-fn price_order(asset: AssetClass, regime: Regime, is_option: bool) -> Vec<PriceSource> {
+/// Price candidates by asset class, first available wins. The strike is
+/// never a candidate: it has its own field.
+fn price_order(asset: AssetClass) -> &'static [PriceSource] {
     use PriceSource as S;
-    // Strike prices are admitted for CFTC Part 43 option terms (ADM-0002)
-    // only; ADM-0004 admits price, spread and notional.
-    let strike = regime == Regime::CftcPart43 && is_option;
-    let mut order = Vec::new();
-    if strike {
-        order.push(S::Strike);
-    }
     match asset {
-        AssetClass::InterestRate => {
-            order.extend([
-                S::FixedRate(1),
-                S::FixedRate(2),
-                S::Spread(1),
-                S::Spread(2),
-                S::Price,
-            ]);
-        }
-        AssetClass::Credit => {
-            order.extend([
-                S::Spread(1),
-                S::Spread(2),
-                S::Price,
-                S::FixedRate(1),
-                S::FixedRate(2),
-            ]);
-        }
-        AssetClass::Equity => {
-            order.extend([
-                S::Price,
-                S::Spread(1),
-                S::Spread(2),
-                S::FixedRate(1),
-                S::FixedRate(2),
-            ]);
-        }
-        AssetClass::ForeignExchange => {
-            order.extend([S::ExchangeRate, S::Price, S::Spread(1), S::Spread(2)]);
-        }
-        AssetClass::Commodity => {
-            order.extend([
-                S::Price,
-                S::Spread(1),
-                S::Spread(2),
-                S::FixedRate(1),
-                S::FixedRate(2),
-            ]);
-        }
+        AssetClass::InterestRate => &[
+            S::FixedRate(1),
+            S::FixedRate(2),
+            S::Spread(1),
+            S::Spread(2),
+            S::Price,
+        ],
+        AssetClass::Credit => &[
+            S::Spread(1),
+            S::Spread(2),
+            S::Price,
+            S::FixedRate(1),
+            S::FixedRate(2),
+        ],
+        AssetClass::Equity | AssetClass::Commodity => &[
+            S::Price,
+            S::Spread(1),
+            S::Spread(2),
+            S::FixedRate(1),
+            S::FixedRate(2),
+        ],
+        AssetClass::ForeignExchange => &[S::ExchangeRate, S::Price, S::Spread(1), S::Spread(2)],
     }
-    order
 }
 
 fn read_notional(row: &Row<'_>, stats: &mut ParseStats) -> (Option<Notional>, bool) {
@@ -514,26 +552,124 @@ fn read_notional(row: &Row<'_>, stats: &mut ParseStats) -> (Option<Notional>, bo
             field_error(stats, amount_f);
             continue;
         };
-        let ccy = values::text(&row.get(ccy_f)).map(|c| c.to_ascii_uppercase());
-        match ccy {
-            Some(c) if c.len() == 3 && c.bytes().all(|b| b.is_ascii_uppercase()) => {
-                capped = amount.capped;
-                notional = Some(Notional {
-                    amount: size,
-                    currency: c,
-                });
-                break;
-            }
-            _ => {
-                field_error(stats, ccy_f);
-            }
+        if let Some(c) = iso_currency(&row.get(ccy_f)) {
+            capped = amount.capped;
+            notional = Some(Notional {
+                amount: size,
+                currency: c,
+            });
+            break;
         }
+        field_error(stats, ccy_f);
     }
     // Commodity quantities carry the cap marker too, with no currency.
-    if let Ok(Some(q)) = values::number(&row.get(Field::TotalNotionalQuantityLeg1)) {
-        capped |= q.capped;
+    for f in [
+        Field::TotalNotionalQuantityLeg1,
+        Field::TotalNotionalQuantityLeg2,
+    ] {
+        if let Ok(Some(q)) = values::number(&row.get(f)) {
+            capped |= q.capped;
+        }
     }
     (notional, capped)
+}
+
+/// Total notional quantity with its unit of measure, leg 1 then leg 2 (for
+/// commodity prints with no currency notional). The amount is the cap value
+/// when capped.
+fn read_quantity(row: &Row<'_>, stats: &mut ParseStats) -> Option<Quantity> {
+    for (amount_f, unit_f) in [
+        (
+            Field::TotalNotionalQuantityLeg1,
+            Field::QuantityUnitOfMeasureLeg1,
+        ),
+        (
+            Field::TotalNotionalQuantityLeg2,
+            Field::QuantityUnitOfMeasureLeg2,
+        ),
+    ] {
+        let amount = match values::number(&row.get(amount_f)) {
+            Ok(Some(n)) => n,
+            Ok(None) => continue,
+            Err(_) => {
+                field_error(stats, amount_f);
+                continue;
+            }
+        };
+        let Ok(size) = values::to_size(&amount.text) else {
+            field_error(stats, amount_f);
+            continue;
+        };
+        match values::text(&row.get(unit_f)) {
+            Some(unit) if unit.len() <= 16 && unit.bytes().all(|b| b.is_ascii_alphanumeric()) => {
+                return Some(Quantity { amount: size, unit });
+            }
+            _ => field_error(stats, unit_f),
+        }
+    }
+    None
+}
+
+/// Option terms admitted by ADM-0002 (CFTC Part 43 only).
+#[derive(Debug, Default)]
+struct OptionTerms {
+    strike: Option<SwapPrice>,
+    premium: Option<Notional>,
+    option_type: Option<OptionType>,
+    option_style: Option<OptionStyle>,
+    first_exercise_date: Option<String>,
+}
+
+fn read_premium(row: &Row<'_>, stats: &mut ParseStats) -> Option<Notional> {
+    let amount = match values::number(&row.get(Field::OptionPremiumAmount)) {
+        Ok(Some(n)) => n,
+        Ok(None) => return None,
+        Err(_) => {
+            field_error(stats, Field::OptionPremiumAmount);
+            return None;
+        }
+    };
+    let Ok(amount) = values::to_size(&amount.text) else {
+        field_error(stats, Field::OptionPremiumAmount);
+        return None;
+    };
+    let Some(currency) = iso_currency(&row.get(Field::OptionPremiumCurrency)) else {
+        field_error(stats, Field::OptionPremiumCurrency);
+        return None;
+    };
+    Some(Notional { amount, currency })
+}
+
+/// A coded cell mapped to an enum; an unmapped code is a field error.
+fn read_code<T>(
+    row: &Row<'_>,
+    f: Field,
+    map: fn(&str) -> Option<T>,
+    stats: &mut ParseStats,
+) -> Option<T> {
+    let code = values::text(&row.get(f))?;
+    let v = map(&code);
+    if v.is_none() {
+        field_error(stats, f);
+    }
+    v
+}
+
+fn read_option_terms(row: &Row<'_>, stats: &mut ParseStats) -> OptionTerms {
+    let first_exercise_date = match values::date(&row.get(Field::FirstExerciseDate)) {
+        Ok(v) => v,
+        Err(_) => {
+            field_error(stats, Field::FirstExerciseDate);
+            None
+        }
+    };
+    OptionTerms {
+        strike: read_price(row, PriceSource::Strike, stats),
+        premium: read_premium(row, stats),
+        option_type: read_code(row, Field::OptionType, map_option_type, stats),
+        option_style: read_code(row, Field::OptionStyle, map_option_style, stats),
+        first_exercise_date,
+    }
 }
 
 /// Tenor from unadjusted effective and expiration dates, only when they are
@@ -637,11 +773,23 @@ fn map_row(
         Some(Err(skip)) => return Ok(Outcome::Skip(skip)),
         Some(Ok(a)) => a,
     };
-    if action == SwapAction::New && !is_trade_event(&row.get(Field::EventType)) {
-        return Ok(Outcome::Skip(SkipReason::NonTradeEvent));
-    }
+    let event_type = match values::text(&row.get(Field::EventType)) {
+        None => None,
+        Some(code) => match map_event_type(&code) {
+            Some(e) => Some(e),
+            // A new message for an unknown event: it might not be a trade.
+            None if action == SwapAction::New => {
+                return Ok(Outcome::Skip(SkipReason::UnknownEventType));
+            }
+            // Other actions refer to an earlier print; keep them.
+            None => {
+                field_error(stats, Field::EventType);
+                None
+            }
+        },
+    };
     let original_dissemination_id = clean_text(&row.get(Field::OriginalDisseminationId));
-    if action != SwapAction::New && original_dissemination_id.is_none() {
+    if action.needs_original() && original_dissemination_id.is_none() {
         return Err(RowError::Missing("original dissemination identifier"));
     }
 
@@ -695,13 +843,23 @@ fn map_row(
         _ => None,
     };
 
-    let is_option = values::text(&row.get(Field::OptionType)).is_some()
-        || values::text(&row.get(Field::StrikePrice)).is_some();
-    let price = price_order(asset_class, regime, is_option)
-        .into_iter()
-        .find_map(|src| read_price(row, src, stats));
+    let price = price_order(asset_class)
+        .iter()
+        .find_map(|&src| read_price(row, src, stats));
 
     let (notional, capped) = read_notional(row, stats);
+    let quantity = if notional.is_none() && asset_class == AssetClass::Commodity {
+        read_quantity(row, stats)
+    } else {
+        None
+    };
+    // Option terms are admitted for CFTC Part 43 (ADM-0002) only; ADM-0004
+    // admits price, spread and notional, so SEC rows are not read for them.
+    let options = if regime == Regime::CftcPart43 {
+        read_option_terms(row, stats)
+    } else {
+        OptionTerms::default()
+    };
 
     let mut flags = Flags::NONE;
     if capped {
@@ -760,13 +918,13 @@ fn map_row(
         expiry,
         price,
         notional,
-        quantity: None,
-        event_type: None,
-        strike: None,
-        option_premium: None,
-        option_type: None,
-        option_style: None,
-        first_exercise_date: None,
+        quantity,
+        event_type,
+        strike: options.strike,
+        option_premium: options.premium,
+        option_type: options.option_type,
+        option_style: options.option_style,
+        first_exercise_date: options.first_exercise_date,
         ts_execution_ms: ts_execution,
         ts_dissemination_ms: ts_dissemination,
     };

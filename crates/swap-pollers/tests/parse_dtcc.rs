@@ -10,7 +10,8 @@ use std::io::Cursor;
 
 use common::{DISSEMINATION_TS, Report, base_trade, zip_entries};
 use mesh_types::{
-    AssetClass, Flag, Record, SwapAction, SwapPrice, SwapPrint, UnixMillis, UnixNanos, allowlist,
+    AssetClass, Flag, Notional, OptionStyle, OptionType, Quantity, Record, SwapAction,
+    SwapEventType, SwapPrice, SwapPrint, UnixMillis, UnixNanos, allowlist,
 };
 use swap_pollers::parse::{
     FileContext, ParseStats, ReportKind, parse_csv_reader, parse_report_file, parse_zip,
@@ -57,6 +58,32 @@ fn price(s: &str) -> Option<SwapPrice> {
     Some(SwapPrice::Price {
         value: mesh_types::Price::parse_exact(s).unwrap(),
     })
+}
+fn spread_amount(s: &str) -> Option<SwapPrice> {
+    Some(SwapPrice::SpreadAmount {
+        value: mesh_types::Price::parse_exact(s).unwrap(),
+    })
+}
+fn money(amount: &str, currency: &str) -> Option<Notional> {
+    Some(Notional {
+        amount: mesh_types::Size::parse_exact(amount).unwrap(),
+        currency: currency.into(),
+    })
+}
+fn qty(amount: &str, unit: &str) -> Option<Quantity> {
+    Some(Quantity {
+        amount: mesh_types::Size::parse_exact(amount).unwrap(),
+        unit: unit.into(),
+    })
+}
+
+/// True when no option term is set.
+fn no_option_terms(p: &SwapPrint) -> bool {
+    p.strike.is_none()
+        && p.option_premium.is_none()
+        && p.option_type.is_none()
+        && p.option_style.is_none()
+        && p.first_exercise_date.is_none()
 }
 
 /// Every emitted record validates, passes the field allowlist and
@@ -113,12 +140,14 @@ fn rates_swaps_and_swaptions() {
                 ("Unique Product Identifier", "QZSYN0000002"),
             ],
         ))
-        // Swaption: strike in decimal notation is the price (CFTC).
+        // Swaption: the strike (decimal notation) and premium have their
+        // own fields (CFTC); the price is the underlying fixed rate.
         .row(&with(
             base_trade("9000000000000000003", "IR", exec, dissem),
             &[
                 ("Effective Date", "2026-11-16"),
                 ("Expiration Date", "2027-11-16"),
+                ("First exercise date", "2027-11-12"),
                 ("Notional amount-Leg 1", "50,000,000"),
                 ("Notional currency-Leg 1", "USD"),
                 ("Fixed rate-Leg 1", "0.04"),
@@ -176,10 +205,21 @@ fn rates_swaps_and_swaptions() {
     assert_eq!(ois.prov.seq.block_number, 34_980_001);
     assert_eq!(ois.prov.seq.event_index, 0);
 
+    assert_eq!(ois.event_type, Some(SwapEventType::Trade));
+    assert!(no_option_terms(ois));
+    assert_eq!(ois.quantity, None);
+
     assert_eq!(p[1].price, rate("-0.125"));
     assert_eq!(p[1].tenor.as_deref(), Some("6M"));
     assert!(!p[1].prov.flags.contains(Flag::SizeCapped));
-    assert_eq!(p[2].price, rate("4.25"));
+
+    let swaption = &p[2];
+    assert_eq!(swaption.price, rate("4"));
+    assert_eq!(swaption.strike, rate("4.25"));
+    assert_eq!(swaption.option_type, Some(OptionType::Call));
+    assert_eq!(swaption.option_style, Some(OptionStyle::European));
+    assert_eq!(swaption.option_premium, money("1250000", "USD"));
+    assert_eq!(swaption.first_exercise_date.as_deref(), Some("2027-11-12"));
     assert_eq!(p[3].price, spread("12.5"));
 }
 
@@ -269,14 +309,18 @@ fn equity_prices_and_financing_spreads() {
                 ("Unique Product Identifier", "QZSYNEQS0002"),
             ],
         ))
-        // An equity option reported to the SEC: strike is not admitted
-        // under ADM-0004, so only the price is used.
+        // An equity option reported to the SEC: option terms are not
+        // admitted under ADM-0004, so only the price is used.
         .row(&with(
             base_trade("7000000000000000003", "EQ", exec, exec),
             &[
                 ("Strike Price", "250"),
                 ("Strike price notation", "1"),
                 ("Option Type", "PUTO"),
+                ("Option Style", "AMER"),
+                ("Option Premium Amount", "1,000"),
+                ("Option Premium Currency", "USD"),
+                ("First exercise date", "2026-12-01"),
                 ("Price", "12.5"),
                 ("Price notation", "1"),
                 ("Unique Product Identifier", "QZSYNEQO0003"),
@@ -289,6 +333,11 @@ fn equity_prices_and_financing_spreads() {
     assert_eq!(p[0].underlier.as_deref(), Some("SYNTHETIC.EQ1"));
     assert_eq!(p[1].price, spread("45"));
     assert_eq!(p[2].price, price("12.5"));
+    for print in &p {
+        assert!(no_option_terms(print), "{}", print.dissemination_id);
+    }
+    // Not read at all, so no field errors either.
+    assert!(stats.field_errors.is_empty(), "{:?}", stats.field_errors);
 }
 
 #[test]
@@ -317,8 +366,9 @@ fn fx_forwards_and_options() {
                 ("Strike Price", "1.0850"),
                 ("Strike price notation", "1"),
                 ("Option Type", "CALL"),
+                ("Option Style", "AMER"),
                 ("Option Premium Amount", "85,000"),
-                ("Option Premium Currency", "USD"),
+                ("Option Premium Currency", "usd"),
                 ("Unique Product Identifier", "QZSYNFXO0002"),
             ],
         ));
@@ -328,7 +378,13 @@ fn fx_forwards_and_options() {
     assert_eq!(p[0].asset_class, AssetClass::ForeignExchange);
     assert_eq!(p[0].price, price("83.1234"));
     assert_eq!(p[0].expiry.as_deref(), Some("2026-12-16"));
-    assert_eq!(p[1].price, price("1.085"));
+    assert!(no_option_terms(&p[0]));
+    // The strike is no longer carried as the price.
+    assert_eq!(p[1].price, None);
+    assert_eq!(p[1].strike, price("1.085"));
+    assert_eq!(p[1].option_type, Some(OptionType::Call));
+    assert_eq!(p[1].option_style, Some(OptionStyle::American));
+    assert_eq!(p[1].option_premium, money("85000", "USD"));
 }
 
 #[test]
@@ -360,7 +416,7 @@ fn commodities_without_upi_and_capped_quantities() {
                 ("Underlier ID-Leg 1", "SYN HUB A"),
             ],
         ))
-        // Commodity option: strike is the price.
+        // Commodity option: strike and premium in their own fields.
         .row(&with(
             base_trade("5000000000000000003", "CO", exec, exec),
             &[
@@ -368,13 +424,41 @@ fn commodities_without_upi_and_capped_quantities() {
                 ("Strike Price", "75.5"),
                 ("Strike price notation", "1"),
                 ("Option Type", "PUTO"),
+                ("Option Style", "ASIA"),
                 ("Option Premium Amount", "120,000"),
                 ("Option Premium Currency", "USD"),
+                ("Total notional quantity-Leg 1", "100,000"),
+                ("Quantity unit of measure-Leg 1", "BBL"),
                 ("Underlier ID-Leg 1", "SYN CRUDE"),
+            ],
+        ))
+        // Quantity on leg 2 only; leg 1 has a unit that is not a code.
+        .row(&with(
+            base_trade("5000000000000000004", "CO", exec, exec),
+            &[
+                ("Product name", "Commodity:Energy:Elec:Swap:Cash"),
+                ("Total notional quantity-Leg 1", "1,200"),
+                ("Quantity unit of measure-Leg 1", "MW h"),
+                ("Total notional quantity-Leg 2", "2,400.5+"),
+                ("Quantity unit of measure-Leg 2", "MWh"),
+                ("Price", "45.10"),
+                ("Price notation", "1"),
+                ("Underlier ID-Leg 1", "SYN POWER"),
+            ],
+        ))
+        // A quantity without a unit is dropped (and counted).
+        .row(&with(
+            base_trade("5000000000000000005", "CO", exec, exec),
+            &[
+                ("Product name", "Commodity:Energy:NatGas:Swap:Cash"),
+                ("Total notional quantity-Leg 1", "10,000"),
+                ("Price", "3.1"),
+                ("Price notation", "1"),
+                ("Underlier ID-Leg 1", "SYN HUB A"),
             ],
         ));
     let (p, stats) = parse(&report, &ctx(Regime::CftcPart43, DtccAsset::Commodities));
-    assert_eq!(stats.records, 3);
+    assert_eq!(stats.records, 5);
     check_all(&p);
     assert_eq!(p[0].asset_class, AssetClass::Commodity);
     assert_eq!(
@@ -388,16 +472,145 @@ fn commodities_without_upi_and_capped_quantities() {
     assert_eq!(p[0].price, price("3.215"));
     assert!(p[0].prov.flags.contains(Flag::SizeCapped));
     assert_eq!(p[0].notional, None);
-    assert_eq!(p[1].price, price("-0.25"));
-    assert_eq!(p[2].price, price("75.5"));
+    // The capped quantity is kept at the cap value, in its unit.
+    assert_eq!(p[0].quantity, qty("50000", "MMBT"));
+    // A monetary spread (notation 1) is a spread amount, not a price.
+    assert_eq!(p[1].price, spread_amount("-0.25"));
+    assert_eq!(p[1].quantity, None);
+    assert_eq!(p[2].price, None);
+    assert_eq!(p[2].strike, price("75.5"));
+    assert_eq!(p[2].option_type, Some(OptionType::Put));
+    assert_eq!(p[2].option_style, Some(OptionStyle::Asian));
+    assert_eq!(p[2].option_premium, money("120000", "USD"));
+    assert_eq!(p[2].quantity, qty("100000", "BBL"));
+    assert_eq!(p[3].quantity, qty("2400.5", "MWh"));
+    assert!(p[3].prov.flags.contains(Flag::SizeCapped));
+    assert_eq!(p[4].quantity, None);
+    assert_eq!(
+        stats.field_errors.get("Quantity unit of measure-Leg 1"),
+        Some(&2)
+    );
     // Same instrument, same batch: indices increase per instrument.
     assert_eq!(p[0].prov.seq.event_index, 0);
     assert_eq!(p[1].prov.seq.event_index, 1);
     assert_eq!(p[2].prov.seq.event_index, 0);
+    assert_eq!(p[4].prov.seq.event_index, 2);
 }
 
 #[test]
-fn cancels_corrections_and_lifecycle_events() {
+fn quantities_only_for_commodities_without_a_currency_notional() {
+    let exec = "2026-11-12T16:45:00Z";
+    let report = Report::standard()
+        // A commodity swap with both: the currency notional wins.
+        .row(&with(
+            base_trade("5100000000000000001", "CO", exec, exec),
+            &[
+                ("Product name", "Commodity:Energy:NatGas:Swap:Cash"),
+                ("Notional amount-Leg 1", "321,500"),
+                ("Notional currency-Leg 1", "USD"),
+                ("Total notional quantity-Leg 1", "100,000"),
+                ("Quantity unit of measure-Leg 1", "MMBT"),
+                ("Price", "3.215"),
+                ("Price notation", "1"),
+            ],
+        ))
+        // An equity swap with a share quantity: not a commodity, no
+        // quantity.
+        .row(&with(
+            base_trade("5100000000000000002", "EQ", exec, exec),
+            &[
+                ("Total notional quantity-Leg 1", "2,000"),
+                ("Quantity unit of measure-Leg 1", "SHAS"),
+                ("Price", "1,234.5"),
+                ("Price notation", "1"),
+                ("Unique Product Identifier", "QZSYNEQS0201"),
+            ],
+        ));
+    let (p, stats) = parse(&report, &ctx(Regime::CftcPart43, DtccAsset::Commodities));
+    assert_eq!(stats.records, 2);
+    check_all(&p);
+    assert_eq!(p[0].notional, money("321500", "USD"));
+    assert_eq!(p[0].quantity, None);
+    assert_eq!(p[1].asset_class, AssetClass::Equity);
+    assert_eq!(p[1].quantity, None);
+}
+
+#[test]
+fn option_codes_strike_notations_and_bad_option_cells() {
+    let exec = "2026-11-12T12:00:00Z";
+    let upi = ("Unique Product Identifier", "QZSYNOPT0001");
+    let report = Report::standard()
+        // Cap with a basis-point strike and a Bermudan style; `PUT` as seen
+        // in the ticker.
+        .row(&with(
+            base_trade("4000000000000000001", "IR", exec, exec),
+            &[
+                upi,
+                ("Strike Price", "25"),
+                ("Strike price notation", "4"),
+                ("Option Type", "PUT"),
+                ("Option Style", "BERM"),
+            ],
+        ))
+        // Unmapped codes, a bad premium currency and a bad first exercise
+        // date drop only those values.
+        .row(&with(
+            base_trade("4000000000000000002", "IR", exec, exec),
+            &[
+                upi,
+                ("Fixed rate-Leg 1", "0.035"),
+                ("Strike Price", "0.035"),
+                ("Strike price notation", "2"),
+                ("Option Type", "CHOO"),
+                ("Option Style", "SPOT"),
+                ("Option Premium Amount", "10,000"),
+                ("Option Premium Currency", "US DOLLAR"),
+                ("First exercise date", "soon"),
+            ],
+        ))
+        // A strike with an unknown notation, and a negative premium.
+        .row(&with(
+            base_trade("4000000000000000003", "IR", exec, exec),
+            &[
+                upi,
+                ("Strike Price", "1.5"),
+                ("Strike price notation", "9"),
+                ("Option Premium Amount", "-5"),
+                ("Option Premium Currency", "USD"),
+            ],
+        ));
+    let (p, stats) = parse(&report, &ctx(Regime::CftcPart43, DtccAsset::Rates));
+    assert_eq!(stats.records, 3);
+    check_all(&p);
+    assert_eq!(p[0].strike, spread("25"));
+    assert_eq!(p[0].price, None);
+    assert_eq!(p[0].option_type, Some(OptionType::Put));
+    assert_eq!(p[0].option_style, Some(OptionStyle::Bermudan));
+
+    assert_eq!(p[1].price, rate("3.5"));
+    assert_eq!(p[1].strike, rate("3.5"));
+    assert_eq!(p[1].option_type, None);
+    assert_eq!(p[1].option_style, None);
+    assert_eq!(p[1].option_premium, None);
+    assert_eq!(p[1].first_exercise_date, None);
+
+    assert_eq!(p[2].strike, None);
+    assert_eq!(p[2].option_premium, None);
+
+    for (field, n) in [
+        ("Option Type", 1),
+        ("Option Style", 1),
+        ("Option Premium Currency", 1),
+        ("Option Premium Amount", 1),
+        ("First exercise date", 1),
+        ("Strike price notation", 1),
+    ] {
+        assert_eq!(stats.field_errors.get(field), Some(&n), "{field}");
+    }
+}
+
+#[test]
+fn cancels_corrections_and_lifecycle_actions() {
     let exec = "2026-11-12T10:00:00Z";
     let later = "2026-11-12T10:30:00Z";
     let upi = ("Unique Product Identifier", "QZSYN0000009");
@@ -430,46 +643,193 @@ fn cancels_corrections_and_lifecycle_events() {
             base_trade("103", "IR", exec, later),
             &[("Action type", "CORR"), upi],
         ))
-        // Lifecycle actions observation v0 cannot represent: skipped.
+        // Modification of 100, with a new price.
         .row(&with(
             base_trade("104", "IR", exec, later),
             &[
                 ("Action type", "MODI"),
                 ("Original Dissemination Identifier", "100"),
                 upi,
+                ("Fixed rate-Leg 1", "0.0392"),
             ],
         ))
+        // Early termination, priced, without an original ID (allowed for
+        // `terminate`).
         .row(&with(
             base_trade("105", "IR", exec, later),
-            &[("Action type", "TERM"), ("Event type", "ETRM"), upi],
+            &[
+                ("Action type", "TERM"),
+                ("Event type", "ETRM"),
+                upi,
+                ("Fixed rate-Leg 1", "0.0385"),
+            ],
         ))
+        // Revive without the original ID: rejected.
         .row(&with(
             base_trade("106", "IR", exec, later),
             &[("Action type", "REVI"), upi],
         ))
-        // New message for a non-trade event (clearing): skipped.
+        // Revive of 100 (cancelled in error by 102).
         .row(&with(
             base_trade("107", "IR", exec, later),
-            &[("Event type", "CLRG"), upi, fixed],
+            &[
+                ("Action type", "REVI"),
+                ("Event type", ""),
+                ("Original Dissemination Identifier", "100"),
+                upi,
+                fixed,
+            ],
+        ))
+        // A Part 45-only action type: skipped.
+        .row(&with(
+            base_trade("108", "IR", exec, later),
+            &[("Action type", "PRTO"), upi],
         ))
         // Missing action type: rejected.
         .row(&with(
-            base_trade("108", "IR", exec, later),
+            base_trade("109", "IR", exec, later),
             &[("Action type", ""), upi],
+        ))
+        // A correction with an undocumented event type is kept, without
+        // the event type.
+        .row(&with(
+            base_trade("110", "IR", exec, later),
+            &[
+                ("Action type", "CORR"),
+                ("Event type", "ZZZZ"),
+                ("Original Dissemination Identifier", "100"),
+                upi,
+                fixed,
+            ],
         ));
     let (p, stats) = parse(&report, &ctx(Regime::CftcPart43, DtccAsset::Rates));
     check_all(&p);
-    assert_eq!(stats.rows, 9);
-    assert_eq!(stats.records, 3);
-    assert_eq!(stats.row_errors, 2);
-    assert_eq!(stats.skipped.get("lifecycle_action"), Some(&3));
-    assert_eq!(stats.skipped.get("non_trade_event"), Some(&1));
+    assert_eq!(stats.rows, 11);
+    assert_eq!(stats.records, 7);
+    assert_eq!(stats.row_errors, 3);
+    assert_eq!(stats.skipped.get("unsupported_action"), Some(&1));
+    assert_eq!(stats.skipped.len(), 1);
+    assert_eq!(stats.field_errors.get("Event type"), Some(&1));
+
+    assert_eq!(p[0].event_type, Some(SwapEventType::Trade));
     assert_eq!(p[1].action, SwapAction::Correct);
     assert_eq!(p[1].original_dissemination_id.as_deref(), Some("100"));
     assert_eq!(p[1].price, rate("3.91"));
+    assert_eq!(p[1].event_type, None);
     assert_eq!(p[2].action, SwapAction::Cancel);
     assert_eq!(p[2].original_dissemination_id.as_deref(), Some("100"));
     assert_eq!(p[2].ts_dissemination_ms, ms(later));
+
+    let modify = &p[3];
+    assert_eq!(modify.dissemination_id, "104");
+    assert_eq!(modify.action, SwapAction::Modify);
+    assert_eq!(modify.original_dissemination_id.as_deref(), Some("100"));
+    assert_eq!(modify.price, rate("3.92"));
+    assert_eq!(modify.event_type, Some(SwapEventType::Trade));
+
+    let terminate = &p[4];
+    assert_eq!(terminate.dissemination_id, "105");
+    assert_eq!(terminate.action, SwapAction::Terminate);
+    assert_eq!(terminate.original_dissemination_id, None);
+    assert_eq!(terminate.event_type, Some(SwapEventType::EarlyTermination));
+    assert_eq!(terminate.price, rate("3.85"));
+
+    let revive = &p[5];
+    assert_eq!(revive.dissemination_id, "107");
+    assert_eq!(revive.action, SwapAction::Revive);
+    assert_eq!(revive.original_dissemination_id.as_deref(), Some("100"));
+    assert_eq!(revive.event_type, None);
+
+    assert_eq!(p[6].dissemination_id, "110");
+    assert_eq!(p[6].action, SwapAction::Correct);
+    assert_eq!(p[6].event_type, None);
+}
+
+#[test]
+fn non_trade_events_are_emitted_with_their_event_type() {
+    let exec = "2026-11-12T11:00:00Z";
+    let upi = ("Unique Product Identifier", "QZSYN0000016");
+    let fixed = ("Fixed rate-Leg 1", "0.039");
+    let codes = [
+        ("TRAD", Some(SwapEventType::Trade)),
+        ("NOVA", Some(SwapEventType::Novation)),
+        ("COMP", Some(SwapEventType::Compression)),
+        ("ETRM", Some(SwapEventType::EarlyTermination)),
+        ("CLRG", Some(SwapEventType::Clearing)),
+        ("EXER", Some(SwapEventType::Exercise)),
+        ("ALOC", Some(SwapEventType::Allocation)),
+        ("CLAL", Some(SwapEventType::ClearingAllocation)),
+        ("CREV", Some(SwapEventType::CreditEvent)),
+        ("PTNG", Some(SwapEventType::Porting)),
+        ("CORP", Some(SwapEventType::CorporateEvent)),
+        ("updt", Some(SwapEventType::Update)),
+        ("", None),
+    ];
+    const IDS: [&str; 13] = [
+        "300", "301", "302", "303", "304", "305", "306", "307", "308", "309", "310", "311", "312",
+    ];
+    let mut report = Report::standard();
+    for ((code, _), id) in codes.iter().zip(IDS) {
+        report = report.row(&with(
+            base_trade(id, "IR", exec, exec),
+            &[("Event type", code), upi, fixed],
+        ));
+    }
+    // A new message with an undocumented event type might not be a trade:
+    // skipped and counted.
+    report = report.row(&with(
+        base_trade("399", "IR", exec, exec),
+        &[("Event type", "ZZZZ"), upi, fixed],
+    ));
+    let (p, stats) = parse(&report, &ctx(Regime::CftcPart43, DtccAsset::Rates));
+    check_all(&p);
+    assert_eq!(stats.rows, 14);
+    assert_eq!(stats.records, 13);
+    assert_eq!(stats.skipped.get("unknown_event_type"), Some(&1));
+    assert!(stats.field_errors.is_empty(), "{:?}", stats.field_errors);
+    for (print, (code, want)) in p.iter().zip(codes) {
+        assert_eq!(print.action, SwapAction::New, "{code}");
+        assert_eq!(print.event_type, want, "{code}");
+        assert_eq!(print.price, rate("3.9"), "{code}");
+    }
+    let text = String::from_utf8(
+        mesh_types::hash::canonical_record(&Record::SwapPrint(p[3].clone())).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        text.contains("\"event_type\":\"early_termination\""),
+        "{text}"
+    );
+}
+
+#[test]
+fn sec_lifecycle_actions_and_event_types() {
+    let exec = "2026-11-12T13:00:00Z";
+    let upi = ("Unique Product Identifier", "QZSYNCDS0101");
+    let spread_cells = [("Spread-Leg 1", "110"), ("Spread notation-Leg 1", "4")];
+    let report = Report::standard()
+        .row(&with(
+            base_trade("200", "CR", exec, exec),
+            &[upi, spread_cells[0], spread_cells[1]],
+        ))
+        .row(&with(
+            base_trade("201", "CR", exec, exec),
+            &[
+                ("Action type", "TERM"),
+                ("Event type", "CREV"),
+                ("Original Dissemination Identifier", "200"),
+                upi,
+                spread_cells[0],
+                spread_cells[1],
+            ],
+        ));
+    let (p, stats) = parse(&report, &ctx(Regime::SecSbsr, DtccAsset::Credits));
+    assert_eq!(stats.records, 2);
+    check_all(&p);
+    assert_eq!(p[1].action, SwapAction::Terminate);
+    assert_eq!(p[1].event_type, Some(SwapEventType::CreditEvent));
+    assert_eq!(p[1].price, spread("110"));
+    assert_eq!(p[1].prov.admission.as_str(), "ADM-0004");
 }
 
 #[test]
