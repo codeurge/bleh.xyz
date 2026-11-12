@@ -146,8 +146,8 @@ targets_for() {
   case "$1" in
     synthetic) echo "hl-node-reader gateway archive history-api" ;;
     node-box) echo "hl-node hl-node-reader gateway archive" ;;
-    home-archive) echo "archive history-api swap-pollers hl-backfill" ;;
-    relay) echo "gateway history-api" ;;
+    home-archive) echo "archive history-api swap-pollers hl-backfill tools" ;;
+    relay) echo "gateway history-api tools" ;;
   esac
 }
 registry=$(get_env BLEH_REGISTRY)
