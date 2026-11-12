@@ -557,3 +557,79 @@ terms are read (ADM-0012). History backfill for feeder cattle therefore
 waits on that review.
 
 **Limits and keys.** No key. No rate limit is published.
+
+## ERCOT
+
+Admission: [ADM-0013](../admissions/ADM-0013-ercot-prices.md).
+Licence basis: ERCOT Website Terms of Use § 5 (raw data may be
+redistributed in compilations without notices), under ADR 0012.
+
+**Channel.** Public report listings and downloads on www.ercot.com. These
+need no account. **Do not use api.ercot.com**: its terms allow ERCOT to
+limit "the number of users you may serve", which fails ADR 0012.
+
+**URLs:**
+
+- Product metadata (official):
+  `https://www.ercot.com/mp/data-products/data-product-details?id={EMIL ID}`.
+  It gives the Report Type ID, generation frequency, security
+  classification, channel, file types and display duration.
+- Report listing (*observed*):
+  `https://www.ercot.com/misapp/GetReports.do?reportTypeId={Report Type ID}`.
+  It is an HTML table of documents, each offered as zip files containing
+  CSV or XML.
+- Download (*observed*):
+  `https://www.ercot.com/misdownload/servlets/mirDownload?doclookupId={id}`.
+  The listing's links add `mimic_duns=000000000`. File names follow
+  `rpt.{8-digit report type}.{…}.{timestamp}.{name}.zip`.
+
+**Products:**
+
+| EMIL ID | Report Type ID | Product | Frequency | Listing window | CSV columns |
+|---|---|---|---|---|---|
+| NP4-190-CD | 12331 | DAM Settlement Point Prices | Per DAM run | 31 days | `DeliveryDate`, `HourEnding`, `SettlementPoint`, `SettlementPointPrice`, `DSTFlag` |
+| NP4-183-CD | 12328 | DAM Hourly LMPs | Per DAM run | 31 days | `DeliveryDate`, `HourEnding`, `BusName`, `LMP`, `DSTFlag` |
+| NP4-188-CD | 12329 | DAM Clearing Prices for Capacity | Per DAM run | 31 days | `DeliveryDate`, `HourEnding`, `AncillaryType`, `MCPC`, `DSTFlag` |
+| NP6-905-CD | 12301 | Settlement Point Prices at Resource Nodes, Hubs and Load Zones | Every 15 minutes | 7 days | `DeliveryDate`, `DeliveryHour`, `DeliveryInterval`, `SettlementPointName`, `SettlementPointType`, `SettlementPointPrice`, `DSTFlag` |
+| NP6-788-CD | 12300 | LMPs by Resource Nodes, Load Zones and Trading Hubs | Per SCED run | 5 days | `SCEDTimestamp`, `RepeatedHourFlag`, `SettlementPoint`, `LMP` |
+| NP6-331-CD | 24898 | Real-time AS MCPCs, 15-minute | Every 15 minutes | 7 days | `DeliveryDate`, `DeliveryHour`, `DeliveryInterval`, `RepeatedHourFlag`, `ASType`, `MCPC` |
+| NP6-332-CD | 24891 | Real-time AS MCPCs per SCED | Per SCED run | — | `SCEDTimestamp`, `RepeatedHourFlag`, `ASType`, `CappedMCPC`, `UncappedMCPC` |
+| NP4-180-ER | 13060 | Historical DAM Load Zone and Hub Prices | Weekly, one file per year | All years | Workbook; hub and load-zone SPPs from 2010 |
+| NP6-785-ER | 13061 | Historical RTM Load Zone and Hub Prices | Weekly, one file per year | All years | Workbook; hub and load-zone SPPs from 2010 |
+
+Notes on the products:
+
+- All products above are classified "Public" in EMIL.
+- The column lists were read from current files. Pollers check headers on
+  every file and alert on changes.
+- Settlement point names include the trading hubs (`HB_BUSAVG`,
+  `HB_HOUSTON`, `HB_HUBAVG`, `HB_NORTH`, `HB_PAN`, `HB_SOUTH`, `HB_WEST`)
+  and the load zones (`LZ_AEN`, `LZ_CPS`, `LZ_HOUSTON`, `LZ_LCRA`,
+  `LZ_NORTH`, `LZ_RAYBN`, `LZ_SOUTH`, `LZ_WEST`).
+- The real-time AS MCPC products began in 2025 with real-time
+  co-optimisation.
+
+**Schedule.**
+
+- Day-ahead results are posted "no later than 1330" (Nodal Protocols
+  § 4.5.2(2)).
+- Real-time SPPs are posted "immediately following the end of each
+  Settlement Interval" (§ 6.3.2(2)).
+
+**History.**
+
+- The listing windows above are short, so live capture is time-critical.
+- Hub and load-zone history comes from NP4-180-ER and NP6-785-ER. Their
+  yearly files run from 2010 for both; the first run dates are
+  2011-10-01 and 2011-09-30.
+- Node-level history older than the listing window is only offered through
+  the API archive, which is not an admitted channel, so it is not
+  backfilled.
+
+**Limits and keys.**
+
+- No key is needed on the website.
+- ERCOT's terms prohibit use "in a manner that negatively affects the
+  performance of this website or other ERCOT systems" (§ 6).
+- Pollers fetch each new document once and keep a list of downloaded
+  `doclookupId` values.
