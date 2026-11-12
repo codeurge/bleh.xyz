@@ -1,6 +1,6 @@
 # 0014: User-supplied data stays on the user's machine
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-12
 - Deciders: Repository owner
 
