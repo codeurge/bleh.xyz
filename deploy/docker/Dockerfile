@@ -81,7 +81,8 @@ RUN --mount=type=cache,id=bleh-cargo-registry,target=/usr/local/cargo/registry,s
     mkdir -p /out; \
     for b in ${BINS}; do install -m 0755 "target/release/${b}" "/out/${b}"; done; \
     (cd /out && sha256sum * > SHA256SUMS); \
-    cat /out/SHA256SUMS
+    cat /out/SHA256SUMS; \
+    mkdir -p /state/raw /state/archive /state/backfill
 
 # ---------------------------------------------------------------------------
 # Runtime base: distroless glibc + libgcc + libstdc++, user 65532 (nonroot).
@@ -96,6 +97,10 @@ ENV RUST_LOG=info \
     RUST_BACKTRACE=1
 USER nonroot:nonroot
 COPY --from=build /out/SHA256SUMS /usr/share/bleh/SHA256SUMS
+# State directories owned by the runtime user, so a named volume mounted
+# here starts writable. Bind mounts on hosts are chowned to 65532 by
+# deploy/scripts/host-bootstrap.sh.
+COPY --from=build --chown=65532:65532 /state/ /var/lib/bleh/
 
 # ---------------------------------------------------------------------------
 # Service targets. Ports are the defaults listed in deploy/README.md
