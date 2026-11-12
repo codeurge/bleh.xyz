@@ -1,0 +1,14 @@
+[Unit]
+Description=bleh: host facts for the textfile collector
+Documentation=file:///opt/bleh/src/docs/operations/observability.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/bleh/src/deploy/scripts/host-metrics.sh
+Nice=10
+ProtectSystem=strict
+ReadWritePaths=/var/lib/node_exporter/textfile
+PrivateTmp=true
+NoNewPrivileges=true

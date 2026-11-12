@@ -1,0 +1,16 @@
+[Unit]
+Description=bleh: external availability probe (block heartbeat within 5 s)
+Documentation=file:///opt/bleh/src/docs/operations/observability.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/bleh/probe.env
+ExecStart=/opt/bleh/src/deploy/observability/prober/ws-probe.sh
+Nice=10
+ProtectSystem=strict
+ReadWritePaths=/var/lib/node_exporter/textfile
+PrivateTmp=true
+NoNewPrivileges=true
+TimeoutStartSec=30

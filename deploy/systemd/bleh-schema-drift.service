@@ -1,0 +1,15 @@
+[Unit]
+Description=bleh: compare Hyperliquid node output with the format spec
+Documentation=file:///opt/bleh/src/docs/operations/upgrades.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/bleh/schema-drift.env
+ExecStart=/opt/bleh/src/deploy/scripts/schema-drift-check.sh
+Nice=10
+ProtectSystem=strict
+ReadWritePaths=/var/lib/bleh /var/lib/node_exporter/textfile
+PrivateTmp=true
+NoNewPrivileges=true

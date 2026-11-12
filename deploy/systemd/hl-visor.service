@@ -1,0 +1,34 @@
+# Native alternative to the hl-node container (compose profile node-box):
+# runs hl-visor as the unprivileged user "hl" whose home is /srv/hl, so node
+# output lands in /srv/hl/hl/data exactly where the container would put it
+# and the reader, pruner and drift check work unchanged. Install hl-visor
+# with deploy/scripts/node-install.sh first. Use either this unit or the
+# hl-node container, never both.
+[Unit]
+Description=Hyperliquid non-validating node (hl-visor)
+Documentation=file:///opt/bleh/src/docs/operations/node.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hl
+Group=hl
+WorkingDirectory=/srv/hl
+Environment=HOME=/srv/hl
+EnvironmentFile=-/etc/bleh/hl-visor.env
+# The same flag check and gossip setup as the container entrypoint.
+ExecStart=/opt/bleh/src/deploy/docker/hl-node/entrypoint.sh
+Restart=always
+RestartSec=10
+TimeoutStopSec=120
+LimitNOFILE=1048576
+Nice=-5
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/hl
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -13,7 +13,8 @@
 #   PROBE_INSTRUMENT  instrument to subscribe to [hyperliquid:perp:BTC]
 #   PROBE_KIND        channel kind [trade]
 #   PROBE_TIMEOUT     seconds allowed from connect to first block [5]
-#   PROBE_CLIENT      websocat | mesh-client [websocat]
+#   PROBE_CLIENT      websocat | mesh-client | docker [websocat]
+#   PROBE_IMAGE       image for PROBE_CLIENT=docker [bleh/tools:local]
 #   TEXTFILE_DIR      node_exporter textfile directory
 #                     [/var/lib/node_exporter/textfile]
 #
@@ -79,8 +80,7 @@ probe_websocat() {
   fi
 }
 
-probe_mesh_client() {
-  command -v mesh-client >/dev/null || { error="mesh-client not installed"; return; }
+probe_mesh_client_inner() {
   local out
   if out=$(mesh-client probe --url "$url" --instrument "$instrument" --kind "$kind" \
       --timeout "${timeout_s}s" 2>/dev/null); then
@@ -96,9 +96,17 @@ probe_mesh_client() {
   fi
 }
 
+probe_docker() {
+  command -v docker >/dev/null || { error="docker not installed"; return; }
+  local image=${PROBE_IMAGE:-bleh/tools:local}
+  mesh-client() { docker run --rm --network host "$image" "$@"; }
+  probe_mesh_client_inner
+}
+
 case "$client" in
   websocat) probe_websocat ;;
-  mesh-client) probe_mesh_client ;;
+  mesh-client) command -v mesh-client >/dev/null || error="mesh-client not installed"; [[ -z "$error" ]] && probe_mesh_client_inner ;;
+  docker) probe_docker ;;
   *) error="unknown PROBE_CLIENT $client" ;;
 esac
 

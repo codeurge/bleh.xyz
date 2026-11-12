@@ -1,0 +1,16 @@
+[Unit]
+Description=bleh: prune captured Hyperliquid node output
+Documentation=file:///opt/bleh/src/docs/operations/node.md
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/bleh/prune.env
+ExecStart=/opt/bleh/src/deploy/scripts/hl-prune.sh
+Nice=10
+ProtectSystem=strict
+ReadWritePaths=/srv/hl /var/lib/node_exporter/textfile
+PrivateTmp=true
+NoNewPrivileges=true
+IOSchedulingClass=idle
