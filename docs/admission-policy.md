@@ -15,8 +15,22 @@ policy decides which fields enter, based on their lineage.
    - a bucket or archive that the source's operator publishes openly (for
      example a venue's public node-data bucket, even when the storage
      provider bills the requester for transfer),
-   - data that law or regulation requires to be published free of charge, or
-   - public-domain government data.
+   - data that law or regulation requires to be published free of charge,
+   - public-domain government data, or
+   - data that a public body (a government agency or a Federal Reserve
+     Bank) or a regulated market operator (for example a grid operator
+     publishing under a regulator-approved tariff or protocols) publishes
+     openly under terms that expressly let anyone copy and redistribute it
+     for any purpose, including commercial use, free of charge.
+     - Acceptable conditions are attribution, a source notice or disclaimer
+       that travels with the data, passing the same terms on, not implying
+       endorsement, and labelling modified data.
+     - Terms that limit who may receive the data, forbid commercial use or
+       republication, or require a fee, membership or written permission do
+       not qualify. Neither do terms that reserve rights without granting
+       redistribution.
+     - A free registration or API key is acceptable only when its own terms
+       pass the same test.
 3. **Venue-matched fields only.** Published price and size fields come from
    the venue's own matching, never from an exchange feed, an oracle, a
    deployer-supplied price or a commercial vendor. Where an outside price
@@ -35,6 +49,9 @@ policy decides which fields enter, based on their lineage.
 
 Rule 2's open-bucket route and rule 3's wording were set on 2026-11-11
 (owner decision; see [ADR 0009](decisions/0009-admission-policy-amendments.md)).
+Rule 2's open-terms route for public bodies and regulated market operators
+was added on 2026-11-12 (owner decision; see
+[ADR 0012](decisions/0012-open-terms-route-for-public-bodies-and-market-operators.md)).
 
 ## Contributor rules
 

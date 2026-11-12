@@ -100,6 +100,19 @@ versions (see [AGENTS.md](AGENTS.md)).
   reference prices, for future reference pollers) and `synthetic_month`,
   with allowlist, JSON Schema and Arrow schemas; existing canonical
   encodings unchanged.
+- Public settlement anchors and reference data:
+  - ADR 0012 adds an open-terms route to admission rule 2 and the
+    `exchange_referenced` flag.
+  - Records ADM-0005 to ADM-0019 cover CFTC Commitments of Traders, US
+    Treasury rates and auctions, NY Fed reference rates, Federal Reserve
+    H.15 and H.10, USDA livestock, dairy and feeder cattle, and seven grid
+    operators.
+  - Admitted: ERCOT, plus the federal, Federal Reserve and USDA sources,
+    with exclusions per field.
+  - Rejected: grain bids, CAISO, PJM, MISO, ISO-NE and SPP. NYISO stays
+    under review.
+  - Access details for the poller lane are in
+    `docs/specs/reference-sources.md`.
 
 ### Changed
 
