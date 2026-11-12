@@ -19,6 +19,7 @@ pub mod layout;
 pub mod manifest;
 pub mod metrics;
 pub mod partition;
+pub mod replay;
 pub mod store;
 pub mod torrent;
 
