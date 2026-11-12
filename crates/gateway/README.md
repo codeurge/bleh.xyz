@@ -1,12 +1,12 @@
 # gateway
 
-Public websocket gateway for the bleh.xyz mesh.
+Public websocket gateway and relay for the bleh.xyz mesh.
 
-**Status:** skeleton.
+**Status:** implemented and tested.
 
 ## Responsibility
 
-Serves subscriptions by instrument and kind over websocket in JSON and binary encodings: book snapshot plus contiguous deltas, per-block heartbeats and commitments, gap-driven re-snapshot, rate limits, health and freshness endpoints.
+Websocket gateway implementing [gateway-v0](../../docs/protocol/gateway-v0.md) in JSON and CBOR: subscriptions with wildcards, snapshot plus contiguous deltas, per-block heartbeats and commitments, forced re-snapshots, slow-consumer policy, per-IP and rate limits; relay mode that verifies every commitment before re-serving; `/health`, `/freshness`, `/metrics`, `/proof`, `/signers`; a synthetic demo feed. Runbook: [docs/operations/gateway.md](../../docs/operations/gateway.md).
 
 ## Rules
 
