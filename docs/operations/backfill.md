@@ -12,7 +12,8 @@ layouts, record formats and the list of unverified facts are in
 requester-pays S3 buckets ──copy──▶ private raw tier (verbatim, R2 or S3)
                                        │
                                      process ──▶ filtered raw (public, zstd JSON lines)
-                                       │      └─▶ partitions (records, flag backfill, ADM-0003)
+                                       │      └─▶ Parquet partitions, archive hyperliquid-backfill
+                                       │          (records, flag backfill, ADM-0003)
                                        │
                                      compare ◀── live-recorded partitions (overlap days)
 
@@ -23,7 +24,7 @@ replica_cmds ──replay-prototype──▶ book events + trades, checked again
 |---|---|---|---|
 | Coverage and cost | `hl-backfill estimate` | bucket listings | JSON report |
 | Copy | `hl-backfill copy` | admitted prefixes | raw tier, checkpoint file |
-| Filter and normalize | `hl-backfill process` | raw tier | filtered raw, partitions, JSON report |
+| Filter and normalize | `hl-backfill process` | raw tier | filtered raw, Parquet partitions, JSON report |
 | Overlap check | `hl-backfill compare` | two record sets | JSON report |
 | Order-level replay | `hl-backfill replay-prototype` | simplified `replica_cmds` blocks, L2 snapshot records | records, JSON report |
 
@@ -114,7 +115,7 @@ hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
 ```bash
 hl-backfill process --raw s3://<raw-bucket>/hl-archive \
   --filtered s3://<public-bucket>/hyperliquid-backfill-raw \
-  --out-dir ./partitions --registry registry.json \
+  --out-dir ./archives --registry registry.json \
   --datasets node_fills_by_block,market_data --from 2025-07-27 --to 2025-07-27
 ```
 
@@ -126,18 +127,54 @@ the `backfill` flag (L2 snapshots also `low_resolution`), validated,
 checked against the mesh field allowlist, and written to partitions in
 canonical order.
 
+- **Which code reads what.** Objects in the node's `--batch-by-block`
+  fills format (`node_fills_by_block`, and `node_fills` when its lines are
+  block objects) go through the live node reader: its filter
+  (`hl_node_reader::filter_line`) writes the filtered raw, and its parser,
+  normalizer and sequencer produce the trades, which are then re-stamped
+  as backfill. Backfilled trades are therefore produced by exactly the
+  live code path, with the same `seq`, trade IDs, instrument flags and
+  `gap_before` rules (a block-number jump between lines or between
+  consecutive hourly files of a dataset, or a malformed fill group). The
+  buckets carry only the fills stream, so the missing order-status and
+  book-diff lines do not count as a gap; a block the node reader rejects
+  fails its file. `node_trades`, `market_data` L2 snapshots and bare
+  `node_fills` lines, which the node reader cannot read, use this crate's
+  own filter and parser.
 - **Field rules.** Fills keep `coin`, `px`, `sz`, `side`, `time`,
-  `crossed`, `tid`, `oid`, and only book-matched pairs (one `tid`, two
-  fills, opposite sides, exactly one `crossed`); backstop liquidations,
-  no-taker pairs and unpaired fills are dropped. Owner addresses, fees,
-  PnL, hashes, liquidation objects and client order IDs never reach the
-  output.
+  `crossed`, `tid`, `oid`. Only book-matched pairs (one `tid`, two fills,
+  opposite sides, exactly one `crossed`) become trades; backstop
+  liquidations, no-taker pairs and spot markets are dropped. The node
+  reader's filter keeps an unpaired fill's admitted fields so its parser
+  can flag the gap (`gap_before`); the local filter drops unpaired fills.
+  Owner addresses, fees, PnL, hashes, liquidation objects and client
+  order IDs never reach the output.
+- **Partitions.** The archive crate's deterministic Parquet writer
+  (`docs/specs/archive-layout-v0.md` § 3) writes daily partitions of the
+  backfill archive, its own archive per § 1:
+  `<out-dir>/hyperliquid-backfill/kind=<kind>/venue=<venue>/instrument=<id>/date=<YYYY-MM-DD>/part-<NNNNN>.parquet`
+  (`--archive` changes the name). A day's partitions are written once the
+  hour after the day has been processed (records stamped just before
+  midnight can arrive in the next day's first file), or at the end of the
+  run. Files are write-once: rerunning a day on the same input finds
+  byte-identical files (`already_present` in the report); different
+  content for an existing file stops the run. Process whole days, and all
+  datasets of a day in one run. The report's `partitions` list gives each
+  file's path, record count, content hash (`bleh.content_hash`) and
+  SHA-256. `--format jsonl` writes canonical JSON lines
+  (`records.jsonl` per partition) instead, for debugging.
+- **Reading the result.** The history API reads the backfill archive
+  directly: point it at `<out-dir>` with `hyperliquid-backfill` among its
+  archives (`--archive <out-dir> --archive-name hyperliquid-normalized,hyperliquid-backfill`;
+  it unions archives, and reports hours whose records all carry
+  `backfill` as `backfilled` in `/v0/coverage`).
 - **Blocks for data without them.** L2 snapshots and unbatched fills or
   trades get the last block at or before their time from a clock built
   from batched fill lines (the last two hours are kept), or from
   `--clock-lines`. Times outside the known blocks are counted as
   `unresolved` and skipped, never guessed. Several snapshots that resolve
-  to one block keep the last (`superseded`).
+  to one block keep the last (`superseded`), also across the hourly
+  files of a day.
 - **Snapshot frequency.** Each hour's report gives
   `snapshot_interval_median_ms`, the measured interval between
   consecutive snapshots in a file, which settles the frequency ADM-0003
@@ -145,16 +182,28 @@ canonical order.
 - **Failures.** A file that fails any step contributes nothing; the hour
   is listed with `failed` entries and the exit status is 1.
 - **Seams.** The filter, parser and partition writer are traits
-  (`RawLineFilter`, `RecordParser`, `PartitionWriter`). The binary uses
-  this crate's local implementations and writes partitions as canonical
-  JSON lines; the integrator swaps in the node reader's filter and parser
-  and the archive's Parquet writer without changing the pipeline.
+  (`RawLineFilter`, `RecordParser`, `PartitionWriter`), now wired: the
+  binary and `Pipeline::wired` use `DefaultFilter` and `DefaultParser`
+  (node reader for by-block fills, local implementations otherwise) and
+  `ParquetWriter` (the archive crate's writer). The local implementations
+  (`LocalFilter`, `LocalParser`, `JsonlWriter`, `MemoryWriter`) stay
+  available for the other formats, debugging and tests.
+- **Tests.** `tools/hl-backfill/tests/history.rs` runs the whole path in
+  CI with no network: hl-synth's synthetic node output re-framed as LZ4
+  bucket objects, `hl-backfill process`, Parquet partitions, and the
+  history API, checking trades against hl-synth's ground truth, the
+  `ADM-0003` admission and `backfill` flag on every record, coverage, and
+  identical partition hashes across two runs.
 
 ## 6. Compare against live recording
 
 ```bash
-hl-backfill compare --backfill ./partitions --live ./live-partitions
+hl-backfill compare --backfill ./archives/hyperliquid-backfill \
+  --live ./archives/hyperliquid-normalized
 ```
+
+Both sides may be Parquet partitions (read with the archive crate's
+reader, which checks each file's content hash) or JSON-lines files.
 
 For each UTC hour, kind and instrument the tool hashes a comparable
 projection of the records (admission set to a placeholder, `backfill` and
@@ -207,12 +256,13 @@ from responses.
 
 ```bash
 hl-backfill replay-prototype --blocks blocks.jsonl --assets assets.json \
-  --checkpoints ./partitions --out replayed.jsonl
+  --checkpoints ./archives/hyperliquid-backfill --out replayed.jsonl
 ```
 
 `assets.json` maps asset indices to instruments and scales
 (`[{"asset": 0, "instrument": "hyperliquid:perp:BTC", "price_scale": 1, "size_scale": 5}]`);
-`--checkpoints` takes the L2 `book_snapshot` records `process` wrote.
+`--checkpoints` takes the L2 `book_snapshot` records `process` wrote
+(Parquet or JSON lines).
 Output records carry `ADM-0003` and `backfill`; the report lists what was
 not emulated and each checkpoint result.
 
@@ -253,15 +303,10 @@ version of observation-v0 from the integrator.
 
 ## 8. Integration notes
 
-- `cargo deny check` currently rejects `webpki-root-certs`
-  (CDLA-Permissive-2.0), pulled in by `object_store` → `reqwest` →
-  `rustls-platform-verifier` **only for wasm32 targets**. Restricting
-  `[graph] targets` in `deny.toml` to the build targets (or allowing that
-  license, which covers the Mozilla root certificate list) resolves it;
-  any crate using `object_store` with the `aws` feature hits the same.
-- Partitions written by `process` are JSON lines under the archive's Hive
-  paths; publication uses the archive crate's Parquet writer behind
-  `PartitionWriter`.
+- `process` writes partitions but no manifests: the backfill archive's
+  daily manifests, signatures and Iceberg metadata come from the archive
+  crate's commands run over the archive root `process` wrote
+  (`--archive hyperliquid-backfill`), as for any archive.
 - Filtered raw for the backfill is its own archive
   (`archive-layout-v0.md` § 1) under its own prefix, with its own manifest
   chain.

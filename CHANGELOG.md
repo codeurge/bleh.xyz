@@ -39,6 +39,10 @@ versions (see [AGENTS.md](AGENTS.md)).
   (`brand/video/`), and a social kit with launch copy (`brand/social/`).
 - ADR 0010: budget-first hosting, about $150 a month (one rented node box,
   a self-hosted archive, seed and processing server, free relays, R2).
+- `hl-backfill process` runs by-block fills through the live node reader
+  (filter, parser, sequencer) and writes deterministic Parquet partitions
+  of the `hyperliquid-backfill` archive with the archive crate's writer,
+  readable by the history API; JSON lines remain behind `--format jsonl`.
 
 ### Changed
 
