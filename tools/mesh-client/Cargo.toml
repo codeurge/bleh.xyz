@@ -24,6 +24,23 @@ tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 zeroize.workspace = true
+# Bring your own feed (ADR 0014).
+csv = "1.4"
+toml = { version = "1", default-features = false, features = ["parse", "serde"] }
+dbn = { workspace = true, features = ["zstd"], optional = true }
+databento = { version = "0.64", default-features = false, features = ["live"], optional = true }
+
+[features]
+default = ["dbn-files"]
+# DBN files the user holds (open format, Apache-2.0 `dbn` crate).
+dbn-files = ["dep:dbn"]
+# The vendor's live client, with the user's own key (off by default).
+databento-live = ["dbn-files", "dep:databento"]
+
+[dev-dependencies]
+tempfile.workspace = true
+time = "0.3"
+zstd.workspace = true
 
 [lints]
 workspace = true

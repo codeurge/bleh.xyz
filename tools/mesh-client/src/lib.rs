@@ -9,6 +9,7 @@
 //! | [`client`] | [`Client`]: connect, subscribe, keep books, verify, recover, rotate URLs |
 //! | [`probe`] | One-shot availability probe (`mesh-client probe`) |
 //! | [`keys`] | Signing-key files: address of a secret (`mesh-client keys address`) |
+//! | [`byo`] | Bring your own feed: merge a feed the user licenses with bleh.xyz data, locally only (ADR 0014) |
 //!
 //! ```no_run
 //! # async fn demo() -> Result<(), mesh_client::ClientError> {
@@ -32,6 +33,7 @@
 #![warn(missing_docs)]
 
 pub mod book;
+pub mod byo;
 pub mod client;
 pub mod codec;
 pub mod keys;

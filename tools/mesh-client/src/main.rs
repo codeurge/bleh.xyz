@@ -8,11 +8,14 @@
 //!     --signer 0x... --proof-every 100 --record stream.jsonl --duration 60
 //! mesh-client probe --url wss://a/v0/ws --instrument hyperliquid:perp:BTC --kind book_event --timeout 5s
 //! mesh-client keys address --key-file /run/secrets/block-key
+//! mesh-client byo merge --map pairs.toml --url wss://a/v0/ws --feed csv --feed-path mine.csv
 //! ```
 //!
 //! Streaming is the default (no subcommand) and is also `mesh-client stream`.
 
 #![cfg_attr(test, allow(clippy::unwrap_used))]
+
+mod byo_cli;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -55,6 +58,13 @@ enum Command {
     Keys {
         #[command(subcommand)]
         command: KeysCommand,
+    },
+    /// Bring your own feed: compare a feed you license yourself with
+    /// bleh.xyz on this machine only (ADR 0014). Your data is never sent to
+    /// bleh.xyz.
+    Byo {
+        #[command(subcommand)]
+        command: byo_cli::ByoCommand,
     },
 }
 
@@ -181,7 +191,7 @@ fn is_data(e: &ClientEvent) -> bool {
 async fn main() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
     let default_level = match cli.command {
-        Some(Command::Probe(_) | Command::Keys { .. }) => "warn",
+        Some(Command::Probe(_) | Command::Keys { .. } | Command::Byo { .. }) => "warn",
         _ => "info",
     };
     tracing_subscriber::fmt()
@@ -215,6 +225,13 @@ async fn main() -> anyhow::Result<ExitCode> {
                 ExitCode::FAILURE
             })
         }
+        Some(Command::Byo { command }) => match byo_cli::run(command).await {
+            Ok(code) => Ok(code),
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                Ok(ExitCode::FAILURE)
+            }
+        },
         Some(Command::Keys {
             command: KeysCommand::Address { key_file },
         }) => match mesh_client::keys::read_key_file(&key_file) {
