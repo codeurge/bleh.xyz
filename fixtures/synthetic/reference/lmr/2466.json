@@ -1,0 +1,42 @@
+[
+ {
+  "reportSection": "Summary",
+  "results": [
+   {
+    "report_date": "03/10/2026",
+    "current_volume": "12,000"
+   }
+  ]
+ },
+ {
+  "reportSection": "Detail",
+  "results": [
+   {
+    "report_date": "03/10/2026",
+    "class_description": "STEER",
+    "selling_basis_description": "LIVE FOB",
+    "grade_description": "Over 80% Choice",
+    "head_count": "1,234",
+    "weight_range_low": "1350",
+    "weight_range_high": "1600",
+    "weight_range_avg": "1475",
+    "price_range_low": "238.00",
+    "price_range_high": "240.00",
+    "weighted_avg_price": "239.12"
+   },
+   {
+    "report_date": "03/10/2026",
+    "class_description": "HEIFER",
+    "selling_basis_description": "DRESSED DELIVERED",
+    "grade_description": "65 - 80% Choice",
+    "head_count": "456",
+    "weight_range_low": "800",
+    "weight_range_high": "1000",
+    "weight_range_avg": "905",
+    "price_range_low": "378.00",
+    "price_range_high": "380.00",
+    "weighted_avg_price": "379.40"
+   }
+  ]
+ }
+]

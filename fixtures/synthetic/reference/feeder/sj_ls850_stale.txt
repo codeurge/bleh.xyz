@@ -1,0 +1,26 @@
+SJ_LS850
+Synthetic City, ST    Fri Jan 02, 2026    USDA-Example Market News
+
+                 National Feeder & Stocker Cattle Summary
+                         Week Ending: 01/02/2026
+
+  Receipts:   This Week      Last Week     Last Year
+             250,000        240,000       230,000
+
+  Compared to last week, steer calves traded firm. Futures moves were
+  quoted 2.00 higher on the week; no futures prices are carried here.
+  Quotes 500-600 lbs 245.00-262.50 in this narrative are not a table row.
+
+Feeder Steers Medium and Large 1
+Head   Wt Range   Avg Wt    Price Range     Avg Price
+ 1250   500-600     552    245.00-262.50     253.84
+  900   600-700     651    230.00-244.00     237.12
+   80   600-700     648    250.00            250.00   Fleshy
+  120   700-800     755    220.00-226.00     223.50   Basis priced
+   60   800-900     850    210.00-215.00     212.40   Futures plus
+Feeder Heifers Medium and Large 1-2
+Head   Wt Range   Avg Wt    Price Range     Avg Price
+  700   400-500     455    250.00-270.00     260.10
+   40   500-600     5x0    240.00-250.00     245.00
+
+Source:  Synthetic fixture; values invented.

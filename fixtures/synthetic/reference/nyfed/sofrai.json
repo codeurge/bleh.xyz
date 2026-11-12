@@ -1,0 +1,688 @@
+{
+ "refRates": [
+  {
+   "effectiveDate": "2026-03-16",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.21096784,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-13",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.21082288,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-12",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.21067793,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-11",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.210533,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-10",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.21038809,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-09",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2102432,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-06",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.21009832,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-05",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20995346,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-04",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20980862,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-03",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2096638,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-03-02",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20951899,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-27",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2093742,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-26",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20922943,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-25",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20908468,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-24",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20893994,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-23",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20879522,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-20",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20865052,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-19",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20850583,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-18",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20836116,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-17",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20821651,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-16",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20807188,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-13",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20792726,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-12",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20778266,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-11",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20763808,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-10",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20749352,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-09",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20734897,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-06",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20720444,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-05",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20705993,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-04",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20691544,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-03",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20677096,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-02-02",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2066265,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-30",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20648206,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-29",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20633763,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-28",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20619322,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-27",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20604883,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-26",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20590446,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-23",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2057601,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-22",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20561576,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-21",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20547144,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-20",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20532714,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-19",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20518285,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-16",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20503858,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-15",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20489433,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-14",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20475009,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-13",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20460587,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-12",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20446167,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-09",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20431749,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-08",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20417332,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-07",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20402917,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-06",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20388504,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-05",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20374093,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-02",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20359683,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-01-01",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20345275,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-31",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20330869,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-30",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20316464,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-29",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20302061,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-26",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2028766,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-25",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20273261,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-24",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20258863,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-23",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20244467,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-22",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20230073,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-19",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20215681,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-18",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.2020129,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-17",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20186901,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-16",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20172514,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-15",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20158128,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-12",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20143744,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-11",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20129362,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-10",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20114982,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-09",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20100603,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-08",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20086226,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-05",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20071851,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-04",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20057477,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-03",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20043105,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-02",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20028735,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2025-12-01",
+   "type": "SOFRAI",
+   "average30day": 4.30123,
+   "average90day": 4.29876,
+   "average180day": 4.35001,
+   "index": 1.20014367,
+   "revisionIndicator": ""
+  }
+ ]
+}

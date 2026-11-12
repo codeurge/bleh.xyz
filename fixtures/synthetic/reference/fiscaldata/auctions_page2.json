@@ -1,0 +1,83 @@
+{
+ "data": [
+  {
+   "record_date": "2026-03-11",
+   "cusip": "SYNTH0003",
+   "security_type": "Note",
+   "security_term": "10-Year",
+   "auction_date": "2026-03-11",
+   "issue_date": "2026-03-16",
+   "maturity_date": "2036-01-15",
+   "offering_amt": "80000000000",
+   "total_tendered": "230000000000",
+   "total_accepted": "80000000000",
+   "bid_to_cover_ratio": "2.88",
+   "primary_dealer_accepted": "20000000000",
+   "soma_accepted": "0",
+   "ref_cpi_on_issue_date": "321.12345",
+   "frn_index_determination_rate": "null",
+   "pdf_filenm_announcemt": "A_SYNTHETIC.pdf",
+   "xml_filenm_comp_results": "R_SYNTHETIC.xml",
+   "high_yield": "1.905",
+   "low_yield": "null",
+   "avg_med_yield": "null",
+   "high_discnt_rate": "null",
+   "low_discnt_rate": "null",
+   "avg_med_discnt_rate": "null",
+   "high_investment_rate": "null",
+   "low_investment_rate": "null",
+   "avg_med_investment_rate": "null",
+   "high_price": "99.500000",
+   "low_price": "null",
+   "avg_med_price": "null",
+   "int_rate": "1.875"
+  },
+  {
+   "record_date": "2026-03-12",
+   "cusip": "SYNTH0004",
+   "security_type": "Bill",
+   "security_term": "52-Week",
+   "auction_date": "2026-03-12",
+   "issue_date": "2026-03-17",
+   "maturity_date": "2027-03-16",
+   "offering_amt": "80000000000",
+   "total_tendered": "230000000000",
+   "total_accepted": "80000000000",
+   "bid_to_cover_ratio": "2.88",
+   "primary_dealer_accepted": "20000000000",
+   "soma_accepted": "0",
+   "ref_cpi_on_issue_date": "null",
+   "frn_index_determination_rate": "null",
+   "pdf_filenm_announcemt": "A_SYNTHETIC.pdf",
+   "xml_filenm_comp_results": "R_SYNTHETIC.xml",
+   "high_yield": "null",
+   "low_yield": "null",
+   "avg_med_yield": "null",
+   "high_discnt_rate": "3.950",
+   "low_discnt_rate": "null",
+   "avg_med_discnt_rate": "null",
+   "high_investment_rate": "4.120",
+   "low_investment_rate": "null",
+   "avg_med_investment_rate": "null",
+   "high_price": "96.006111",
+   "low_price": "null",
+   "avg_med_price": "null",
+   "int_rate": "null"
+  },
+  {
+   "auction_date": "garbage"
+  }
+ ],
+ "meta": {
+  "count": 2,
+  "labels": {
+   "cusip": "CUSIP"
+  },
+  "total-count": 5,
+  "total-pages": 2
+ },
+ "links": {
+  "self": "&page%5Bnumber%5D=2",
+  "next": null
+ }
+}

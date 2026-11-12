@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<feed xml:base="https://example.invalid/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <title type="text">Synthetic</title>
+  <entry>
+    <id>synthetic-0</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">1</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-1</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">2</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-2</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">3</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-3</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">4</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-4</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">5</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-5</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">6</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-6</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">7</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-7</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">8</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-8</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">9</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-9</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">10</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-10</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">11</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:NEW_DATE>
+        <d:TC_5YEAR m:type="Edm.Double">1.60</d:TC_5YEAR>
+        <d:TC_7YEAR m:type="Edm.Double">1.75</d:TC_7YEAR>
+        <d:TC_10YEAR m:type="Edm.Double">1.90</d:TC_10YEAR>
+        <d:TC_20YEAR m:type="Edm.Double">2.20</d:TC_20YEAR>
+        <d:TC_30YEAR m:type="Edm.Double">2.30</d:TC_30YEAR>
+      </m:properties>
+    </content>
+  </entry>
+</feed>

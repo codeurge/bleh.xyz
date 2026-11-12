@@ -1,0 +1,5 @@
+DeliveryDate,HourEnding,SettlementPoint,SettlementPointPrice,DSTFlag
+11/01/2026,01:00,HB_NORTH,20.00,N
+11/01/2026,02:00,HB_NORTH,21.00,N
+11/01/2026,02:00,HB_NORTH,22.00,Y
+11/01/2026,03:00,HB_NORTH,-5.50,N

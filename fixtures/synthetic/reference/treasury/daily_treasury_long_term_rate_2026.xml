@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<feed xml:base="https://example.invalid/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <title type="text">Synthetic</title>
+  <entry>
+    <id>synthetic-0</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">1</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-1</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">2</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-2</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">3</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-3</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">4</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-4</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">5</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-5</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">6</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-6</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">7</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-7</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">8</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-8</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">9</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-9</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">10</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-10</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">11</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-11</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">12</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-12</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">13</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-13</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">14</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-14</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">15</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-15</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">16</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-16</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">17</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-17</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">18</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-18</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">19</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-19</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">20</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-20</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">21</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">BC_20year</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.56</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-21</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">22</d:Id>
+        <d:QUOTE_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:QUOTE_DATE>
+        <d:RATE_TYPE m:type="Edm.String">Over_10_Years</d:RATE_TYPE>
+        <d:RATE m:type="Edm.Double">4.40</d:RATE>
+        <d:EXTRAPOLATION_FACTOR m:null="true" />
+      </m:properties>
+    </content>
+  </entry>
+</feed>

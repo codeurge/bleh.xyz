@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<feed xml:base="https://example.invalid/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata">
+  <title type="text">Synthetic</title>
+  <entry>
+    <id>synthetic-0</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">1</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-02T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.20</d:BC_1MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.22</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.24</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.25</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.22</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.10</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.95</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.90</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.95</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.05</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.20</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.55</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.60</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.60</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-1</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">2</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-03T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.21</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.22</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.23</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.25</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.26</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.23</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.11</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.96</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.91</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.96</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.06</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.21</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.56</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.61</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.61</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-2</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">3</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-04T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.22</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.23</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.24</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.26</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.27</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.24</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.12</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.97</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.92</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.97</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.07</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.22</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.57</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.62</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.62</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-3</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">4</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-05T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.20</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.21</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.22</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.24</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.25</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.22</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.10</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.95</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.90</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.95</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.05</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.20</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.55</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.60</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.60</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-4</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">5</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-06T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.21</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.22</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.23</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.25</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.26</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.23</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.11</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.96</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.91</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.96</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.06</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.21</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.56</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.61</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.61</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-5</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">6</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-09T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.22</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.23</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.24</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.26</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.27</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.24</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.12</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.97</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.92</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.97</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.07</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.22</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.57</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.62</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.62</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-6</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">7</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-10T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.20</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.21</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.22</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.24</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.25</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.22</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.10</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.95</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.90</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.95</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.05</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.20</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.55</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.60</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.60</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-7</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">8</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-11T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.21</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.22</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.23</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.25</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.26</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.23</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.11</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.96</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.91</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.96</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.06</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.21</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.56</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.61</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.61</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-8</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">9</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-12T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.22</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.23</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.24</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.26</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.27</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.24</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.12</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.97</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.92</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.97</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.07</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.22</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.57</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.62</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.62</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-9</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">10</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-13T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.20</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.21</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.22</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.24</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.25</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.22</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.10</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.95</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.90</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.95</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.05</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.20</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.55</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.60</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.60</d:BC_30YEARDISPLAY>
+      </m:properties>
+    </content>
+  </entry>
+  <entry>
+    <id>synthetic-10</id>
+    <content type="application/xml">
+      <m:properties>
+        <d:Id m:type="Edm.Int32">11</d:Id>
+        <d:NEW_DATE m:type="Edm.DateTime">2026-03-16T00:00:00</d:NEW_DATE>
+        <d:BC_1MONTH m:type="Edm.Double">4.21</d:BC_1MONTH>
+        <d:BC_1_5MONTH m:type="Edm.Double">4.22</d:BC_1_5MONTH>
+        <d:BC_2MONTH m:type="Edm.Double">4.23</d:BC_2MONTH>
+        <d:BC_3MONTH m:type="Edm.Double">4.25</d:BC_3MONTH>
+        <d:BC_4MONTH m:type="Edm.Double">4.26</d:BC_4MONTH>
+        <d:BC_6MONTH m:type="Edm.Double">4.23</d:BC_6MONTH>
+        <d:BC_1YEAR m:type="Edm.Double">4.11</d:BC_1YEAR>
+        <d:BC_2YEAR m:type="Edm.Double">3.96</d:BC_2YEAR>
+        <d:BC_3YEAR m:type="Edm.Double">3.91</d:BC_3YEAR>
+        <d:BC_5YEAR m:type="Edm.Double">3.96</d:BC_5YEAR>
+        <d:BC_7YEAR m:type="Edm.Double">4.06</d:BC_7YEAR>
+        <d:BC_10YEAR m:type="Edm.Double">4.21</d:BC_10YEAR>
+        <d:BC_20YEAR m:type="Edm.Double">4.56</d:BC_20YEAR>
+        <d:BC_30YEAR m:type="Edm.Double">4.61</d:BC_30YEAR>
+        <d:BC_30YEARDISPLAY m:type="Edm.Double">4.61</d:BC_30YEARDISPLAY>
+        <d:BC_9MONTH m:type="Edm.Double">4.15</d:BC_9MONTH>
+      </m:properties>
+    </content>
+  </entry>
+</feed>
