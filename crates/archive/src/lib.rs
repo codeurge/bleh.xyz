@@ -13,7 +13,12 @@ pub mod error;
 pub mod hex;
 pub mod ipfs;
 pub mod layout;
+pub mod partition;
 pub mod torrent;
+
+#[cfg(test)]
+#[allow(dead_code)]
+mod testutil;
 
 pub use error::{BoxError, Error, Result};
 pub use layout::Day;
