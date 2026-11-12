@@ -14,6 +14,7 @@ pub mod error;
 pub mod hex;
 pub mod ipfs;
 pub mod layout;
+pub mod manifest;
 pub mod metrics;
 pub mod partition;
 pub mod store;
