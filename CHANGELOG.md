@@ -43,6 +43,12 @@ versions (see [AGENTS.md](AGENTS.md)).
   (filter, parser, sequencer) and writes deterministic Parquet partitions
   of the `hyperliquid-backfill` archive with the archive crate's writer,
   readable by the history API; JSON lines remain behind `--format jsonl`.
+- `swap-pollers` emits `modify`, `terminate` and `revive` prints and every
+  non-trade `new` message with its `event_type`, which were skipped before
+  (consumers counting volume select `event_type` `trade` or absent); CFTC
+  records carry `strike`, `option_premium`, `option_type`, `option_style`
+  and `first_exercise_date` (the strike is no longer the `price`); monetary
+  spreads are `spread_amount`; commodity quantities are `quantity`.
 
 ### Changed
 

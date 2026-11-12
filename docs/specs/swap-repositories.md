@@ -142,16 +142,16 @@ The names are the CFTC Parts 43/45 Technical Specification data elements.
 | 20–21 | Notional amount-Leg 1, -Leg 2 | yes |
 | 22–23 | Notional currency-Leg 1, -Leg 2 | yes |
 | 24–25 | Notional quantity-Leg 1, -Leg 2 | |
-| 26 | Total notional quantity-Leg 1 | yes (cap marker) |
-| 27 | Total notional quantity-Leg 2 | |
-| 28–33 | Quantity frequency multiplier, Quantity unit of measure, Quantity frequency (each -Leg 1, -Leg 2) | |
+| 26 | Total notional quantity-Leg 1 | yes (quantity, cap marker) |
+| 27 | Total notional quantity-Leg 2 | yes (quantity, cap marker) |
+| 28–33 | Quantity frequency multiplier, Quantity unit of measure, Quantity frequency (each -Leg 1, -Leg 2) | Quantity unit of measure only |
 | 34–39 | Notional amount in effect on associated effective date, Effective date of the notional amount, End date of the notional amount (each -Leg 1, -Leg 2) | |
 | 40–43 | Call amount, Call currency, Put amount, Put currency (renamed in 2024; leg 2 removed) | |
 | 44 | Exchange rate | yes |
 | 45 | Exchange rate basis | |
-| 46 | First exercise date | |
+| 46 | First exercise date | yes (CFTC only) |
 | 47–48 | Fixed rate-Leg 1, -Leg 2 | yes |
-| 49–50 | Option Premium Amount, Option Premium Currency | no (see § 6) |
+| 49–50 | Option Premium Amount, Option Premium Currency | yes (CFTC only) |
 | 51 | Price | yes |
 | 52 | Price unit of measure | |
 | 53–54 | Spread-Leg 1, -Leg 2 | yes |
@@ -162,7 +162,7 @@ The names are the CFTC Parts 43/45 Technical Specification data elements.
 | 60 | Price currency | |
 | 61 | Price notation | yes |
 | 62–63 | Spread notation-Leg 1, -Leg 2 | yes |
-| 64 | Strike price notation | yes |
+| 64 | Strike price notation | yes (CFTC only) |
 | 65–81 | Day count conventions, floating rate reset and payment frequency periods and multipliers (per leg), Other payment amount | |
 | 82–86 | Other payment type, Other payment currency, Settlement currency-Leg 1/-Leg 2, Settlement location | |
 | 87–89 | Collateralisation category, Custom basket indicator, Index factor | |
@@ -171,8 +171,8 @@ The names are the CFTC Parts 43/45 Technical Specification data elements.
 | 93 | Underlying Asset Name | yes |
 | 94–95 | Underlying asset subtype or underlying contract subtype-Leg 1, -Leg 2 | |
 | 96 | Embedded Option type | |
-| 97 | Option Type | yes (option detection) |
-| 98 | Option Style | |
+| 97 | Option Type | yes (CFTC only) |
+| 98 | Option Style | yes (CFTC only) |
 | 99–105 | Package indicator and package transaction price/spread fields | |
 | 106 | Physical delivery location-Leg 1 | |
 | 107 | Delivery Type | |
@@ -214,7 +214,9 @@ Timestamp` is unreadable: it is archived, counted and not retried.
 | Fixed rate | Always decimal (`0.0375` means 3.75%) | Tech Spec; observed `0.04` for USD OIS **(verified)** |
 | Action type | `NEWT`, `MODI`, `CORR`, `EROR`, `TERM`, `REVI` (also `PRTO`, `VALU`, `MARU`, Part 45 only) | Tech Spec; all six observed **(verified)** |
 | Event type | `TRAD`, `NOVA`, `COMP`, `ETRM`, `CLRG`, `EXER`, `ALOC`, `CLAL`, `CREV`, `PTNG`, `CORP`, `UPDT` | Tech Spec **(verified)** |
-| Option type | Tech Spec examples use `PUTO`; one ticker row showed `PUT` | **(partly verified)** |
+| Option type | Tech Spec examples use `PUTO`; one ticker row showed `PUT` | **(partly verified)**; mapping in § 4.2 |
+| Option style | `AMER`, `EURO`, `BERM`, `ASIA` assumed from the Tech Spec code style | **(unverified)**; mapping in § 4.2 |
+| Quantity unit of measure | Short codes such as `MMBT`, `BBL`, `MWh` | **(unverified)**; kept as disseminated |
 
 ### 3.5 What each asset class carries
 
@@ -240,8 +242,9 @@ The SEC buckets (`SEC_IR`, `SEC_CR`, `SEC_EQ`) on the same site use the
 same files and layout **(verified)**; CFTC-only fields (block and large
 notional elections) are empty. Observed SEC rows are mostly single-name
 CDS and single-stock or basket total return swaps. Under ADM-0004 only
-price, spread and notional are admitted, so strikes are not read for SEC
-records.
+price, spread and notional are admitted, so option terms (strike, premium,
+option type and style, first exercise date) are not read for SEC records,
+even when the cells are filled.
 
 ## 4. Mapping to `SwapPrint`
 
@@ -256,8 +259,9 @@ records.
 | `prov.flags` | `size_capped` if a notional or total quantity ends in `+`; `block_trade_delayed` if Block trade election or Large notional off-facility election is `TRUE`; `backfill` for records read from end-of-day files |
 | `repository` | `dtcc-ddr` |
 | `dissemination_id` | Dissemination Identifier |
-| `original_dissemination_id` | Original Dissemination Identifier (required for cancel and correct) |
-| `action` | `NEWT` → `new` (only with event type `TRAD` or empty); `CORR` → `correct`; `EROR` → `cancel`. Other action types and `NEWT` with other event types produce no record (§ 6) |
+| `original_dissemination_id` | Original Dissemination Identifier (required for cancel, correct and revive; optional for modify and terminate) |
+| `action` | `NEWT` → `new`; `MODI` → `modify`; `TERM` → `terminate`; `CORR` → `correct`; `EROR` → `cancel`; `REVI` → `revive`. `PRTO`, `VALU`, `MARU` (Part 45 only) and unknown codes produce no record (§ 4.1) |
+| `event_type` | Event type code (§ 4.1), whenever the cell has one |
 | `asset_class` | `Asset Class` code (`IR`, `CR`, `EQ`, `FX`, `CO`), else the bucket |
 | `upi` | Unique Product Identifier |
 | `product` | UPI FISN, else Product name |
@@ -266,9 +270,14 @@ records.
 | `expiry` | Expiration Date |
 | `price` | First available of the candidates below, by asset class |
 | `notional` | Notional amount and currency, leg 1 then leg 2; the cap value when capped. Omitted when there is no ISO currency (commodity quantities) |
+| `quantity` | Commodities with no `notional` only: Total notional quantity and Quantity unit of measure, leg 1 then leg 2; the cap value when capped. The unit is kept as disseminated and must be 1 to 16 ASCII letters or digits, else the quantity is dropped and counted |
+| `strike` | CFTC only: Strike Price with Strike price notation, converted like a price (below) |
+| `option_premium` | CFTC only: Option Premium Amount and Option Premium Currency (ISO 4217); dropped and counted if either is malformed |
+| `option_type`, `option_style` | CFTC only: Option Type and Option Style codes (§ 4.2) |
+| `first_exercise_date` | CFTC only: First exercise date |
 | `ts_execution_ms` | Execution Timestamp |
 
-Price candidates (CFTC options first try the strike):
+Price candidates (the strike is never one; it has its own field):
 
 | Asset class | Order |
 |---|---|
@@ -287,8 +296,76 @@ Conversions, all exact decimal shifts:
 | Price or strike, notation 3 | `rate`, × 100 |
 | Spread, notation 3 | `spread`, × 10,000 (basis points) |
 | Spread, price or strike, notation 4 | `spread` as given |
-| Spread, notation 1 (a monetary spread, such as a commodity basis) | `price` (observation v0 has no monetary spread) |
+| Spread, notation 1 (a monetary spread, such as a commodity basis) | `spread_amount` |
 | Exchange rate | `price` |
+
+A price, strike or spread with any other notation is dropped and counted
+(`swap_field_errors_total`).
+
+### 4.1 Lifecycle actions and event types
+
+Every action type observation v0 can represent produces a record. `MODI`
+amends an existing transaction (often a price change) and `TERM` ends one
+(often priced); both are emitted with whatever terms the row repeats, and
+`original_dissemination_id` when the row names one. `REVI` restores a print
+cancelled in error and, like `CORR` and `EROR`, is rejected as a malformed
+row without an original dissemination identifier.
+
+Event type codes map one to one:
+
+| Code | `event_type` |
+|---|---|
+| `TRAD` | `trade` |
+| `NOVA` | `novation` |
+| `COMP` | `compression` |
+| `ETRM` | `early_termination` |
+| `CLRG` | `clearing` |
+| `EXER` | `exercise` |
+| `ALOC` | `allocation` |
+| `CLAL` | `clearing_allocation` |
+| `CREV` | `credit_event` |
+| `PTNG` | `porting` |
+| `CORP` | `corporate_event` |
+| `UPDT` | `update` |
+
+**Non-trade `NEWT` messages are emitted.** Earlier versions skipped `NEWT`
+with an event type other than `TRAD`, because a cleared or allocated trade
+is disseminated again as a new message and would be counted twice. Now that
+every record carries `event_type`, the pollers emit them and leave the
+choice to consumers: the record is complete and replayable, and a method
+that counts volume or prints selects `event_type` `trade` or absent (an
+empty cell has always been read as a trade). A `NEWT` whose event type is
+not one of the codes above is still skipped
+(`swap_records_skipped_total{reason="unknown_event_type"}`), because
+without an event type it would look like a trade. For other actions an
+unknown event type is dropped from the record and counted as a field error;
+the action itself still applies to the earlier print.
+
+Still skipped (`reason="unsupported_action"`): `PRTO`, `VALU` and `MARU`,
+which are Part 45 (regulatory reporting) actions not expected in public
+dissemination, and any undocumented action code.
+
+### 4.2 Option codes
+
+Read for CFTC records only (ADM-0002). A code not listed is dropped and
+counted (`swap_field_errors_total{field="Option Type"}` or
+`{field="Option Style"}`).
+
+| Column | Code | Field value | Status |
+|---|---|---|---|
+| Option Type | `CALL` | `call` | Tech Spec code **(to verify in files)** |
+| Option Type | `PUTO` | `put` | Tech Spec examples **(verified)** |
+| Option Type | `PUT` | `put` | Seen in one ticker row **(partly verified)** |
+| Option Type | `CHOO` (chooser) | none | Tech Spec code **(to verify)**; no `OptionType` value |
+| Option Style | `AMER` | `american` | **(to verify)** |
+| Option Style | `EURO` | `european` | **(to verify)** |
+| Option Style | `BERM` | `bermudan` | **(to verify)** |
+| Option Style | `ASIA` | `asian` | **(to verify)** |
+
+The full words (`AMERICAN`, `EUROPEAN`, ...) are accepted as well. For
+options, `price` still follows the candidates above (for a swaption, often
+the underlying fixed rate); the strike and premium are only in `strike` and
+`option_premium`.
 
 ## 5. Raw capture
 
@@ -299,33 +376,37 @@ Records are a pure function of the raw file and its sidecar.
 
 ## 6. Gaps and change requests to `mesh-types`
 
-Observation v0 cannot yet represent:
+Resolved by the `swap_print` additions in
+[observation-v0](observation-v0.md) § 2.7, and now populated by the
+pollers (§ 4):
 
-1. **Lifecycle actions** `MODI` (amendments, including price changes),
-   `TERM` (terminations, often priced) and `REVI` (revives an erroneously
-   cancelled print). They are skipped and counted
-   (`swap_records_skipped_total{reason="lifecycle_action"}`); note that
-   skipping `REVI` leaves a revived print cancelled. Request: actions
-   `modify`, `terminate`, `revive`.
-2. **Event type** (`NEWT` for clearing, novation, allocation, compression,
-   exercise). These are skipped (`reason="non_trade_event"`) so prints are
-   not double counted. Request: an optional `event_type`.
-3. **Option terms** admitted by ADM-0002: strike, premium amount and
-   currency, option type, style and first exercise date. Today the strike
-   is carried as `price` for CFTC options. Request: optional `strike`
-   (`SwapPrice`), `option_premium` (`{amount, currency}`), `option_type`
-   (`call`/`put`), `option_style`. The name `premium` is on the allowlist's
-   excluded-name list, so the field must use another name.
-4. **Monetary spreads** (notation 1), carried as `price`. Request: a
-   `spread_amount` price type or a notation field.
-5. **Commodity quantities** (`Total notional quantity` with a unit), which
-   have no ISO currency and are dropped. Request: an optional
-   `quantity {amount, unit}`.
+1. **Lifecycle actions** `MODI`, `TERM`, `REVI`: actions `modify`,
+   `terminate`, `revive` (§ 4.1).
+2. **Event type**: optional `event_type`; non-trade `NEWT` messages are
+   emitted with it (§ 4.1).
+3. **Option terms** admitted by ADM-0002: `strike`, `option_premium`,
+   `option_type`, `option_style`, `first_exercise_date` (CFTC only). The
+   strike is no longer carried as `price`.
+4. **Monetary spreads** (notation 1): price type `spread_amount`.
+5. **Commodity quantities**: optional `quantity {amount, unit}`.
+
+Still open:
+
 6. **Dissemination provenance**: whether the dissemination time came from
-   the row or a fallback is visible only in metrics.
+   the row or a fallback is visible only in metrics
+   (`swap_dissemination_fallbacks_total`), not in the record.
+7. **Quantities outside commodities**: equity and other rows can carry a
+   Total notional quantity (for example a share count) with no currency
+   notional. They are not mapped to `quantity` yet; whether they are
+   admitted as "notional" under ADM-0004 should be settled first.
+8. **Price context**: Price currency, Price unit of measure, Spread
+   currency and Strike price currency/currency pair are not carried, so a
+   `price` or `strike` in currency units has no currency in the record.
+9. **Chooser options** (`CHOO`) have no `option_type` value.
 
 The raw files keep everything, so records can be rebuilt when the schema
-grows.
+grows. Raw files captured before this change can be re-parsed with
+`--parse` to recover the prints earlier versions skipped.
 
 ## 7. Unverified items
 
@@ -335,7 +416,11 @@ grows.
 - CSV header name and position of the Dissemination Timestamp; whether
   2024 renames dropped `-Leg 1` suffixes.
 - Zip entry naming and whether a zip can hold more than one CSV.
-- Option type codes in the files (`PUTO`/`CALL` vs `PUT`/`CALL`).
+- Option type codes in the files (`PUTO`/`CALL` vs `PUT`/`CALL`) and
+  option style codes (`AMER`, `EURO`, `BERM`, `ASIA`) (§ 4.2).
+- Quantity unit of measure codes and their case.
+- Whether `MODI` and `TERM` rows always carry the Original Dissemination
+  Identifier.
 - Terms of use for the PPD data (§ 2.4).
 - CME SDR status.
 

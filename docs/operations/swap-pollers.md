@@ -117,6 +117,29 @@ JSON lines use the canonical encoding of
 [observation-v0](../specs/observation-v0.md) § 6.1, one `Record` per line
 (`"kind":"swap_print"`). The archive lane partitions them.
 
+### What is emitted
+
+Every message the repository disseminates becomes a record, except the few
+counted in `swap_records_skipped_total`:
+
+- All six actions: `new`, `modify` (`MODI`), `terminate` (`TERM`),
+  `correct`, `cancel` and `revive` (`REVI`).
+- `new` messages for non-trade events (clearing, novation, allocation,
+  compression, exercise, ...) are emitted with `event_type` set. A cleared
+  or allocated trade is disseminated again as a new message, so **anyone
+  counting prints or volume must select `event_type` `trade` or absent**.
+  Earlier versions skipped these messages instead (spec § 4.1).
+- CFTC records carry option terms (`strike`, `option_premium`,
+  `option_type`, `option_style`, `first_exercise_date`); the strike is no
+  longer the `price`. SEC records never carry them (ADM-0004 admits price,
+  spread and notional only).
+- Monetary spreads are `spread_amount`; commodity prints with no currency
+  notional carry `quantity` (amount and unit).
+
+Unmapped option codes, malformed premiums, quantities without a valid unit
+and unknown event types on non-new messages drop only that value and show
+in `swap_field_errors_total`.
+
 ## Metrics
 
 | Metric | Labels | Watch for |
@@ -125,13 +148,13 @@ JSON lines use the canonical encoding of
 | `swap_fetch_bytes_total` | `target` | Bandwidth (the slice listing is about 3 MB per change) |
 | `swap_files_total` | `bucket`, `kind`, `outcome` (`captured`, `archived_only`, `unparseable`, `error`) | Any `error` or `unparseable` |
 | `swap_rows_total` | `bucket` | Volume |
-| `swap_records_total` | `bucket`, `action` | A bucket going flat during market hours |
-| `swap_records_skipped_total` | `bucket`, `reason` | Lifecycle and non-trade events (expected, large for equities) |
+| `swap_records_total` | `bucket`, `action` (`new`, `cancel`, `correct`, `modify`, `terminate`, `revive`), `event_type` (`trade`, `novation`, `compression`, `early_termination`, `clearing`, `exercise`, `allocation`, `clearing_allocation`, `credit_event`, `porting`, `corporate_event`, `update`, or `none` when the row has none) | A bucket going flat during market hours; the share of non-trade events (see below) |
+| `swap_records_skipped_total` | `bucket`, `reason` (`unsupported_action`: `PRTO`, `VALU`, `MARU` or an unknown action code; `unknown_event_type`: `NEWT` with an undocumented event type) | Expected near zero; a steady rate means the repository uses a code the spec does not list |
 | `swap_parse_errors_total` | `bucket`, `scope` (`row`, `file`) | Any `file`; a jump in `row` |
 | `swap_field_errors_total` | `bucket`, `field` | A format change in one column |
 | `swap_unknown_columns_total` | `bucket`, `column` | **Any**: the layout changed; review the spec |
 | `swap_duplicates_total` | `bucket` | Expected after end-of-day files |
-| `swap_orphan_updates_total` | `bucket` | Corrections of prints not seen (expected right after start) |
+| `swap_orphan_updates_total` | `bucket` | Cancels, corrections, revives, and modifications or terminations that name an original, whose original was not seen (expected right after start, and for modifications and terminations of trades older than the dedupe window) |
 | `swap_dissemination_fallbacks_total` | `source` | Non-zero means rows lack a dissemination timestamp |
 | `swap_raw_persist_errors_total` | `store` (`local`, `object`) | **Any**: raw capture at risk |
 | `swap_last_dissemination_timestamp_seconds` | `bucket` | |
@@ -147,6 +170,8 @@ otherwise.
 | Situation | Response |
 |---|---|
 | `swap_unknown_columns_total` rises | Raw capture continues. Compare the new header with the spec, update `fields.rs` and the spec, replay affected raw files with `--parse` |
+| `swap_records_skipped_total` or `swap_field_errors_total{field="Option Type"\|"Option Style"\|"Event type"}` rises steadily | The repository uses a code the spec does not list. Find it in the raw file, add it to the spec (§ 4.1, § 4.2) and the parser, replay with `--parse` |
+| Records from before the lifecycle fields were populated | Those versions skipped `MODI`, `TERM`, `REVI` and non-trade `NEWT`, and carried the CFTC strike as `price`. Re-parse the raw files with `--parse` and replace those days' records rather than merging, since a re-parsed CFTC option has the same dissemination ID but different fields |
 | Files fail repeatedly (`404`) | The slice may have been delisted; check the dashboard. If end-of-day files exist for the day, raise `--cumulative-days` to cover it |
 | Bucket name changes | Handled automatically after a `403`/`404`; check logs for "re-resolving" |
 | Long outage | Slices older than about 24 hours may be lost; end-of-day files cover the gap (`backfill` flag). Run `--once --cumulative-days N` |
