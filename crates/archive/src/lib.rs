@@ -8,10 +8,12 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 #![warn(missing_docs)]
 
+pub mod anchor;
 pub mod capture;
 pub mod digest;
 pub mod error;
 pub mod hex;
+pub mod http;
 pub mod ipfs;
 pub mod layout;
 pub mod manifest;
