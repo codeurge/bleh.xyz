@@ -19,7 +19,9 @@
     { "$ref": "#/$defs/sweep" },
     { "$ref": "#/$defs/heatmap_tile" },
     { "$ref": "#/$defs/liquidity_grade" },
-    { "$ref": "#/$defs/coverage" }
+    { "$ref": "#/$defs/coverage" },
+    { "$ref": "#/$defs/reference_value" },
+    { "$ref": "#/$defs/synthetic_month" }
   ],
   "$defs": {
     "decimal": {
@@ -584,6 +586,96 @@
         "blocks": { "type": "integer", "minimum": 1 },
         "missing_blocks": { "$ref": "#/$defs/u64" },
         "gap_blocks": { "$ref": "#/$defs/u64" }
+      }
+    },
+    "date": { "description": "Calendar date.", "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$" },
+    "reference_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "measure", "value", "tenor", "maturity_date", "day_count", "compounding",
+        "currency", "as_of_date", "revision"
+      ],
+      "properties": {
+        "kind": { "const": "reference_value" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "measure": { "enum": ["rate", "par_yield", "zero_yield", "price", "index_level"] },
+        "value": { "$ref": "#/$defs/decimal" },
+        "tenor": {
+          "oneOf": [
+            { "type": "string", "pattern": "^(ON|TN|[1-9][0-9]{0,2}[DWMY])$" },
+            { "type": "null" }
+          ]
+        },
+        "maturity_date": { "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+        "day_count": {
+          "oneOf": [
+            { "enum": ["act_360", "act_365_fixed", "act_act", "thirty_360"] },
+            { "type": "null" }
+          ]
+        },
+        "compounding": {
+          "oneOf": [
+            { "enum": ["simple", "discount", "annual", "semi_annual", "continuous"] },
+            { "type": "null" }
+          ]
+        },
+        "currency": { "oneOf": [{ "type": "string", "pattern": "^[A-Z]{3}$" }, { "type": "null" }] },
+        "as_of_date": { "$ref": "#/$defs/date" },
+        "revision": { "$ref": "#/$defs/u32" }
+      }
+    },
+    "synthetic_month": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind", "prov", "derived", "exposure", "family", "month", "rank", "as_of_ms",
+        "last_trade_date", "expiry_ms", "year_fraction", "fair_value", "spot", "spot_ms",
+        "spot_sources", "financing_rate", "rates_ms", "carry_rate", "carry_source", "anchors",
+        "anchor_ms", "implied_rate", "quality", "admissions", "grade", "label"
+      ],
+      "properties": {
+        "kind": { "const": "synthetic_month" },
+        "prov": { "$ref": "#/$defs/prov" },
+        "derived": { "$ref": "#/$defs/derived" },
+        "exposure": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,47}$" },
+        "family": { "enum": ["equity_index", "energy", "metal", "short_rate"] },
+        "month": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+        "rank": { "$ref": "#/$defs/u32" },
+        "as_of_ms": { "$ref": "#/$defs/ms" },
+        "last_trade_date": { "$ref": "#/$defs/date" },
+        "expiry_ms": { "$ref": "#/$defs/ms" },
+        "year_fraction": { "$ref": "#/$defs/nonneg_decimal" },
+        "fair_value": { "$ref": "#/$defs/decimal" },
+        "spot": { "oneOf": [{ "$ref": "#/$defs/decimal" }, { "type": "null" }] },
+        "spot_ms": { "oneOf": [{ "$ref": "#/$defs/ms" }, { "type": "null" }] },
+        "spot_sources": { "$ref": "#/$defs/u32" },
+        "financing_rate": { "$ref": "#/$defs/decimal" },
+        "rates_ms": { "$ref": "#/$defs/ms" },
+        "carry_rate": { "oneOf": [{ "$ref": "#/$defs/decimal" }, { "type": "null" }] },
+        "carry_source": { "enum": ["observed", "estimated", "swap_anchor", "none"] },
+        "anchors": { "$ref": "#/$defs/u32" },
+        "anchor_ms": { "oneOf": [{ "$ref": "#/$defs/ms" }, { "type": "null" }] },
+        "implied_rate": { "oneOf": [{ "$ref": "#/$defs/decimal" }, { "type": "null" }] },
+        "quality": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "spot_stale", "spot_single_source", "spot_dispersed", "spot_tape", "rates_stale",
+              "curve_extrapolated", "fixings_missing", "carry_estimated", "carry_unobserved",
+              "anchor_interpolated", "anchor_extrapolated", "anchor_stale", "rolling", "expiring"
+            ]
+          }
+        },
+        "admissions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/admission_id" }
+        },
+        "grade": { "oneOf": [{ "enum": ["A", "B", "C", "D"] }, { "type": "null" }] },
+        "label": { "enum": ["benchmark", "tape"] }
       }
     },
     "swap_text": { "type": "string", "minLength": 1, "maxLength": 128 },

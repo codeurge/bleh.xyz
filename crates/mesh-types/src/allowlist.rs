@@ -353,6 +353,46 @@ const COVERAGE: &[&str] = &[
     "gap_blocks",
 ];
 
+const REFERENCE_VALUE: &[&str] = &[
+    "measure",
+    "value",
+    "tenor",
+    "maturity_date",
+    "day_count",
+    "compounding",
+    "currency",
+    "as_of_date",
+    "revision",
+];
+
+const SYNTHETIC_MONTH: &[&str] = &[
+    "exposure",
+    "family",
+    "month",
+    "rank",
+    "as_of_ms",
+    "last_trade_date",
+    "expiry_ms",
+    "year_fraction",
+    "fair_value",
+    "spot",
+    "spot_ms",
+    "spot_sources",
+    "financing_rate",
+    "rates_ms",
+    "carry_rate",
+    "carry_source",
+    "anchors",
+    "anchor_ms",
+    "implied_rate",
+    "quality",
+    "quality[]",
+    "admissions",
+    "admissions[]",
+    "grade",
+    "label",
+];
+
 /// A field that is not allowed in a record's output.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AllowlistError {
@@ -397,6 +437,8 @@ pub const fn kind_paths(kind: RecordKind) -> &'static [&'static str] {
         RecordKind::HeatmapTile => HEATMAP_TILE,
         RecordKind::LiquidityGrade => LIQUIDITY_GRADE,
         RecordKind::Coverage => COVERAGE,
+        RecordKind::ReferenceValue => REFERENCE_VALUE,
+        RecordKind::SyntheticMonth => SYNTHETIC_MONTH,
     }
 }
 
@@ -531,6 +573,8 @@ mod tests {
         ]
         .into_iter()
         .chain(analytics_samples())
+        .chain(crate::reference::tests::samples())
+        .chain(crate::synthetic::tests::samples())
         .collect()
     }
 

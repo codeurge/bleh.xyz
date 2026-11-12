@@ -12,6 +12,7 @@ members = [
     "crates/history-api",
     "crates/origin",
     "crates/swap-pollers",
+    "crates/synthetic",
     "tools/hl-synth",
     "tools/mesh-client",
     "tools/hl-backfill",

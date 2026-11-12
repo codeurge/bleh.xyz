@@ -50,11 +50,17 @@ futures data, live and historical:
    - Next action: research each source's terms and lineage; write one record per source
 
 2. **synthetic-months-method-and-engine**
-   - Status: In progress
+   - Status: Done (merged to main 2026-11-12)
    - Owner: synthetic lane
    - Dependencies: None (rates inputs are fixtures until task 4 lands)
-   - PR: Not opened
-   - Next action: ADR 0013, method spec v1, `crates/synthetic`
+   - PR: Not opened (owner pushes to main)
+   - Done: ADR 0013 (Accepted), method spec `synthetic-months@1`, the
+     `reference_value` and `synthetic_month` kinds, `crates/synthetic`
+     (equity index, crude and natural gas, gold and silver, SOFR months;
+     Treasury futures specified for v2)
+   - Next action: wire the engine into the origin behind a configuration
+     flag, and replace the synthetic registry entries with real venue
+     markets once task 4 emits `reference_value` records
 
 3. **bring-your-own-feed**
    - Status: Done (merged to main 2026-11-12)

@@ -78,7 +78,7 @@ versions (see [AGENTS.md](AGENTS.md)).
 - Deploy: the node box runs the origin image; the deploy workflow lives in
   `.github/workflows/deploy.yml` (manual promote); root `.dockerignore`.
 - ADR 0011: data model and gateway amendments for the integrated origin.
-- Bring your own feed (ADR 0014, proposed): `mesh-client byo merge` merges a
+- Bring your own feed (ADR 0014): `mesh-client byo merge` merges a
   feed the user licenses themselves (CSV, JSON lines, DBN files, or the
   vendor's live client behind the off-by-default `databento-live` feature)
   with bleh.xyz prices on the user's machine only, through a user-written
@@ -88,6 +88,18 @@ versions (see [AGENTS.md](AGENTS.md)).
   signing, publishing or the archive; `mesh-client byo check-map` validates
   a mapping. The admission policy gains "User-supplied data stays local".
   Guide: `docs/operations/byo-feed.md`.
+- Synthetic contract months (ADR 0013): the method
+  `synthetic-months@1` (`docs/specs/method-synthetic-months-v1.md`, CC0)
+  and `crates/synthetic` (library and `synthetic` binary), which value
+  each contract month of equity index, crude oil, natural gas, gold,
+  silver and one- and three-month overnight-rate exposures from venue
+  spot composites, public rates, rulebook calendars, carry inputs and
+  swap-print anchors, with quality flags and inherited liquidity grades.
+  Tested on synthetic fixtures only (`fixtures/synthetic/synthetic-months/`).
+- Observation v0 kinds `reference_value` (published rates, yields and
+  reference prices, for future reference pollers) and `synthetic_month`,
+  with allowlist, JSON Schema and Arrow schemas; existing canonical
+  encodings unchanged.
 
 ### Changed
 

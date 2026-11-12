@@ -3931,6 +3931,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "synthetic"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "mesh-types",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "tar"
 version = "0.4.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
