@@ -133,6 +133,30 @@ impl Subs {
             .map(|c| c.depth.unwrap_or_default())
     }
 
+    /// The depth a book instrument is served at.
+    fn depth_of(&self, id: &InstrumentId) -> Option<Depth> {
+        self.books.get(id).map(|e| e.1)
+    }
+
+    /// Book instruments whose depth changed with the channels; they need a
+    /// new snapshot at the new depth.
+    fn redepth(&mut self) -> Vec<InstrumentId> {
+        let mut changed = Vec::new();
+        let ids: Vec<InstrumentId> = self.books.keys().cloned().collect();
+        for id in ids {
+            let Some(depth) = self.book_depth(&id) else {
+                continue;
+            };
+            if let Some(e) = self.books.get_mut(&id)
+                && e.1 != depth
+            {
+                *e = (BookState::Pending(SnapshotReason::Subscribe), depth);
+                changed.push(id);
+            }
+        }
+        changed
+    }
+
     fn covers_commitment(&self, venue: &VenueId, kind: RecordKind) -> bool {
         self.commitments
             && self
@@ -359,7 +383,12 @@ where
                 }
                 let e = self.subs.last.entry((inst.clone(), *kind)).or_insert(0);
                 *e = (*e).max(d.block_number);
-                true
+                // `l2` book subscribers get the block's levels instead.
+                *kind != RecordKind::BookEvent || self.subs.depth_of(inst) != Some(Depth::L2)
+            }
+            Route::Levels(inst) => {
+                self.subs.matches(RecordKind::BookEvent, inst, None)
+                    && self.subs.depth_of(inst) == Some(Depth::L2)
             }
             Route::Record(inst, kind, interval) => self.subs.matches(*kind, inst, *interval),
             Route::Commitment(venue, kind) => self.subs.covers_commitment(venue, *kind),
@@ -653,6 +682,9 @@ where
         self.subs.commitments |= commitments;
         self.subs.channels.extend(new.iter().cloned());
         self.subs.rebuild();
+        for inst in self.subs.redepth() {
+            self.shared.request_snapshot(inst);
+        }
         self.send(&ServerMessage::Subscribed { id, channels })
             .await?;
         // Snapshots for the book channels: known instruments now, others
@@ -701,6 +733,9 @@ where
             .cloned()
             .collect();
         self.subs.books.retain(|i, _| keep_books.contains(i));
+        for inst in self.subs.redepth() {
+            self.shared.request_snapshot(inst);
+        }
         let subs = &self.subs;
         let keep_last: HashSet<(InstrumentId, RecordKind)> = subs
             .last

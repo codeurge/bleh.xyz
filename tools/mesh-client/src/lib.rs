@@ -4,7 +4,7 @@
 //! |---|---|
 //! | [`protocol`] | Every gateway-v0 message type, shared with the gateway |
 //! | [`codec`] | JSON and CBOR framing |
-//! | [`book`] | [`L4Book`]: order-level book from snapshot plus deltas |
+//! | [`book`] | [`L4Book`]: order-level book from snapshot plus book events; [`L2Book`]: level book from an L2 snapshot plus `levels` |
 //! | [`verify`] | Signer trust, full-stream root checks, proof checks |
 //! | [`client`] | [`Client`]: connect, subscribe, keep books, verify, recover, rotate URLs |
 //!
@@ -35,10 +35,10 @@ pub mod codec;
 pub mod protocol;
 pub mod verify;
 
-pub use book::{BookError, L4Book};
+pub use book::{BookError, L2Book, L4Book, LevelChanges};
 pub use client::{Client, ClientConfig, ClientError, ClientEvent, ClientStats};
 pub use protocol::{
-    ChannelSpec, ClientMessage, Depth, Encoding, ErrorCode, Hello, InstrumentPattern, Limits,
-    ServerMessage, SnapshotReason,
+    ChannelSpec, ClientMessage, Depth, Encoding, ErrorCode, Hello, InstrumentPattern, Levels,
+    Limits, ServerMessage, SnapshotReason,
 };
 pub use verify::{BlockCollector, SignerSet, VerifyError};

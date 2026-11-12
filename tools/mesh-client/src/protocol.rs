@@ -12,7 +12,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use mesh_types::{
-    BarInterval, BlockBatch, BlockCommitment, EthAddress, InstrumentId, MerkleProof, Record,
+    BarInterval, BlockBatch, BlockCommitment, EthAddress, InstrumentId, Level, MerkleProof, Record,
     RecordKind, Seq, StreamId, UnixMillis, UnixNanos, VenueId,
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -412,6 +412,35 @@ pub struct Hello {
     pub limits: Limits,
 }
 
+/// The `levels` message body: the price levels one block changed for one
+/// instrument, sent to `depth: "l2"` subscribers instead of the L4 batch.
+///
+/// Derived by the gateway from its L4 book; not covered by commitments.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Levels {
+    /// Instrument.
+    pub instrument: InstrumentId,
+    /// Venue.
+    pub venue: VenueId,
+    /// Block of the book events the levels reflect.
+    pub block_number: u64,
+    /// Block time.
+    pub block_time_ms: UnixMillis,
+    /// Previous block with book events for the instrument (the batch's
+    /// `prev_block_number`).
+    pub prev_block_number: Option<u64>,
+    /// Changed bid levels, best first; size `0` and `order_count` 0 mean
+    /// the level is gone.
+    pub bids: Vec<Level>,
+    /// Changed ask levels, best first; size `0` and `order_count` 0 mean
+    /// the level is gone.
+    pub asks: Vec<Level>,
+    /// When the gateway's upstream published the book events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ts_publish_ns: Option<UnixNanos>,
+}
+
 /// Server to client.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -448,6 +477,8 @@ pub enum ServerMessage {
         /// The batch.
         batch: Arc<BlockBatch>,
     },
+    /// Changed price levels of one block, for `l2` book subscribers.
+    Levels(Arc<Levels>),
     /// A single record.
     Record {
         /// The record.
@@ -617,6 +648,28 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&err).unwrap()["code"],
             "limit_exceeded"
+        );
+    }
+
+    #[test]
+    fn levels_shape() {
+        let v = serde_json::json!({
+            "type": "levels", "instrument": "hyperliquid:perp:BTC", "venue": "hyperliquid",
+            "block_number": 9, "block_time_ms": 1, "prev_block_number": null,
+            "bids": [{"price": "99.5", "size": "3.0", "order_count": 2}],
+            "asks": [{"price": "100.0", "size": "0", "order_count": 0}]
+        });
+        let m: ServerMessage = serde_json::from_value(v.clone()).unwrap();
+        let ServerMessage::Levels(l) = &m else {
+            panic!("{m:?}")
+        };
+        assert_eq!((l.block_number, l.prev_block_number), (9, None));
+        assert!(l.asks[0].size.is_zero());
+        assert_eq!(serde_json::to_value(&m).unwrap(), v);
+        let cbor = crate::codec::encode(&m, Encoding::Cbor).unwrap();
+        assert_eq!(
+            crate::codec::decode::<ServerMessage>(&cbor, Encoding::Cbor).unwrap(),
+            m
         );
     }
 

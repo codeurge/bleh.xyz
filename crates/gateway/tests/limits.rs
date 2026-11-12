@@ -399,3 +399,40 @@ async fn slow_consumer_drops_to_snapshot_then_disconnects() {
     }
     assert!(saw || m.slow_consumer_disconnects.get() > 0);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn l2_subscribers_get_levels_instead_of_book_batches() {
+    let mut o = origin(GatewayConfig::default(), DemoConfig::default()).await;
+    let mut ws = raw(o.addr, None).await.unwrap();
+    next(&mut ws).await.unwrap();
+    send(
+        &mut ws,
+        json!({"op":"subscribe","id":"s","channels":[
+        {"instrument":"*","kind":"book_event","depth":"l2"}]}),
+    )
+    .await;
+    expect_type(&mut ws, "subscribed").await;
+    publish_blocks(&mut o, 30, Duration::from_millis(2)).await;
+    let snap = expect_type(&mut ws, "snapshot").await;
+    assert_eq!(snap["record"]["depth"]["type"], "l2", "{snap}");
+    let mut levels = 0;
+    let mut blocks = 0;
+    while blocks < 15 {
+        let v = next(&mut ws).await.unwrap();
+        match v["type"].as_str().unwrap() {
+            "levels" => {
+                levels += 1;
+                assert!(v["block_number"].as_u64().unwrap() > 0);
+                assert!(v.get("prev_block_number").is_some());
+                for l in v["bids"].as_array().unwrap() {
+                    let removed = l["size"] == "0";
+                    assert_eq!(removed, l["order_count"] == 0, "{l}");
+                }
+            }
+            "batch" => panic!("l2 subscriber got a batch: {v}"),
+            "block" => blocks += 1,
+            _ => {}
+        }
+    }
+    assert!(levels > 0);
+}

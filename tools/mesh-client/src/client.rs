@@ -6,9 +6,11 @@
 //! into [`ClientEvent`]s while it:
 //!
 //! - keeps an L4 book per `book_event` instrument from the snapshot plus
-//!   contiguous batches (gateway-v0 § 5.2), and on a gap discards the book,
-//!   sends `resnapshot` (at most once per instrument per the announced
-//!   interval) and ignores the instrument until the new snapshot;
+//!   contiguous batches (gateway-v0 § 5.2), or for `l2` channels an L2 book
+//!   from the L2 snapshot plus contiguous `levels` messages, and on a gap
+//!   discards the book, sends `resnapshot` (at most once per instrument per
+//!   the announced interval) and ignores the instrument until the new
+//!   snapshot;
 //! - checks contiguity of other batched kinds and reports gaps;
 //! - checks heartbeat `last` maps for batches it never received;
 //! - verifies every commitment's signature against trusted signers, the
@@ -34,11 +36,11 @@ use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::{Bytes, Message, Utf8Bytes};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use crate::book::L4Book;
+use crate::book::{L2Book, L4Book};
 use crate::codec::{self, CodecError};
 use crate::protocol::{
-    ChannelSpec, ClientMessage, Encoding, ErrorCode, Hello, InstrumentPattern, ServerMessage,
-    SnapshotReason, channel_key,
+    ChannelSpec, ClientMessage, Depth, Encoding, ErrorCode, Hello, InstrumentPattern, Levels,
+    ServerMessage, SnapshotReason, channel_key,
 };
 use crate::verify::{BlockCollector, SignerSet, check_proof};
 
@@ -63,7 +65,8 @@ pub struct ClientConfig {
     pub verify_roots: bool,
     /// Ask for an inclusion proof for every Nth record (0: never).
     pub proof_every: u64,
-    /// Keep L4 books for `book_event` channels (on by default).
+    /// Keep books for `book_event` channels: L4, or L2 for `l2` channels
+    /// (on by default).
     pub track_books: bool,
     /// Reconnect when no block heartbeat arrives for this long.
     pub stall_timeout: Duration,
@@ -170,6 +173,11 @@ pub enum ClientEvent {
         /// The batch.
         batch: Arc<BlockBatch>,
     },
+    /// Contiguous level changes, already applied to the L2 book.
+    Levels {
+        /// The changes.
+        levels: Arc<Levels>,
+    },
     /// A single record.
     Record {
         /// The record.
@@ -247,6 +255,8 @@ pub struct ClientStats {
     pub messages: u64,
     /// Batches applied or forwarded.
     pub batches: u64,
+    /// `levels` messages applied.
+    pub levels: u64,
     /// Snapshots received.
     pub snapshots: u64,
     /// Gaps detected.
@@ -276,6 +286,7 @@ pub struct ClientStats {
 #[derive(Debug, Default)]
 struct BookSync {
     book: Option<L4Book>,
+    l2: Option<L2Book>,
     fresh: bool,
     awaiting: bool,
     want_request: bool,
@@ -375,10 +386,16 @@ impl std::fmt::Debug for Client {
     }
 }
 
+/// Kinds received in full (every record of the stream), whose roots can be
+/// recomputed. `l2` book channels receive levels, not the L4 records.
 fn full_kinds(channels: &[ChannelSpec]) -> HashSet<RecordKind> {
     channels
         .iter()
-        .filter(|c| c.instrument == InstrumentPattern::All && c.interval.is_none())
+        .filter(|c| {
+            c.instrument == InstrumentPattern::All
+                && c.interval.is_none()
+                && c.depth != Some(Depth::L2)
+        })
         .map(|c| c.kind)
         .collect()
 }
@@ -425,9 +442,24 @@ impl Client {
             .and_then(|b| b.book.as_ref())
     }
 
-    /// Every synchronized book.
+    /// Every synchronized L4 book.
     pub fn books(&self) -> impl Iterator<Item = &L4Book> {
         self.session.books.values().filter_map(|b| b.book.as_ref())
+    }
+
+    /// The L2 book of an instrument subscribed with `l2` depth, when
+    /// synchronized.
+    #[must_use]
+    pub fn l2_book(&self, instrument: &InstrumentId) -> Option<&L2Book> {
+        self.session
+            .books
+            .get(instrument)
+            .and_then(|b| b.l2.as_ref())
+    }
+
+    /// Every synchronized L2 book.
+    pub fn l2_books(&self) -> impl Iterator<Item = &L2Book> {
+        self.session.books.values().filter_map(|b| b.l2.as_ref())
     }
 
     /// URL of the current connection.
@@ -662,6 +694,7 @@ impl Client {
                 record,
             } => self.on_snapshot(instrument, as_of, reason, record),
             ServerMessage::Batch { batch } => self.on_batch(batch),
+            ServerMessage::Levels(levels) => self.on_levels(levels),
             ServerMessage::Record { record } => {
                 self.collector.add_record(&record);
                 self.queue.push_back(ClientEvent::Record { record });
@@ -736,18 +769,21 @@ impl Client {
         }
         if self.cfg.track_books {
             let entry = self.session.books.entry(instrument.clone()).or_default();
-            match L4Book::from_record(&record) {
-                Ok(book) => {
-                    entry.book = Some(book);
-                    entry.fresh = true;
-                    entry.awaiting = false;
-                    entry.want_request = false;
-                }
-                Err(_) => {
-                    // L2 snapshots cannot take order-level deltas; keep no book.
-                    entry.book = None;
-                    entry.awaiting = false;
-                }
+            entry.book = None;
+            entry.l2 = None;
+            let is_l2 = matches!(
+                &*record,
+                Record::BookSnapshot(s) if matches!(s.depth, mesh_types::SnapshotDepth::L2 { .. })
+            );
+            let synced = if is_l2 {
+                L2Book::from_record(&record).map(|b| entry.l2 = Some(b))
+            } else {
+                L4Book::from_record(&record).map(|b| entry.book = Some(b))
+            };
+            entry.awaiting = false;
+            if synced.is_ok() {
+                entry.fresh = true;
+                entry.want_request = false;
             }
         }
         self.queue.push_back(ClientEvent::Snapshot {
@@ -769,8 +805,13 @@ impl Client {
             && self.cfg.track_books
             && let Some(b) = self.session.books.get_mut(&instrument)
         {
-            last_applied = b.book.as_ref().and_then(L4Book::last_block);
+            last_applied = b
+                .book
+                .as_ref()
+                .and_then(L4Book::last_block)
+                .or_else(|| b.l2.as_ref().and_then(L2Book::last_block));
             b.book = None;
+            b.l2 = None;
             b.awaiting = true;
             b.want_request = true;
         }
@@ -874,6 +915,56 @@ impl Client {
         self.queue.push_back(ClientEvent::Batch { batch });
     }
 
+    fn on_levels(&mut self, levels: Arc<Levels>) {
+        self.max_seen_block = self.max_seen_block.max(levels.block_number);
+        if !self.cfg.track_books {
+            self.stats.levels += 1;
+            self.queue.push_back(ClientEvent::Levels { levels });
+            return;
+        }
+        // No snapshot yet, or waiting for one: nothing to apply.
+        let Some(sync) = self.session.books.get_mut(&levels.instrument) else {
+            return;
+        };
+        if sync.awaiting {
+            return;
+        }
+        let Some(book) = sync.l2.as_mut() else {
+            return;
+        };
+        let b = book.last_block().unwrap_or(0);
+        if levels.block_number <= b {
+            return; // already in the snapshot
+        }
+        let contiguous = if sync.fresh {
+            levels.prev_block_number.is_none_or(|p| p <= b)
+        } else {
+            levels.prev_block_number == Some(b)
+        };
+        let verdict = if !contiguous {
+            Err(format!(
+                "prev_block_number {:?} after block {b}",
+                levels.prev_block_number
+            ))
+        } else if let Err(e) = book.apply_levels(&levels) {
+            Err(format!("levels: {e}"))
+        } else {
+            sync.fresh = false;
+            Ok(())
+        };
+        if let Err(detail) = verdict {
+            self.gap(
+                levels.instrument.clone(),
+                RecordKind::BookEvent,
+                levels.block_number,
+                detail,
+            );
+            return;
+        }
+        self.stats.levels += 1;
+        self.queue.push_back(ClientEvent::Levels { levels });
+    }
+
     fn on_commitment(&mut self, commitment: Arc<BlockCommitment>) {
         if self.cfg.verify_signatures {
             if let Err(e) = self.signers.verify(&commitment) {
@@ -934,7 +1025,11 @@ impl Client {
             if kind == RecordKind::BookEvent.as_str() && self.cfg.track_books {
                 if let Some(sync) = self.session.books.get(&inst)
                     && !sync.awaiting
-                    && let Some(b) = sync.book.as_ref().and_then(L4Book::last_block)
+                    && let Some(b) = sync
+                        .book
+                        .as_ref()
+                        .and_then(L4Book::last_block)
+                        .or_else(|| sync.l2.as_ref().and_then(L2Book::last_block))
                     && announced > b
                 {
                     gaps.push((inst, RecordKind::BookEvent, announced, b));
@@ -1034,4 +1129,133 @@ async fn send_msg(ws: &mut Ws, msg: &ClientMessage, enc: Encoding) -> Result<(),
 #[must_use]
 pub fn batch_key(batch: &BlockBatch) -> String {
     channel_key(&batch.instrument, batch.kind)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mesh_types::{
+        AdmissionId, BookSnapshot, Level, Price, Provenance, Size, SnapshotDepth, VenueId,
+    };
+
+    fn inst() -> InstrumentId {
+        InstrumentId::new("hyperliquid:perp:SYN").unwrap()
+    }
+
+    fn level(px: &str, size: &str, n: u32) -> Level {
+        Level {
+            price: Price::parse_exact(px).unwrap(),
+            size: Size::parse_exact(size).unwrap(),
+            order_count: n,
+        }
+    }
+
+    fn l2_snapshot(block: u64) -> ServerMessage {
+        let prov = Provenance::new(
+            inst(),
+            VenueId::new("hyperliquid").unwrap(),
+            Seq::end_of_block(block),
+            UnixMillis(1),
+            UnixNanos(2),
+            AdmissionId::new("ADM-0001").unwrap(),
+        );
+        ServerMessage::Snapshot {
+            instrument: inst(),
+            as_of: Seq::end_of_block(block),
+            reason: SnapshotReason::Subscribe,
+            record: Arc::new(Record::BookSnapshot(BookSnapshot {
+                prov,
+                depth: SnapshotDepth::L2 {
+                    bids: vec![level("99.0", "1.0", 1)],
+                    asks: vec![level("101.0", "2.0", 2)],
+                },
+            })),
+        }
+    }
+
+    fn levels(block: u64, prev: Option<u64>, bids: Vec<Level>, asks: Vec<Level>) -> ServerMessage {
+        ServerMessage::Levels(Arc::new(Levels {
+            instrument: inst(),
+            venue: VenueId::new("hyperliquid").unwrap(),
+            block_number: block,
+            block_time_ms: UnixMillis(1),
+            prev_block_number: prev,
+            bids,
+            asks,
+            ts_publish_ns: None,
+        }))
+    }
+
+    fn heartbeat(block: u64, last: u64) -> ServerMessage {
+        ServerMessage::Block {
+            venue: VenueId::new("hyperliquid").unwrap(),
+            block_number: block,
+            block_time_ms: UnixMillis(1),
+            ts_publish_ns: UnixNanos(1),
+            last: [(channel_key(&inst(), RecordKind::BookEvent), last)].into(),
+        }
+    }
+
+    fn drain(c: &mut Client) -> Vec<ClientEvent> {
+        c.queue.drain(..).collect()
+    }
+
+    #[test]
+    fn l2_books_follow_levels_and_resync_on_gaps() {
+        let mut c = Client::new(ClientConfig {
+            urls: vec!["ws://unused".into()],
+            channels: vec!["*|book_event|l2".parse().unwrap()],
+            ..ClientConfig::default()
+        });
+        assert!(full_kinds(&c.cfg.channels).is_empty());
+        c.on_message(l2_snapshot(10));
+        let book = c.l2_book(&inst()).unwrap();
+        assert_eq!(book.last_block(), Some(10));
+        assert!(c.book(&inst()).is_none());
+
+        // First levels after the snapshot: prev <= 10 is contiguous; a
+        // removed level (size 0) disappears.
+        c.on_message(levels(
+            12,
+            Some(9),
+            vec![level("99.5", "3.0", 2)],
+            vec![level("101.0", "0", 0)],
+        ));
+        // Already covered by the snapshot: ignored.
+        c.on_message(levels(10, Some(8), vec![], vec![]));
+        c.on_message(heartbeat(12, 12));
+        let book = c.l2_book(&inst()).unwrap();
+        assert_eq!(book.last_block(), Some(12));
+        assert_eq!(book.levels(mesh_types::BookSide::Bid).len(), 2);
+        assert!(book.levels(mesh_types::BookSide::Ask).is_empty());
+        assert_eq!(c.stats().levels, 1);
+        assert_eq!(c.stats().gaps, 0);
+        let events = drain(&mut c);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, ClientEvent::Levels { .. }))
+        );
+
+        // Later levels must link to the last applied block.
+        c.on_message(levels(15, Some(13), vec![], vec![]));
+        assert!(c.l2_book(&inst()).is_none());
+        assert_eq!(c.stats().gaps, 1);
+        // Ignored until the new snapshot; the next heartbeat asks for it.
+        c.on_message(levels(16, Some(15), vec![], vec![]));
+        c.on_message(heartbeat(16, 16));
+        assert_eq!(c.stats().resnapshots, 1);
+        assert!(matches!(
+            c.outbox.last(),
+            Some(ClientMessage::Resnapshot { instrument, .. }) if *instrument == inst()
+        ));
+        c.on_message(l2_snapshot(16));
+        c.on_message(levels(17, Some(16), vec![], vec![level("102.0", "1.0", 1)]));
+        assert_eq!(c.l2_book(&inst()).unwrap().last_block(), Some(17));
+
+        // A heartbeat announcing a block whose levels never came is a gap.
+        c.on_message(heartbeat(19, 19));
+        assert!(c.l2_book(&inst()).is_none());
+        assert_eq!(c.stats().gaps, 2);
+    }
 }

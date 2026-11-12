@@ -14,13 +14,17 @@
 //! events do not fit becomes invalid until the next checkpoint, which then
 //! produces a forced snapshot (`upstream_gap` or `reconcile`). A valid book
 //! that differs from a checkpoint is replaced (`reconcile`).
+//!
+//! While a book is valid, applying a `book_event` batch also yields the
+//! price levels it changed; the hub publishes them as a `levels` item right
+//! after the batch, for `l2` subscribers (derived data, not committed).
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, PoisonError};
 use std::time::Instant;
 
 use bus::{BlockEntry, BusEvent, RecvError, ResyncReason, RingReceiver, RingSender, StreamBlock};
-use mesh_client::{L4Book, SnapshotReason};
+use mesh_client::{L4Book, Levels, SnapshotReason};
 use mesh_types::{
     BlockBatch, InstrumentId, Provenance, Record, RecordKind, SnapshotDepth, StreamId, UnixMillis,
     UnixNanos, VenueId,
@@ -169,7 +173,7 @@ impl Hub {
                 BusEvent::Resync { .. } => {}
             }
             let restart = matches!(ev, BusEvent::Record { .. } | BusEvent::Resync { .. });
-            self.apply(&ev, restart);
+            let _ = self.apply(&ev, restart);
         }
     }
 
@@ -243,10 +247,13 @@ impl Hub {
         {
             return;
         }
-        let snapshots = self.apply(ev, false);
+        let Applied { snapshots, levels } = self.apply(ev, false);
         match &**ev {
             BusEvent::Batch { batch } => {
                 self.publish(Item::Data(Data::batch(Arc::clone(batch))));
+                if let Some(levels) = levels {
+                    self.publish(Item::Data(Data::levels(levels, batch)));
+                }
             }
             BusEvent::Record { record } => {
                 self.publish(Item::Data(Data::record(Arc::clone(record))));
@@ -291,15 +298,9 @@ impl Hub {
         self.publish(Item::Snapshot(item));
     }
 
-    /// Updates state for one event. Returns the books that were (re)seeded
-    /// and need a snapshot item, with the forced reason if clients that
-    /// were synced must resend.
-    fn apply(
-        &mut self,
-        ev: &BusEvent,
-        replaying: bool,
-    ) -> Vec<(InstrumentId, Option<SnapshotReason>)> {
-        let mut out = Vec::new();
+    /// Updates state for one event.
+    fn apply(&mut self, ev: &BusEvent, replaying: bool) -> Applied {
+        let mut out = Applied::default();
         let metrics = &self.shared.metrics;
         let mut st = self
             .shared
@@ -314,7 +315,7 @@ impl Hub {
                     .insert((batch.instrument.clone(), batch.kind), f);
                 st.streams.insert((batch.venue.clone(), batch.kind), f);
                 if batch.kind == RecordKind::BookEvent {
-                    apply_book_batch(&mut st, batch, metrics);
+                    out.levels = apply_book_batch(&mut st, batch, metrics);
                 }
             }
             BusEvent::Record { record } => {
@@ -328,7 +329,7 @@ impl Hub {
                     SnapshotReason::Reconcile
                 };
                 if let Some(r) = seed(&mut st, record, reason, false, metrics) {
-                    out.push(r);
+                    out.snapshots.push(r);
                 }
             }
             BusEvent::Resync { record, reason } => {
@@ -338,7 +339,7 @@ impl Hub {
                     ResyncReason::Restart => SnapshotReason::Restart,
                 };
                 if let Some(r) = seed(&mut st, record, reason, true, metrics) {
-                    out.push(r);
+                    out.snapshots.push(r);
                 }
             }
             BusEvent::Commitment { commitment } => {
@@ -358,10 +359,24 @@ impl Hub {
     }
 }
 
-fn apply_book_batch(st: &mut HubState, batch: &BlockBatch, metrics: &crate::metrics::Metrics) {
-    let Some(first) = batch.records.first() else {
-        return;
-    };
+/// What applying one event changed.
+#[derive(Debug, Default)]
+struct Applied {
+    /// Books that were (re)seeded and need a snapshot item, with the forced
+    /// reason if clients that were synced must resend.
+    snapshots: Vec<(InstrumentId, Option<SnapshotReason>)>,
+    /// Level changes of a `book_event` batch applied to a valid book.
+    levels: Option<Levels>,
+}
+
+/// Applies a `book_event` batch to the instrument's book. Returns the
+/// levels it changed when the book is valid and the batch applied.
+fn apply_book_batch(
+    st: &mut HubState,
+    batch: &BlockBatch,
+    metrics: &crate::metrics::Metrics,
+) -> Option<Levels> {
+    let first = batch.records.first()?;
     let entry = st
         .books
         .entry(batch.instrument.clone())
@@ -370,14 +385,12 @@ fn apply_book_batch(st: &mut HubState, batch: &BlockBatch, metrics: &crate::metr
     let prev_last = entry.last_batch_block;
     entry.last_batch_block = Some(batch.block_number);
     if !entry.valid {
-        return;
+        return None;
     }
-    let Some(book) = entry.book.as_mut() else {
-        return;
-    };
+    let book = entry.book.as_mut()?;
     let b = book.last_block().unwrap_or(0);
     if batch.block_number <= b {
-        return; // already in the seed snapshot
+        return None; // already in the seed snapshot
     }
     let contiguous = if entry.fresh {
         batch.prev_block_number.is_none_or(|p| p <= b)
@@ -395,16 +408,29 @@ fn apply_book_batch(st: &mut HubState, batch: &BlockBatch, metrics: &crate::metr
         metrics.upstream_gaps.inc();
         entry.valid = false;
         entry.pending_reason = SnapshotReason::UpstreamGap;
-        return;
+        return None;
     }
-    if let Err(e) = book.apply_batch(batch) {
-        tracing::warn!(instrument = %batch.instrument, error = %e, "book event does not fit; book invalid");
-        metrics.reconciliations.inc();
-        entry.valid = false;
-        entry.pending_reason = SnapshotReason::Reconcile;
-        return;
-    }
+    let changes = match book.apply_batch_levels(batch) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(instrument = %batch.instrument, error = %e, "book event does not fit; book invalid");
+            metrics.reconciliations.inc();
+            entry.valid = false;
+            entry.pending_reason = SnapshotReason::Reconcile;
+            return None;
+        }
+    };
     entry.fresh = false;
+    Some(Levels {
+        instrument: batch.instrument.clone(),
+        venue: batch.venue.clone(),
+        block_number: batch.block_number,
+        block_time_ms: batch.block_time_ms,
+        prev_block_number: batch.prev_block_number,
+        bids: changes.bids,
+        asks: changes.asks,
+        ts_publish_ns: first.prov().ts_publish_ns,
+    })
 }
 
 /// Seeds or reconciles a book from an L4 `book_snapshot`.
@@ -565,6 +591,81 @@ mod tests {
             });
         }
         snap
+    }
+
+    #[tokio::test]
+    async fn valid_books_publish_level_changes_after_each_batch() {
+        let (shared, fanout) = gateway_shared();
+        let mut rx = fanout.subscribe();
+        let mut hub = Hub::new(Arc::clone(&shared), fanout);
+        let ev = |e: BusEvent| Arc::new(e);
+        let levels_of = |items: &[Arc<Item>]| -> Vec<Levels> {
+            items
+                .iter()
+                .filter_map(|i| match &**i {
+                    Item::Data(d) => match (&d.route, &d.msg) {
+                        (crate::item::Route::Levels(_), mesh_client::ServerMessage::Levels(l)) => {
+                            Some((**l).clone())
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .collect()
+        };
+        // No valid book yet: the batch is forwarded, no levels.
+        hub.on_event(&ev(BusEvent::batch(book_batch(
+            4,
+            None,
+            &[(1, BookAction::Add { size: sz("1.0") })],
+        ))));
+        let items: Vec<_> = std::iter::from_fn(|| rx.try_recv().unwrap()).collect();
+        assert!(levels_of(&items).is_empty());
+        hub.on_event(&ev(BusEvent::record(Record::BookSnapshot(empty_snapshot(
+            5,
+        )))));
+        let _ = std::iter::from_fn(|| rx.try_recv().unwrap()).count();
+        // Two orders at 99.000 (both bids in the test batch): one level.
+        hub.on_event(&ev(BusEvent::batch(book_batch(
+            6,
+            Some(4),
+            &[
+                (1, BookAction::Add { size: sz("1.0") }),
+                (2, BookAction::Add { size: sz("2.5") }),
+            ],
+        ))));
+        let items: Vec<_> = std::iter::from_fn(|| rx.try_recv().unwrap()).collect();
+        assert!(
+            matches!(&*items[0], Item::Data(d) if matches!(d.route, crate::item::Route::Batch(..)))
+        );
+        let l = levels_of(&items);
+        assert_eq!(l.len(), 1);
+        assert_eq!((l[0].block_number, l[0].prev_block_number), (6, Some(4)));
+        assert_eq!(
+            (l[0].bids[0].size.to_string(), l[0].bids[0].order_count),
+            ("3.5".into(), 2)
+        );
+        assert!(l[0].asks.is_empty());
+        // Cancelling both removes the level: size 0, no orders.
+        hub.on_event(&ev(BusEvent::batch(book_batch(
+            7,
+            Some(6),
+            &[(1, BookAction::Cancel {}), (2, BookAction::Cancel {})],
+        ))));
+        let items: Vec<_> = std::iter::from_fn(|| rx.try_recv().unwrap()).collect();
+        let l = levels_of(&items);
+        assert_eq!(
+            (l[0].bids[0].size.to_string(), l[0].bids[0].order_count),
+            ("0".into(), 0)
+        );
+        // A gap invalidates the book: no levels until the next checkpoint.
+        hub.on_event(&ev(BusEvent::batch(book_batch(
+            9,
+            Some(8),
+            &[(3, BookAction::Add { size: sz("1.0") })],
+        ))));
+        let items: Vec<_> = std::iter::from_fn(|| rx.try_recv().unwrap()).collect();
+        assert!(levels_of(&items).is_empty());
     }
 
     #[tokio::test]

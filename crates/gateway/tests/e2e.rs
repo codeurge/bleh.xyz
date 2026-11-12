@@ -15,7 +15,7 @@ use bus::{MemoryTap, SideTap};
 use common::*;
 use gateway::demo::DemoConfig;
 use gateway::{Gateway, GatewayConfig, Signers};
-use mesh_client::{ChannelSpec, ClientConfig, Encoding, SnapshotReason};
+use mesh_client::{ChannelSpec, ClientConfig, Encoding, L2Book, SnapshotReason};
 use mesh_types::InstrumentId;
 
 fn full_channels() -> Vec<ChannelSpec> {
@@ -23,6 +23,18 @@ fn full_channels() -> Vec<ChannelSpec> {
         .iter()
         .map(|c| c.parse().unwrap())
         .collect()
+}
+
+fn l2_channels() -> Vec<ChannelSpec> {
+    ["*|book_event|l2", "*|trade"]
+        .iter()
+        .map(|c| c.parse().unwrap())
+        .collect()
+}
+
+/// The L2 view of the feed's ground-truth L4 book.
+fn l2_truth(o: &Origin, inst: &InstrumentId) -> Option<L2Book> {
+    o.feed.book(inst).map(|b| L2Book::from_l4(b).unwrap())
 }
 
 fn client_cfg(url: String) -> ClientConfig {
@@ -81,6 +93,22 @@ async fn books_match_and_every_commitment_verifies_directly_and_through_a_relay(
             },
         ),
         (
+            "origin-l2",
+            ClientConfig {
+                channels: l2_channels(),
+                signers: allow.clone(),
+                ..client_cfg(ws_url(o.addr))
+            },
+        ),
+        (
+            "relay-l2-cbor",
+            ClientConfig {
+                channels: l2_channels(),
+                encoding: Encoding::Cbor,
+                ..client_cfg(ws_url(r.addr))
+            },
+        ),
+        (
             "relay-partial-proofs",
             ClientConfig {
                 channels: vec![
@@ -112,6 +140,18 @@ async fn books_match_and_every_commitment_verifies_directly_and_through_a_relay(
         } else {
             o.feed.instruments().cloned().collect()
         };
+        if name.contains("l2") {
+            for inst in &instruments {
+                let mine = seen
+                    .l2_book(inst)
+                    .unwrap_or_else(|| panic!("{name}: no L2 book for {inst}"));
+                assert_eq!(Some(mine), l2_truth(&o, inst).as_ref(), "{name}: {inst}");
+                assert!(seen.book(inst).is_none(), "{name}: unexpected L4 book");
+            }
+            assert!(seen.stats.levels > 50, "{name}: {:?}", seen.stats);
+            assert!(seen.stats.roots_ok > 0, "{name}: {:?}", seen.stats);
+            continue;
+        }
         for inst in &instruments {
             let mine = seen
                 .book(inst)
@@ -179,10 +219,20 @@ async fn upstream_gaps_force_resnapshots_and_books_recover() {
     );
     let (tb, rb) = tokio::sync::oneshot::channel();
     let b = run_client(client_cfg(ws_url(r.addr)), Arc::clone(&until), tb);
+    let (tc, rc) = tokio::sync::oneshot::channel();
+    let c = run_client(
+        ClientConfig {
+            channels: l2_channels(),
+            ..client_cfg(ws_url(r.addr))
+        },
+        Arc::clone(&until),
+        tc,
+    );
     ra.await.unwrap();
     rb.await.unwrap();
+    rc.await.unwrap();
     publish_blocks(&mut o, blocks, Duration::from_millis(8)).await;
-    for (name, h) in [("origin", a), ("relay", b)] {
+    for (name, h) in [("origin", a), ("relay", b), ("relay-l2", c)] {
         let seen = h.await.unwrap();
         assert_clean(name, &seen);
         assert!(seen.gaps > 0, "{name}: expected gaps");
@@ -194,7 +244,15 @@ async fn upstream_gaps_force_resnapshots_and_books_recover() {
             seen.snapshot_reasons
         );
         for inst in o.feed.instruments() {
-            assert_eq!(seen.book(inst), o.feed.book(inst), "{name}: book {inst}");
+            if name == "relay-l2" {
+                assert_eq!(
+                    seen.l2_book(inst),
+                    l2_truth(&o, inst).as_ref(),
+                    "{name}: {inst}"
+                );
+            } else {
+                assert_eq!(seen.book(inst), o.feed.book(inst), "{name}: book {inst}");
+            }
         }
     }
     assert!(o.handle.metrics().upstream_gaps.get() > 0);

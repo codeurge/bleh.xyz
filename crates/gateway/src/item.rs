@@ -8,7 +8,7 @@ use std::sync::{Arc, OnceLock};
 use bus::BlockEnd;
 use bytes::Bytes;
 use mesh_client::codec::{self, CodecError};
-use mesh_client::{Depth, Encoding, ServerMessage, SnapshotReason};
+use mesh_client::{Depth, Encoding, Levels, ServerMessage, SnapshotReason};
 use mesh_types::{
     BarInterval, BlockBatch, BlockCommitment, InstrumentId, Record, RecordKind, Seq, UnixNanos,
     VenueId,
@@ -55,6 +55,8 @@ pub(crate) fn encode_frame(msg: &ServerMessage, enc: Encoding) -> Result<Frame, 
 pub(crate) enum Route {
     /// A batch of one instrument and kind.
     Batch(InstrumentId, RecordKind),
+    /// Level changes of one instrument's book, for `l2` subscribers.
+    Levels(InstrumentId),
     /// A single record; bars carry their interval.
     Record(InstrumentId, RecordKind, Option<BarInterval>),
     /// A commitment of one venue and kind.
@@ -83,6 +85,21 @@ impl Data {
             ts_ingest_ns: first.map(|p| p.ts_ingest_ns),
             ts_publish_ns: first.and_then(|p| p.ts_publish_ns),
             msg: ServerMessage::Batch { batch },
+            json: OnceLock::new(),
+            cbor: OnceLock::new(),
+        }
+    }
+
+    /// Level changes derived from `batch` (the hub's book after applying
+    /// it).
+    pub(crate) fn levels(levels: Levels, batch: &BlockBatch) -> Self {
+        let first = batch.records.first().map(Record::prov);
+        Self {
+            route: Route::Levels(levels.instrument.clone()),
+            block_number: levels.block_number,
+            ts_ingest_ns: first.map(|p| p.ts_ingest_ns),
+            ts_publish_ns: levels.ts_publish_ns,
+            msg: ServerMessage::Levels(Arc::new(levels)),
             json: OnceLock::new(),
             cbor: OnceLock::new(),
         }

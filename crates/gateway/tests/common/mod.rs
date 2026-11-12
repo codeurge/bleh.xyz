@@ -13,7 +13,7 @@ use bus::{
 };
 use gateway::demo::{DemoConfig, DemoFeed};
 use gateway::{Gateway, GatewayConfig, GatewayHandle, RelayConfig, Signers, UpstreamStatus};
-use mesh_client::{Client, ClientConfig, ClientEvent, ClientStats, L4Book, SnapshotReason};
+use mesh_client::{Client, ClientConfig, ClientEvent, ClientStats, L2Book, L4Book, SnapshotReason};
 use mesh_types::{EthAddress, InstrumentId};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
@@ -147,6 +147,10 @@ pub struct Seen {
 impl Seen {
     pub fn book(&self, i: &InstrumentId) -> Option<&L4Book> {
         self.client.book(i)
+    }
+
+    pub fn l2_book(&self, i: &InstrumentId) -> Option<&L2Book> {
+        self.client.l2_book(i)
     }
 }
 

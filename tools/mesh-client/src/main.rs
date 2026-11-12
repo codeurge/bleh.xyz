@@ -64,6 +64,7 @@ fn is_data(e: &ClientEvent) -> bool {
         e,
         ClientEvent::Snapshot { .. }
             | ClientEvent::Batch { .. }
+            | ClientEvent::Levels { .. }
             | ClientEvent::Record { .. }
             | ClientEvent::Commitment { .. }
             | ClientEvent::Block { .. }
@@ -155,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
                 };
                 tracing::info!(
                     block = block_number,
-                    books = client.books().count(),
+                    books = client.books().count() + client.l2_books().count(),
                     batches = s.batches,
                     gaps = s.gaps,
                     signatures_ok = s.signatures_ok,

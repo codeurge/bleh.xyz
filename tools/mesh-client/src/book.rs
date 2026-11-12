@@ -1,4 +1,9 @@
-//! An order-level (L4) book kept from a snapshot plus book events.
+//! Books kept from a snapshot plus deltas.
+//!
+//! [`L4Book`] is the order-level book kept from an L4 snapshot plus book
+//! events. [`L2Book`] is the level book an `l2` subscriber keeps from an L2
+//! snapshot plus the gateway's `levels` messages, which the gateway derives
+//! from its own L4 book with [`L4Book::apply_batch_levels`].
 //!
 //! The book follows observation-v0 § 2.3–2.4: orders rest at their limit
 //! price in time priority; `add` inserts at the back of its price level,
@@ -8,7 +13,7 @@
 //! mismatch) is an error: the caller treats it as a gap and resynchronizes.
 
 use std::cmp::Reverse;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use mesh_types::{
     BlockBatch, BookAction, BookEvent, BookSide, BookSnapshot, DecimalError, InstrumentId, Level,
@@ -16,7 +21,7 @@ use mesh_types::{
     UnixMillis,
 };
 
-use crate::protocol::Depth;
+use crate::protocol::{Depth, Levels};
 
 /// An event that does not fit the book.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -47,6 +52,42 @@ pub enum BookError {
         /// Book block.
         book: u64,
     },
+    /// Aggregating a level overflowed.
+    #[error("level size overflow")]
+    Overflow,
+}
+
+impl From<DecimalError> for BookError {
+    fn from(_: DecimalError) -> Self {
+        Self::Overflow
+    }
+}
+
+/// The price levels a block changed, best first on each side. A level
+/// with size zero and `order_count` 0 is gone.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LevelChanges {
+    /// Changed bid levels, highest price first.
+    pub bids: Vec<Level>,
+    /// Changed ask levels, lowest price first.
+    pub asks: Vec<Level>,
+}
+
+impl LevelChanges {
+    /// True if no level changed.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bids.is_empty() && self.asks.is_empty()
+    }
+}
+
+/// The level that marks a removed price: size `0`, no orders.
+fn removed(price: Price) -> Result<Level, DecimalError> {
+    Ok(Level {
+        price,
+        size: Size::zero(0)?,
+        order_count: 0,
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -246,6 +287,91 @@ impl L4Book {
         Ok(())
     }
 
+    /// Applies a `book_event` batch like [`L4Book::apply_batch`] and
+    /// returns the price levels it changed: for every price an event
+    /// touched whose aggregate size or order count differs afterwards, the
+    /// new level (size zero and `order_count` 0 when the level is gone).
+    ///
+    /// # Errors
+    ///
+    /// As [`L4Book::apply_batch`] (the book is then unchanged), or
+    /// [`BookError::Overflow`] when a level's size overflows (the batch is
+    /// then applied but its levels are unknown).
+    pub fn apply_batch_levels(&mut self, batch: &BlockBatch) -> Result<LevelChanges, BookError> {
+        let mut bid_prices = BTreeSet::new();
+        let mut ask_prices = BTreeSet::new();
+        for r in &batch.records {
+            if let Record::BookEvent(ev) = r {
+                match ev.side {
+                    BookSide::Bid => bid_prices.insert(ev.price),
+                    BookSide::Ask => ask_prices.insert(ev.price),
+                };
+            }
+        }
+        let before = |book: &Self, side, prices: &BTreeSet<Price>| {
+            prices
+                .iter()
+                .map(|p| book.level(side, *p))
+                .collect::<Result<Vec<_>, _>>()
+        };
+        let bids_before = before(self, BookSide::Bid, &bid_prices)?;
+        let asks_before = before(self, BookSide::Ask, &ask_prices)?;
+        self.apply_batch(batch)?;
+        let changed = |side, prices: BTreeSet<Price>, old: Vec<Option<Level>>| {
+            let mut out = Vec::new();
+            for (price, old) in prices.into_iter().zip(old) {
+                let new = self.level(side, price)?;
+                if new != old {
+                    out.push(match new {
+                        Some(l) => l,
+                        None => removed(price)?,
+                    });
+                }
+            }
+            Ok::<_, DecimalError>(out)
+        };
+        let mut bids = changed(BookSide::Bid, bid_prices, bids_before)?;
+        bids.reverse(); // ascending price order; bids go best (highest) first
+        let asks = changed(BookSide::Ask, ask_prices, asks_before)?;
+        Ok(LevelChanges { bids, asks })
+    }
+
+    /// The aggregate level at `price` on `side`, if any order rests there.
+    ///
+    /// # Errors
+    ///
+    /// Size overflow.
+    pub fn level(&self, side: BookSide, price: Price) -> Result<Option<Level>, DecimalError> {
+        let ids: Vec<&OrderId> = match side {
+            BookSide::Bid => self
+                .bids
+                .range((Reverse(price), 0)..=(Reverse(price), u64::MAX))
+                .map(|(_, id)| id)
+                .collect(),
+            BookSide::Ask => self
+                .asks
+                .range((price, 0)..=(price, u64::MAX))
+                .map(|(_, id)| id)
+                .collect(),
+        };
+        let mut level: Option<Level> = None;
+        for r in ids.into_iter().filter_map(|id| self.orders.get(id)) {
+            level = Some(match level {
+                None => Level {
+                    price,
+                    size: r.size,
+                    order_count: 1,
+                },
+                Some(l) => Level {
+                    price,
+                    size: l.size.checked_add(r.size)?,
+                    order_count: l.order_count.saturating_add(1),
+                },
+            });
+        }
+        Ok(level)
+    }
+
     /// Instrument.
     #[must_use]
     pub fn instrument(&self) -> &InstrumentId {
@@ -353,6 +479,175 @@ impl L4Book {
                 Depth::L2 => self.depth_l2()?,
             },
         })
+    }
+}
+
+/// A level (L2) book for one instrument: an L2 snapshot plus `levels`
+/// deltas from the gateway. Equality compares the instrument and levels,
+/// not the block (as for [`L4Book`]).
+#[derive(Debug, Clone)]
+pub struct L2Book {
+    instrument: InstrumentId,
+    bids: BTreeMap<Reverse<Price>, Level>,
+    asks: BTreeMap<Price, Level>,
+    last_block: Option<u64>,
+}
+
+impl PartialEq for L2Book {
+    fn eq(&self, other: &Self) -> bool {
+        self.instrument == other.instrument && self.bids == other.bids && self.asks == other.asks
+    }
+}
+
+impl L2Book {
+    /// An empty book that has seen no block.
+    #[must_use]
+    pub fn new(instrument: InstrumentId) -> Self {
+        Self {
+            instrument,
+            bids: BTreeMap::new(),
+            asks: BTreeMap::new(),
+            last_block: None,
+        }
+    }
+
+    /// The book from a snapshot (L2, or L4 aggregated); its block is the
+    /// snapshot's.
+    ///
+    /// # Errors
+    ///
+    /// [`BookError::Overflow`] when aggregating an L4 snapshot.
+    pub fn from_snapshot(snapshot: &BookSnapshot) -> Result<Self, BookError> {
+        let SnapshotDepth::L2 { bids, asks } = snapshot.depth.to_l2()? else {
+            return Err(BookError::WrongKind);
+        };
+        let mut book = Self::new(snapshot.prov.instrument.clone());
+        book.set(bids, asks);
+        book.last_block = Some(snapshot.prov.seq.block_number);
+        Ok(book)
+    }
+
+    /// The book from a `book_snapshot` record.
+    ///
+    /// # Errors
+    ///
+    /// As [`L2Book::from_snapshot`]; [`BookError::WrongKind`] for other
+    /// records.
+    pub fn from_record(record: &Record) -> Result<Self, BookError> {
+        match record {
+            Record::BookSnapshot(s) => Self::from_snapshot(s),
+            _ => Err(BookError::WrongKind),
+        }
+    }
+
+    /// The levels of an L4 book, at the same block.
+    ///
+    /// # Errors
+    ///
+    /// [`BookError::Overflow`].
+    pub fn from_l4(book: &L4Book) -> Result<Self, BookError> {
+        let SnapshotDepth::L2 { bids, asks } = book.depth_l2()? else {
+            return Err(BookError::WrongKind);
+        };
+        let mut out = Self::new(book.instrument().clone());
+        out.set(bids, asks);
+        out.last_block = book.last_block();
+        Ok(out)
+    }
+
+    fn set(&mut self, bids: Vec<Level>, asks: Vec<Level>) {
+        self.bids = bids
+            .into_iter()
+            .filter(|l| l.size.is_positive())
+            .map(|l| (Reverse(l.price), l))
+            .collect();
+        self.asks = asks
+            .into_iter()
+            .filter(|l| l.size.is_positive())
+            .map(|l| (l.price, l))
+            .collect();
+    }
+
+    /// Applies one `levels` message, all or nothing, and advances the book
+    /// to its block. Contiguity (`prev_block_number`) is the caller's
+    /// check.
+    ///
+    /// # Errors
+    ///
+    /// [`BookError::WrongInstrument`], [`BookError::Stale`].
+    pub fn apply_levels(&mut self, levels: &Levels) -> Result<(), BookError> {
+        if levels.instrument != self.instrument {
+            return Err(BookError::WrongInstrument);
+        }
+        if let Some(b) = self.last_block
+            && levels.block_number <= b
+        {
+            return Err(BookError::Stale {
+                block: levels.block_number,
+                book: b,
+            });
+        }
+        for l in &levels.bids {
+            if l.size.is_positive() {
+                self.bids.insert(Reverse(l.price), *l);
+            } else {
+                self.bids.remove(&Reverse(l.price));
+            }
+        }
+        for l in &levels.asks {
+            if l.size.is_positive() {
+                self.asks.insert(l.price, *l);
+            } else {
+                self.asks.remove(&l.price);
+            }
+        }
+        self.last_block = Some(levels.block_number);
+        Ok(())
+    }
+
+    /// Instrument.
+    #[must_use]
+    pub fn instrument(&self) -> &InstrumentId {
+        &self.instrument
+    }
+
+    /// The block the book reflects (state after it), if any.
+    #[must_use]
+    pub fn last_block(&self) -> Option<u64> {
+        self.last_block
+    }
+
+    /// Best bid and ask.
+    #[must_use]
+    pub fn top(&self) -> (Option<Price>, Option<Price>) {
+        (
+            self.bids.keys().next().map(|Reverse(p)| *p),
+            self.asks.keys().next().copied(),
+        )
+    }
+
+    /// Levels of one side, best first.
+    #[must_use]
+    pub fn levels(&self, side: BookSide) -> Vec<Level> {
+        match side {
+            BookSide::Bid => self.bids.values().copied().collect(),
+            BookSide::Ask => self.asks.values().copied().collect(),
+        }
+    }
+
+    /// Both sides as snapshot depth.
+    #[must_use]
+    pub fn depth(&self) -> SnapshotDepth {
+        SnapshotDepth::L2 {
+            bids: self.levels(BookSide::Bid),
+            asks: self.levels(BookSide::Ask),
+        }
+    }
+
+    /// True if no level rests.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bids.is_empty() && self.asks.is_empty()
     }
 }
 
@@ -543,5 +838,148 @@ mod tests {
         assert_eq!(book.last_block(), Some(5));
         book.advance_to(3);
         assert_eq!(book.last_block(), Some(5));
+    }
+
+    fn levels_msg(block: u64, prev: Option<u64>, ch: LevelChanges) -> Levels {
+        Levels {
+            instrument: InstrumentId::new("hyperliquid:perp:BTC").unwrap(),
+            venue: VenueId::new("hyperliquid").unwrap(),
+            block_number: block,
+            block_time_ms: UnixMillis(0),
+            prev_block_number: prev,
+            bids: ch.bids,
+            asks: ch.asks,
+            ts_publish_ns: None,
+        }
+    }
+
+    fn lv(px: &str, size: &str, n: u32) -> (String, String, u32) {
+        (px.into(), size.into(), n)
+    }
+
+    fn show(levels: &[Level]) -> Vec<(String, String, u32)> {
+        levels
+            .iter()
+            .map(|l| (l.price.to_string(), l.size.to_string(), l.order_count))
+            .collect()
+    }
+
+    #[test]
+    fn level_changes_follow_the_l4_book() {
+        let add = |s| BookAction::Add { size: sz(s) };
+        let mut l4 = L4Book::new(InstrumentId::new("hyperliquid:perp:BTC").unwrap());
+        let ch = l4
+            .apply_batch_levels(&batch(
+                1,
+                None,
+                vec![
+                    ev(1, 0, 1, BookSide::Bid, "99.0", add("1.0")),
+                    ev(1, 1, 2, BookSide::Bid, "99.5", add("2.0")),
+                    ev(1, 2, 3, BookSide::Bid, "99.5", add("3.0")),
+                    ev(1, 3, 4, BookSide::Ask, "100.5", add("1.5")),
+                    ev(1, 4, 5, BookSide::Ask, "100.0", add("0.5")),
+                    // Added and cancelled within the block: no change.
+                    ev(1, 5, 6, BookSide::Ask, "101.0", add("9.0")),
+                    ev(1, 6, 6, BookSide::Ask, "101.0", BookAction::Cancel {}),
+                ],
+            ))
+            .unwrap();
+        assert_eq!(
+            show(&ch.bids),
+            vec![lv("99.5", "5.0", 2), lv("99.0", "1.0", 1)]
+        );
+        assert_eq!(
+            show(&ch.asks),
+            vec![lv("100.0", "0.5", 1), lv("100.5", "1.5", 1)]
+        );
+        let mut l2 = L2Book::new(l4.instrument().clone());
+        l2.apply_levels(&levels_msg(1, None, ch)).unwrap();
+        assert_eq!(l2, L2Book::from_l4(&l4).unwrap());
+
+        // Partial fill, cancel emptying a level, modify back to the same
+        // size (no change).
+        let ch = l4
+            .apply_batch_levels(&batch(
+                3,
+                Some(1),
+                vec![
+                    ev(
+                        3,
+                        0,
+                        2,
+                        BookSide::Bid,
+                        "99.5",
+                        BookAction::Fill {
+                            orig_size: None,
+                            new_size: sz("0.5"),
+                        },
+                    ),
+                    ev(3, 1, 1, BookSide::Bid, "99.0", BookAction::Cancel {}),
+                    ev(
+                        3,
+                        2,
+                        4,
+                        BookSide::Ask,
+                        "100.5",
+                        BookAction::Modify {
+                            orig_size: None,
+                            new_size: sz("2.0"),
+                        },
+                    ),
+                    ev(
+                        3,
+                        3,
+                        4,
+                        BookSide::Ask,
+                        "100.5",
+                        BookAction::Modify {
+                            orig_size: None,
+                            new_size: sz("1.5"),
+                        },
+                    ),
+                ],
+            ))
+            .unwrap();
+        assert_eq!(
+            show(&ch.bids),
+            vec![lv("99.5", "3.5", 2), lv("99.0", "0", 0)]
+        );
+        assert!(ch.asks.is_empty());
+        let msg = levels_msg(3, Some(1), ch);
+        l2.apply_levels(&msg).unwrap();
+        assert_eq!(l2, L2Book::from_l4(&l4).unwrap());
+        assert_eq!(l2.last_block(), Some(3));
+        assert_eq!(
+            l2.top(),
+            (
+                Some(Price::parse_exact("99.5").unwrap()),
+                Some(Price::parse_exact("100.0").unwrap())
+            )
+        );
+        // Stale or foreign levels are refused and change nothing.
+        let before = l2.clone();
+        assert!(matches!(
+            l2.apply_levels(&msg),
+            Err(BookError::Stale { block: 3, book: 3 })
+        ));
+        assert_eq!(l2, before);
+
+        // A failing batch leaves the L4 book unchanged.
+        let snapshot = l4.clone();
+        assert!(
+            l4.apply_batch_levels(&batch(
+                4,
+                Some(3),
+                vec![ev(4, 0, 77, BookSide::Bid, "1.0", BookAction::Cancel {})]
+            ))
+            .is_err()
+        );
+        assert_eq!(l4, snapshot);
+
+        // An L2 snapshot of the L4 book gives the same L2 book.
+        let snap = l4.snapshot(&prov(3, 0), Depth::L2).unwrap();
+        assert_eq!(L2Book::from_snapshot(&snap).unwrap(), l2);
+        assert!(!l2.is_empty());
+        assert_eq!(show(&l2.levels(BookSide::Ask)).len(), 2);
     }
 }
