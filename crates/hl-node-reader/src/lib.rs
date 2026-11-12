@@ -22,7 +22,9 @@
 //! | Market registration from metadata | [`markets`] | specs: yes |
 //! | Hourly files, one-pass reading, tail cursors | [`files`] | no |
 //! | One-pass replay of a directory | [`replay`] | no |
-//! | Resume points and the checkpoint file | [`checkpoint`] | no |
+//! | Live tailing (notify + polling) | [`tail`] | no |
+//! | Active-active merge and integrity alarms | [`merge`] | state machine: yes |
+//! | Tailers, merge, sequencer, checkpoint | [`pipeline`] | no |
 //! | Info server client | [`http`] | no |
 //! | Prometheus metrics | [`metrics`] | no |
 //!
@@ -35,6 +37,9 @@
 //! - Book builder: [`snapshot::request_l4_snapshot`] and
 //!   [`snapshot::parse_l4_snapshot`] for checkpoints; the `book_event`
 //!   batches of [`sequence::BlockOutput`].
+//! - Gateway and bus: [`pipeline::Pipeline::spawn`], whose
+//!   [`pipeline::PipelineEvent::Block`] carries one
+//!   [`mesh_types::BlockBatch`] per instrument, kind and block.
 
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 #![warn(missing_docs)]
@@ -47,12 +52,15 @@ pub mod filter;
 pub mod http;
 pub mod join;
 pub mod markets;
+pub mod merge;
 pub mod metrics;
 pub mod normalize;
+pub mod pipeline;
 pub mod raw;
 pub mod replay;
 pub mod sequence;
 pub mod snapshot;
+pub mod tail;
 
 pub use filter::{StreamDirs, filter_line, filter_raw_line};
 pub use normalize::{ReaderBlock, normalize};

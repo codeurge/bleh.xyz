@@ -9,11 +9,18 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap = { workspace = true, features = ["env"] }
 mesh-types.workspace = true
+# Not yet in [workspace.dependencies]; pinned here until a second crate needs it.
+notify = "8.2.2"
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [dev-dependencies]
 hl-synth = { path = "../../tools/hl-synth" }
