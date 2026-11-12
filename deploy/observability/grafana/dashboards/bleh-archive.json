@@ -97,14 +97,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time() - bleh_archive_raw_upload_last_success_timestamp_seconds",
-          "legendFormat": "{{tier}} {{stream}} ({{site}})"
+          "expr": "time() - node_textfile_mtime_seconds{file=~\".*bleh_archive_capture.prom\"}",
+          "legendFormat": "capture report age {{instance}}"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Upload failures",
+      "title": "Uploads",
       "id": 3,
       "datasource": {
         "type": "prometheus",
@@ -146,8 +146,26 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site, tier) (increase(bleh_archive_upload_failures_total[30m]))",
-          "legendFormat": "{{site}} {{tier}}"
+          "expr": "sum by (instance) (increase(archive_store_put_created_total[1h]))",
+          "legendFormat": "created {{instance}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (instance) (increase(archive_store_put_conflict_total[1h]))",
+          "legendFormat": "conflicts {{instance}}"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (instance) (increase(archive_capture_files_sealed_total[1h]))",
+          "legendFormat": "hours sealed {{instance}}"
         }
       ]
     },
@@ -343,7 +361,7 @@
     },
     {
       "type": "stat",
-      "title": "Content-hash mismatches, 7 d",
+      "title": "Pipeline steps failing",
       "id": 8,
       "datasource": {
         "type": "prometheus",
@@ -399,14 +417,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(bleh_archive_content_hash_mismatch_total[7d])) or vector(0)",
+          "expr": "count(bleh_archive_step_ok == 0) or vector(0)",
           "legendFormat": ""
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Manifest, anchor and signing failures",
+      "title": "Pipeline step failures and signing failures",
       "id": 9,
       "datasource": {
         "type": "prometheus",
@@ -448,20 +466,11 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (archive) (increase(bleh_archive_manifest_failures_total[1h]))",
-          "legendFormat": "manifest {{archive}}"
+          "expr": "1 - bleh_archive_step_ok",
+          "legendFormat": "failed: {{step}} {{archive}}"
         },
         {
           "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum by (archive, anchor) (increase(bleh_archive_anchor_failures_total[1h]))",
-          "legendFormat": "anchor {{anchor}} {{archive}}"
-        },
-        {
-          "refId": "C",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"

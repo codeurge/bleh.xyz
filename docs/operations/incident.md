@@ -103,10 +103,12 @@ Find the broken layer from the inside out:
 keeps uncaptured hours until disk runs low.
 
 1. `up.sh node-box logs archive-capture`: credentials (R2 token expired?),
-   network, a malformed file.
-2. Check the watermark: `cat /srv/bleh/raw/.captured-through` against the
-   current hour.
-3. Fix and restart `archive-capture`; it resumes from the watermark.
+   network, a malformed file, a write-once conflict.
+2. Look at the staging area: sealed hours waiting in
+   `<staging>/<archive>/ready/`, conflicts in `conflicts/`
+   ([archive.md](archive.md)).
+3. Fix and restart `archive-capture`; it resumes open hours and
+   `archive capture upload` ships sealed ones.
 4. If the disk is about to fill before capture can catch up, copy the
    oldest uncaptured hours elsewhere (`rclone copy` to the private bucket or
    to the home server over the overlay) before the pruner's emergency mode
@@ -117,11 +119,12 @@ keeps uncaptured hours until disk runs low.
 `BlehManifestOverdue`, `BlehManifestFailures`, `BlehAnchorOverdue`,
 `BlehAnchorFailures`.
 
-- Manifest: `up.sh home-archive logs archive-process`. Signing failures
-  point to the manifest key (HSM unplugged, file missing:
-  [keys.md](keys.md#signing-failures)). Manifests are hash-chained, so the
-  next one must not be built until the missing day is done; the archive
-  builds days in order and catches up.
+- Pipeline: `journalctl -u bleh-archive-daily` shows which step failed
+  (`bleh_archive_step_ok` names it). Re-run a day with
+  `sudo deploy/scripts/archive-pipeline.sh daily <YYYY-MM-DD>`. Signing
+  failures point to the manifest key (file missing or unreadable:
+  [keys.md](keys.md#signing-failures)). Manifests are hash-chained, so build
+  missing days in order before the next.
 - OpenTimestamps: proofs complete only after Bitcoin confirmation; an
   overdue alert after 36 hours means submission failed (calendar servers
   unreachable). Retry; any calendar works.

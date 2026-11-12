@@ -246,8 +246,13 @@ log "systemd timers"
 units=(bleh-host-metrics.service bleh-host-metrics.timer)
 ((has_node)) && units+=(bleh-prune.service bleh-prune.timer bleh-schema-drift.service bleh-schema-drift.timer)
 if ((has_home)) || [[ "$role" == relay ]]; then units+=(bleh-probe.service bleh-probe.timer); fi
+((has_home)) && units+=(bleh-archive-daily.service bleh-archive-daily.timer bleh-archive-anchors.service bleh-archive-anchors.timer)
 for u in "${units[@]}"; do install -m 0644 "$repo/deploy/systemd/$u" "/etc/systemd/system/$u"; done
 [[ -f /etc/bleh/probe.env ]] || install -m 0644 "$repo/deploy/systemd/env/probe.example.conf" /etc/bleh/probe.env
+if ((has_home)); then
+  [[ -f /etc/bleh/archive.env ]] || install -m 0600 "$repo/deploy/systemd/env/archive.example.conf" /etc/bleh/archive.env
+  install -d -m 0755 /var/lib/bleh/archive-pipeline
+fi
 systemctl daemon-reload
 for u in "${units[@]}"; do [[ "$u" == *.timer ]] && systemctl enable --now "$u"; done
 

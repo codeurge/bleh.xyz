@@ -32,11 +32,6 @@ scrape_configs:
       - targets: ["relay:8080"]
         labels: {site: local-relay, mode: relay}
 
-  - job_name: archive
-    static_configs:
-      - targets: ["archive-demo:9103"]
-        labels: {site: local}
-
   - job_name: history-api
     static_configs:
       - targets: ["history-api:8081"]

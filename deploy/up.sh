@@ -16,6 +16,7 @@
 #   down          stop the profile (volumes kept)
 #   stop | start | ps | logs | config | pull | restart   passed to docker compose
 #   backfill ARGS run a one-off hl-backfill job with ARGS
+#   archive ARGS  run a one-off archive CLI command (replay, manifest, ...)
 #
 # Options (before the profile):
 #   --no-build    do not build images (use BLEH_REGISTRY/BLEH_TAG from .env)
@@ -198,6 +199,9 @@ EOF
     ;;
   backfill)
     "${dc[@]}" --profile backfill run --rm hl-backfill "$@"
+    ;;
+  archive)
+    "${dc[@]}" --profile archive-jobs run --rm -T archive-job "$@"
     ;;
   down|stop|start|ps|logs|config|pull|restart)
     "${dc[@]}" "$cmd" "$@"

@@ -299,20 +299,29 @@ groups:
   - name: bleh-archive
     rules:
       - alert: BlehRawUploadStale
-        # Node files rotate hourly; filtered and unfiltered raw must reach
-        # object storage before the pruner may delete them.
-        expr: time() - bleh_archive_raw_upload_last_success_timestamp_seconds > 7200
+        # archive capture rewrites its --metrics-out file as it seals and
+        # uploads hours; a file older than two hours means capture stopped.
+        # Node files rotate hourly and the pruner keeps uncaptured hours.
+        expr: time() - node_textfile_mtime_seconds{file=~".*bleh_archive_capture.prom"} > 7200
         labels: {severity: page}
         annotations:
-          summary: "No {{ $labels.tier }} raw upload for {{ $labels.stream }} in 2 hours"
+          summary: "Raw capture on {{ $labels.instance }} has not reported for 2 hours"
           runbook: docs/operations/incident.md#archive-capture-stalled
 
-      - alert: BlehArchiveUploadFailures
-        expr: increase(bleh_archive_upload_failures_total[30m]) > 5
+      - alert: BlehArchiveWriteConflict
+        # A write-once upload found a different object at the same path.
+        expr: increase(archive_store_put_conflict_total[1h]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Archive upload conflict on {{ $labels.instance }}: an existing object differs"
+          runbook: docs/operations/incident.md#node-divergence
+
+      - alert: BlehArchiveDailyStale
+        expr: time() - bleh_archive_daily_last_run_timestamp_seconds > 26 * 3600
         labels: {severity: ticket}
         annotations:
-          summary: "Archive uploads failing ({{ $labels.tier }})"
-          runbook: docs/operations/incident.md#archive-capture-stalled
+          summary: The daily archive pipeline has not run for 26 hours
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
 
       - alert: BlehManifestOverdue
         expr: time() - bleh_archive_manifest_last_success_timestamp_seconds > 26 * 3600
@@ -321,11 +330,21 @@ groups:
           summary: "No signed manifest for {{ $labels.archive }} in 26 hours"
           runbook: docs/operations/incident.md#manifest-or-anchor-failure
 
-      - alert: BlehManifestFailures
-        expr: increase(bleh_archive_manifest_failures_total[1h]) > 0
+      - alert: BlehArchiveStepFailed
+        # Replay, manifest, anchor or publish step of the pipeline failed
+        # (deploy/scripts/archive-pipeline.sh).
+        expr: bleh_archive_step_ok{step!="verify"} == 0
         labels: {severity: ticket}
         annotations:
-          summary: "Manifest build or signing failed for {{ $labels.archive }}"
+          summary: "Archive step {{ $labels.step }} failed for {{ $labels.archive }}"
+          runbook: docs/operations/incident.md#manifest-or-anchor-failure
+
+      - alert: BlehArchiveVerifyFailed
+        # Published files did not verify as a mirror would see them.
+        expr: bleh_archive_step_ok{step="verify"} == 0
+        labels: {severity: page}
+        annotations:
+          summary: "Published {{ $labels.archive }} failed verification"
           runbook: docs/operations/incident.md#manifest-or-anchor-failure
 
       - alert: BlehAnchorOverdue
@@ -336,21 +355,6 @@ groups:
         annotations:
           summary: "No {{ $labels.anchor }} anchor for {{ $labels.archive }} in 36 hours"
           runbook: docs/operations/incident.md#manifest-or-anchor-failure
-
-      - alert: BlehAnchorFailures
-        expr: increase(bleh_archive_anchor_failures_total[6h]) > 2
-        labels: {severity: ticket}
-        annotations:
-          summary: "{{ $labels.anchor }} anchoring failing for {{ $labels.archive }}"
-          runbook: docs/operations/incident.md#manifest-or-anchor-failure
-
-      - alert: BlehContentHashMismatch
-        # A replayed partition did not reproduce its canonical content hash.
-        expr: increase(bleh_archive_content_hash_mismatch_total[1h]) > 0
-        labels: {severity: page}
-        annotations:
-          summary: Replay produced a different canonical content hash
-          runbook: docs/operations/incident.md#node-divergence
 
       - alert: BlehSigningFailures
         expr: increase(bleh_signing_failures_total[10m]) > 0

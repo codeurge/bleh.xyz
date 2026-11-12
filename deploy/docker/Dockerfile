@@ -103,44 +103,42 @@ COPY --from=build /out/SHA256SUMS /usr/share/bleh/SHA256SUMS
 COPY --from=build --chown=65532:65532 /state/ /var/lib/bleh/
 
 # ---------------------------------------------------------------------------
-# Service targets. Ports are the defaults listed in deploy/README.md
-# ("Service contract"); every service also takes its listen addresses from
-# the environment.
+# Service targets. EXPOSE lists the ports the deploy configurations use
+# (deploy/README.md, "Service contract"); every listen address is set by
+# flag or environment at run time. archive and hl-backfill are batch tools.
 # ---------------------------------------------------------------------------
 FROM runtime AS hl-node-reader
 LABEL org.opencontainers.image.title="bleh hl-node-reader"
 COPY --from=build /out/hl-node-reader /usr/local/bin/hl-node-reader
-EXPOSE 7400 9101
+EXPOSE 8080 9184
 ENTRYPOINT ["/usr/local/bin/hl-node-reader"]
 
 FROM runtime AS gateway
 LABEL org.opencontainers.image.title="bleh gateway"
 COPY --from=build /out/gateway /usr/local/bin/gateway
-EXPOSE 8080 9102
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/gateway"]
 
 FROM runtime AS archive
 LABEL org.opencontainers.image.title="bleh archive"
 COPY --from=build /out/archive /usr/local/bin/archive
-EXPOSE 9103
 ENTRYPOINT ["/usr/local/bin/archive"]
 
 FROM runtime AS history-api
 LABEL org.opencontainers.image.title="bleh history-api"
 COPY --from=build /out/history-api /usr/local/bin/history-api
-EXPOSE 8081 9104
+EXPOSE 8081
 ENTRYPOINT ["/usr/local/bin/history-api"]
 
 FROM runtime AS swap-pollers
 LABEL org.opencontainers.image.title="bleh swap-pollers"
 COPY --from=build /out/swap-pollers /usr/local/bin/swap-pollers
-EXPOSE 9105
+EXPOSE 9187
 ENTRYPOINT ["/usr/local/bin/swap-pollers"]
 
 FROM runtime AS hl-backfill
 LABEL org.opencontainers.image.title="bleh hl-backfill"
 COPY --from=build /out/hl-backfill /usr/local/bin/hl-backfill
-EXPOSE 9106
 ENTRYPOINT ["/usr/local/bin/hl-backfill"]
 
 FROM runtime AS tools

@@ -34,7 +34,7 @@ in the repository, not in the UI):
 |---|---|
 | bleh: live pipeline | Availability (30 d, 1 d), p99 and p50 publish latency against 50 ms, share within 50 ms, ingest lag, lag behind block time, path agreement and mismatches, gaps and re-snapshots, schema drift, clients, egress, upstreams, swap pollers |
 | bleh: hosts and nodes | Node disk free and growth per day, hours to full, pruner, hl-node binary changes, clock offset and sync, CPU, memory, network, IO, reboots, node warnings from Loki |
-| bleh: archive and history | Age of last raw upload, upload failures, last manifest and anchors, content-hash mismatches, signing failures, history API latency and timeouts |
+| bleh: archive and history | Capture report age, uploads and conflicts, last manifest and anchors, failing pipeline steps, signing failures, history API latency and rate limiting |
 
 ## Latency budget
 

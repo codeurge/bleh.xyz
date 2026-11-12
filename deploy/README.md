@@ -32,12 +32,12 @@ deploy/up.sh origin           # node box and archive on one qualifying machine
 | `docker/Dockerfile` | Multi-stage build of every service binary; distroless non-root targets |
 | `docker/hl-node/` | Hyperliquid node image (official hl-visor procedure, pinned release key) and its entrypoint |
 | `docker/build.sh` | Builds images from `git archive` of a commit, tagged by SHA |
-| `compose/compose.yaml` | Profiles `synthetic`, `node-box`, `home-archive`, `relay`, `backfill` |
+| `compose/compose.yaml` | Profiles `synthetic`, `node-box`, `home-archive`, `relay`, and one-off `backfill` and `archive-jobs` |
 | `compose/env.example.conf` | Template for `compose/.env` |
 | `compose/caddy/`, `nats/`, `minio/`, `ipfs/`, `vector/`, `prometheus/`, `cloudflared/` | Per-service configuration for compose |
 | `observability/` | Prometheus rules and production config, Alertmanager, Grafana dashboards and provisioning, blackbox, Loki, Vector (journal), the availability probe |
-| `scripts/` | `host-bootstrap.sh`, `disk-setup.sh`, `wg-mesh.sh`, `hl-prune.sh`, `schema-drift-check.sh`, `node-install.sh`, `update-host.sh`, `peer-latency.sh`, `host-metrics.sh` |
-| `systemd/` | Timers (pruning, drift, probe, host facts), `hl-visor.service` and `bleh@.service` as alternatives to compose, env templates |
+| `scripts/` | `host-bootstrap.sh`, `disk-setup.sh`, `wg-mesh.sh`, `hl-prune.sh`, `schema-drift-check.sh`, `archive-pipeline.sh`, `node-install.sh`, `update-host.sh`, `peer-latency.sh`, `host-metrics.sh` |
+| `systemd/` | Timers (pruning, drift, probe, host facts, daily archive pipeline and anchor upgrades), `hl-visor.service` and `bleh@.service` as alternatives to compose, env templates |
 | `terraform/` | Root stacks `envs/edge`, `envs/relays-oci`, `envs/relays-hcloud`, `envs/tokyo`, `envs/fallback-dns` over modules `host`, `cloudflare-edge`, `cloudflare-tunnel`, `relay-oci`, `relay-hcloud`, `aws-node-box`, `vultr-node-box` |
 | `ci/deploy.yml` | Proposed workflow: build, sign, gated promote (the integrator moves it to `.github/workflows/`) |
 
@@ -117,14 +117,18 @@ binary takes flags, not environment variables; compose passes them.
 | Metrics used | `gateway_send_latency_seconds` (histogram; the 50 ms target), `gateway_blocks_total`, `gateway_connections`, `gateway_messages_sent_total`, `gateway_bytes_sent_total`, `gateway_forced_snapshots_sent_total`, `gateway_slow_consumer_disconnects_total`, `gateway_rate_limited_total`, `gateway_hub_lagged_total`, `relay_connected`, `relay_streams_rejected_total` |
 | Still requested | (1) The reader lane wiring the gateway into `hl-node-reader` (listen address flag, signing key from `BLEH_SIGNING_KEY_FILE` or `--signing-key`). (2) Optional: environment variables for the flags, so systemd templates need no `BLEH_ARGS`. (3) Book reconciliation metric `bleh_book_reconcile_mismatch_total` from wherever the book builder runs |
 
-### archive (archive lane)
+### archive (archive lane, merged)
+
+Implemented as a batch CLI; reference in
+[archive.md](../docs/operations/archive.md).
 
 | | |
 |---|---|
-| Ports | `BLEH_METRICS_ADDR` (9103) |
-| Variables | `ARCHIVE_ROLE` `capture` (node box: upload raw from `ARCHIVE_RAW_DIR`, advance the watermark), `process` (home server: replay, partitions, manifests, anchors, torrents and IPFS from object storage and `ARCHIVE_MIRROR_DIR`) or `all` (synthetic); `ARCHIVE_WORK_DIR`; `ARCHIVE_MIRROR_DIR` (`/srv/archive`, read-only mirror of the public bucket kept by rclone); `BLEH_MANIFEST_KEY_FILE`; `ARCHIVE_OTS_ENABLED`; `ARCHIVE_L2_RPC_URL`, `ARCHIVE_L2_ANCHOR_KEY_FILE`; `ARCHIVE_IPFS_API` (`http://ipfs:5001`; add with `--nocopy` from the mirror path); `ARCHIVE_TORRENT_WATCH_DIR` (torrent files dropped here are seeded by qBittorrent); `ARCHIVE_WEB_SEED_BASE` |
-| Requests | Publish `<archive>/_manifests/latest.json` (pointer to the newest manifest; probed by blackbox, cached 60 s at the edge); a KMS or HSM signer behind the manifest-key interface later (keys.md) |
-| Metrics | `bleh_archive_raw_upload_last_success_timestamp_seconds{tier,stream}`, `bleh_archive_upload_failures_total{tier}`, `bleh_archive_manifest_last_success_timestamp_seconds{archive}`, `bleh_archive_manifest_failures_total{archive}`, `bleh_archive_anchor_last_success_timestamp_seconds{archive,anchor}`, `bleh_archive_anchor_failures_total{archive,anchor}` (`anchor` is `ots` or `l2`), `bleh_archive_content_hash_mismatch_total`, `bleh_signing_failures_total` |
+| Node box | `archive-capture` service: `archive capture run --staging ... --stream fills=/hl/data/node_fills_by_block ... --upload --metrics-out /textfile/bleh_archive_capture.prom` |
+| Home server | `archive-job` service (profile `archive-jobs`) run by `deploy/scripts/archive-pipeline.sh` from `bleh-archive-daily.timer` (replay, `manifest build --sign`, `anchor ots-stamp`/`evm-submit`, `publish --upload --kubo`, `verify`) and `bleh-archive-anchors.timer` (`ots-upgrade`, `evm-poll`, re-publish); by hand: `deploy/up.sh home-archive archive <command>` |
+| Variables set | `BLEH_ARCHIVE_{PUBLIC,PRIVATE}_{URL,ENDPOINT,REGION,ACCESS_KEY_ID,SECRET_ACCESS_KEY,ALLOW_HTTP,PATH_STYLE}` from the `.env` storage settings; `BLEH_ARCHIVE_SIGNING_KEY_FILE` (manifest key), `BLEH_ARCHIVE_KUBO_API`, `BLEH_ARCHIVE_EVM_RPC`, `BLEH_ARCHIVE_EVM_KEY_FILE` |
+| Metrics used | Textfile: `archive_store_put_created_total`, `archive_store_put_conflict_total`, `archive_capture_files_sealed_total` and the file's age (capture); `bleh_archive_step_ok{step,archive}`, `bleh_archive_manifest_last_success_timestamp_seconds`, `bleh_archive_anchor_last_success_timestamp_seconds{anchor}`, `bleh_archive_daily_last_run_timestamp_seconds` (written by archive-pipeline.sh) |
+| Still requested | (1) The integrator wiring the reader's line filter and parser into the archive binary (`Hooks`), without which filtered capture and replay report "not wired". (2) `capture run` rewriting `--metrics-out` periodically while it runs (the stale-capture alert reads the file's age). (3) The capture watermark for the pruner (see hl-node-reader). (4) A `latest.json` pointer per archive (blackbox probes it; cached 60 s) |
 
 ### history-api (historical API lane, merged)
 

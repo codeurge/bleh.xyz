@@ -58,12 +58,9 @@ scrape_configs:
       # - targets: ["10.77.0.3:8080"]
       #   labels: {site: b, mode: live}
 
-  - job_name: archive
-    static_configs:
-      - targets: ["10.77.0.1:9103"]
-        labels: {site: a, role: capture}
-      - targets: ["archive-process:9103"]
-        labels: {site: home, role: process}
+  # The archive CLI has no HTTP endpoint: capture and the daily pipeline
+  # write bleh_archive_* and archive_* metrics to the textfile collector,
+  # scraped with the node job above.
 
   - job_name: history-api
     static_configs:

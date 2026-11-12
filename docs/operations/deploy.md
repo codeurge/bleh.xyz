@@ -59,7 +59,9 @@ runs the signed images the deploy workflow published. Local laptop stack:
 5. **Home-archive server.** Ubuntu 24.04 VM or host; mount the disk array
    at `/srv/archive` and NVMe scratch at `/srv/scratch`; role
    `home-archive`; install `home_tunnel_token`, the manifest key, anchor
-   key and alert webhooks.
+   key and alert webhooks, and set `ARCHIVE_TRUSTED_SIGNER` (and the L2
+   chain once chosen) in `/etc/bleh/archive.env` for the daily pipeline
+   timers.
 6. **Overlay.** Collect `/etc/wireguard/bleh0.pub` from every host into a
    peers file (kept outside the repository; format in
    `deploy/scripts/wg-mesh.sh`) and run `sudo deploy/scripts/wg-mesh.sh

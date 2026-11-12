@@ -11,9 +11,9 @@ scans for key-like strings.
 | Secret | Used by | Rate | Custody (default) | Rotation |
 |---|---|---|---|---|
 | Block-signing key, one per ingest path | reader on that node box (Merkle root per block per stream) | Many signatures per second | File on the node box, `deploy/compose/secrets/signing-key.hex` (0600), mounted as a compose secret | 90 days, on host change, or on suspicion |
-| Manifest key | archive-process on the home-archive server (one signed manifest per archive per day) | A few per day | Hardware: YubiHSM 2 on the home server, or a cloud KMS key; file only for staging | Yearly |
+| Manifest key | the archive pipeline on the home-archive server (`BLEH_ARCHIVE_SIGNING_KEY_FILE`; one signed manifest per archive per day) | A few per day | File (`secrets/manifest-key.hex`, 0600) on the home server only; hardware or KMS once the archive supports it | Yearly, with `--next-signer` (archive.md) |
 | Root identity key | People, rarely: signs attestations that list the current signer addresses | A few per year | Hardware wallet, offline, with a written backup in two places | Only on compromise |
-| L2 anchor key | archive-process (sends the daily anchor transaction) | Daily | File on the home server; wallet holds only a few weeks of gas | Yearly or when drained |
+| L2 anchor key | the archive pipeline (`BLEH_ARCHIVE_EVM_KEY_FILE`; daily anchor transaction) | Daily | File on the home server; wallet holds only a few weeks of gas | Yearly or when drained |
 | Cloudflare Tunnel token | `cloudflared` on the home server | — | `secrets/tunnel-token.txt`; created by the edge stack | On host change |
 | WireGuard keys | every host (`bleh0`) | — | `/etc/wireguard/bleh0.key` (0600), generated on the host; public keys in the peers file | On host change or suspicion |
 | R2 API tokens | archive (write), relays and mirror (read) | — | `.env` on each host (0600); one token per role, scoped to the buckets it needs | 90 days |
@@ -47,9 +47,12 @@ umask 077
 openssl ecparam -name secp256k1 -genkey -noout -outform DER \
   | tail -c +8 | head -c 32 | od -An -tx1 | tr -d ' \n' > signing-key.hex
 
-# The Ethereum address clients verify against (any of these):
+# Or generate and print the address in one step with the archive tool
+# (same key format; never overwrites, mode 600):
+docker run --rm -v "$PWD:/k" -w /k bleh/archive manifest keygen --out new-key.hex
+
+# The Ethereum address of an existing key:
 cast wallet address --private-key "0x$(cat signing-key.hex)"     # Foundry
-mesh-client keys address --key-file signing-key.hex              # once the client lane ships it
 ```
 
 `deploy/up.sh synthetic` generates throwaway keys this way for local use
@@ -64,9 +67,8 @@ only; production profiles refuse to start without keys you installed.
 | Hardware wallet (Ledger, Trezor) | Yes, with EIP-191 personal-sign | Root identity key, used by a person |
 | File plus sops/age encryption in a private operations repository | — | Backup copies of hot keys; never the only copy of the root key |
 
-The archive lane reads `BLEH_MANIFEST_KEY_FILE` today; a KMS or HSM signer is
-an archive-lane change behind the same interface (request recorded in
-deploy/README.md).
+The archive reads `BLEH_ARCHIVE_SIGNING_KEY_FILE` today; a KMS or HSM
+signer is an archive-lane change behind the same interface.
 
 ## Publish signer addresses
 
@@ -108,7 +110,7 @@ new one, install it, restart the consumer, delete the old one.
 ## Revoke (compromise)
 
 1. Stop the affected signer: `deploy/up.sh node-box stop hl-node-reader`
-   (or archive-process for the manifest key).
+   (for the manifest key: `systemctl disable --now bleh-archive-daily.timer`).
 2. Publish a revocation: `status: revoked` and `compromised_from` (the
    earliest block or time the key could have been misused) in
    `signers.json` and the registry. Clients reject signatures by that key

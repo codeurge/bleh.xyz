@@ -46,14 +46,22 @@ x-bleh-service: &bleh-service
     driver: json-file
     options: {max-size: "50m", max-file: "5"}
 
-x-s3-env: &s3-env
-  AWS_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
-  AWS_REGION: ${S3_REGION:-auto}
-  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-bleh}
-  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
-  AWS_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
-  BLEH_PUBLIC_BUCKET: ${BLEH_PUBLIC_BUCKET:-bleh-archive}
-  BLEH_PRIVATE_BUCKET: ${BLEH_PRIVATE_BUCKET:-bleh-raw-private}
+x-archive-env: &archive-env
+  # docs/operations/archive.md, "Object storage": one store per tier.
+  BLEH_ARCHIVE_PUBLIC_URL: s3://${BLEH_PUBLIC_BUCKET:-bleh-archive}
+  BLEH_ARCHIVE_PUBLIC_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  BLEH_ARCHIVE_PUBLIC_REGION: ${S3_REGION:-auto}
+  BLEH_ARCHIVE_PUBLIC_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+  BLEH_ARCHIVE_PUBLIC_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  BLEH_ARCHIVE_PUBLIC_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
+  BLEH_ARCHIVE_PUBLIC_PATH_STYLE: ${S3_PATH_STYLE:-true}
+  BLEH_ARCHIVE_PRIVATE_URL: s3://${BLEH_PRIVATE_BUCKET:-bleh-raw-private}
+  BLEH_ARCHIVE_PRIVATE_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  BLEH_ARCHIVE_PRIVATE_REGION: ${S3_REGION:-auto}
+  BLEH_ARCHIVE_PRIVATE_ACCESS_KEY_ID: ${PRIVATE_S3_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID:-}}
+  BLEH_ARCHIVE_PRIVATE_SECRET_ACCESS_KEY: ${PRIVATE_S3_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY:-}}
+  BLEH_ARCHIVE_PRIVATE_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
+  BLEH_ARCHIVE_PRIVATE_PATH_STYLE: ${S3_PATH_STYLE:-true}
 
 services:
   # ==================================================================
@@ -206,52 +214,56 @@ services:
     secrets: [signing_key]
     depends_on: [hl-node, nats]
 
-  # Raw capture: ships the reader's hourly filtered and unfiltered raw files
-  # to R2 and advances the capture watermark the pruner obeys (pending
-  # reader and archive work; deploy/README.md).
+  # Raw capture (docs/operations/archive.md): reads the node's hourly files,
+  # writes the private and filtered tiers, seals each hour and uploads it
+  # write-once to R2. Counters go to the textfile collector. The filtered
+  # tier needs the reader's line filter wired into the archive binary
+  # ("Wiring (integrator)" in archive.md); until then capture of that tier
+  # fails and this service restarts.
   archive-capture:
     <<: *bleh-service
     profiles: [node-box]
     image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    command:
+      - capture
+      - run
+      - --staging=/var/lib/bleh/archive/staging
+      - --stream=fills=/hl/data/node_fills_by_block
+      - --stream=order_statuses=/hl/data/node_order_statuses_by_block
+      - --stream=raw_book_diffs=/hl/data/node_raw_book_diffs_by_block
+      - --upload
+      - --log-format=json
+      - --metrics-out=/textfile/bleh_archive_capture.prom
     environment:
-      <<: *s3-env
+      <<: *archive-env
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: ${BLEH_SITE:-a}
-      BLEH_METRICS_ADDR: 0.0.0.0:9103
-      ARCHIVE_ROLE: capture
-      ARCHIVE_RAW_DIR: /var/lib/bleh/raw
-      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
-    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9103:9103"]
     volumes:
-      - ${BLEH_RAW_DIR:-raw}:/var/lib/bleh/raw
+      - ${HL_DATA_DIR:-hl-data}:/hl:ro
       - archive-work:/var/lib/bleh/archive
+      - /var/lib/node_exporter/textfile:/textfile
 
   # ==================================================================
   # home-archive: processing, mirror, seeding, monitoring
   # ==================================================================
-  archive-process:
+  # One-off archive CLI runs (replay, manifests, anchors, publish, verify),
+  # started by deploy/scripts/archive-pipeline.sh from systemd timers, or by
+  # hand: deploy/up.sh home-archive archive <command> ...
+  archive-job:
     <<: *bleh-service
-    profiles: [home-archive]
+    profiles: [archive-jobs]
+    restart: "no"
     image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    working_dir: /work
     environment:
-      <<: *s3-env
+      <<: *archive-env
       RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: ${BLEH_SITE:-home}
-      BLEH_METRICS_ADDR: 0.0.0.0:9103
-      ARCHIVE_ROLE: process
-      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
-      ARCHIVE_MIRROR_DIR: /srv/archive
-      # Torrent creation and IPFS adds (--nocopy from the mirror path).
-      ARCHIVE_IPFS_API: http://ipfs:5001
-      ARCHIVE_TORRENT_WATCH_DIR: /srv/archive/_torrents
-      ARCHIVE_WEB_SEED_BASE: ${ARCHIVE_WEB_SEED_BASE:-https://data.bleh.xyz}
-      BLEH_MANIFEST_KEY_FILE: /run/secrets/manifest_key
-      ARCHIVE_OTS_ENABLED: ${ARCHIVE_OTS_ENABLED:-true}
-      ARCHIVE_L2_RPC_URL: ${ARCHIVE_L2_RPC_URL:-}
-      ARCHIVE_L2_ANCHOR_KEY_FILE: /run/secrets/anchor_key
+      BLEH_ARCHIVE_SIGNING_KEY_FILE: /run/secrets/manifest_key
+      BLEH_ARCHIVE_KUBO_API: http://ipfs:5001
+      BLEH_ARCHIVE_EVM_RPC: ${ARCHIVE_L2_RPC_URL:-}
+      BLEH_ARCHIVE_EVM_KEY_FILE: /run/secrets/anchor_key
     volumes:
-      - ${ARCHIVE_SCRATCH_DIR:-archive-work}:/var/lib/bleh/archive
-      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive
+      - ${ARCHIVE_SCRATCH_DIR:-archive-work}:/work
+      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive:ro
     secrets: [manifest_key, anchor_key]
     tmpfs: ["/tmp:size=8g"]
 
@@ -605,27 +617,6 @@ services:
     networks:
       bleh:
         aliases: [relay]
-
-  archive-demo:
-    <<: *bleh-service
-    profiles: [synthetic]
-    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
-    environment:
-      <<: *s3-env
-      AWS_ALLOW_HTTP: "true"
-      RUST_LOG: ${RUST_LOG:-info}
-      BLEH_SITE: local
-      BLEH_METRICS_ADDR: 0.0.0.0:9103
-      ARCHIVE_ROLE: all
-      ARCHIVE_RAW_DIR: /var/lib/bleh/raw
-      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
-      BLEH_MANIFEST_KEY_FILE: /run/secrets/manifest_key
-      ARCHIVE_OTS_ENABLED: "false"
-    volumes:
-      - raw:/var/lib/bleh/raw
-      - archive-work:/var/lib/bleh/archive
-    secrets: [manifest_key]
-    depends_on: [minio-init]
 
   # ==================================================================
   # backfill: one-off jobs from Hyperliquid's public buckets (ADM-0003).
