@@ -1,0 +1,267 @@
+# Backfill runbook
+
+How to backfill history from Hyperliquid's public archive buckets with
+`tools/hl-backfill`, under
+[ADM-0003](../admissions/ADM-0003-hyperliquid-archive-buckets.md). Bucket
+layouts, record formats and the list of unverified facts are in
+[hyperliquid-archive-buckets.md](../specs/hyperliquid-archive-buckets.md).
+
+## 1. What runs where
+
+```text
+requester-pays S3 buckets ──copy──▶ private raw tier (verbatim, R2 or S3)
+                                       │
+                                     process ──▶ filtered raw (public, zstd JSON lines)
+                                       │      └─▶ partitions (records, flag backfill, ADM-0003)
+                                       │
+                                     compare ◀── live-recorded partitions (overlap days)
+
+replica_cmds ──replay-prototype──▶ book events + trades, checked against market_data L2
+```
+
+| Stage | Command | Reads | Writes |
+|---|---|---|---|
+| Coverage and cost | `hl-backfill estimate` | bucket listings | JSON report |
+| Copy | `hl-backfill copy` | admitted prefixes | raw tier, checkpoint file |
+| Filter and normalize | `hl-backfill process` | raw tier | filtered raw, partitions, JSON report |
+| Overlap check | `hl-backfill compare` | two record sets | JSON report |
+| Order-level replay | `hl-backfill replay-prototype` | simplified `replica_cmds` blocks, L2 snapshot records | records, JSON report |
+
+Reports go to stdout as JSON; logs go to stderr (`RUST_LOG=debug` for
+more). Exit status: 0 success, 1 the run finished with failures or
+mismatches (see the report), 2 the run could not start.
+
+## 2. What the owner provides
+
+1. **An AWS account that pays for requester-pays access.** An IAM user or
+   role allowed `s3:ListBucket` on `arn:aws:s3:::hl-mainnet-node-data` and
+   `arn:aws:s3:::hyperliquid-archive`, and `s3:GetObject` on the admitted
+   prefixes only (`node_fills_by_block/*`, `node_fills/*`,
+   `node_trades/*`, `replica_cmds/*`, `explorer_blocks/*`,
+   `market_data/*`). Scoping the policy this way makes the ADM-0003
+   denylist hold at the AWS level too. Prefer an instance role on the copy
+   host; otherwise export `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and,
+   for temporary credentials, `AWS_SESSION_TOKEN`. For a named profile:
+   `eval "$(aws configure export-credentials --profile NAME --format env)"`.
+2. **The buckets' regions** (`HL_NODE_DATA_REGION`, `HL_ARCHIVE_REGION`):
+   `curl -sI https://<bucket>.s3.amazonaws.com | grep -i x-amz-bucket-region`.
+3. **A private raw-tier bucket** on an S3-compatible store (Cloudflare R2
+   suggested: no egress fees) and a second, public bucket or prefix for
+   filtered raw. Credentials in `BLEH_RAW_ENDPOINT` (for R2,
+   `https://<account-id>.r2.cloudflarestorage.com`),
+   `BLEH_RAW_ACCESS_KEY_ID`, `BLEH_RAW_SECRET_ACCESS_KEY`, and optionally
+   `BLEH_RAW_REGION` (default `auto`).
+4. **A copy host in the buckets' region** (a spot instance is enough):
+   transfer from S3 to compute in the same region is free, so only request
+   charges apply. Copying from anywhere else pays internet egress
+   (USD 0.09/GB at list price).
+5. **An instrument registry** (`{"instruments": [...]}`, the
+   `mesh_types::Registry` format) covering every coin in the period,
+   including delisted ones, built from venue metadata.
+
+Credentials are read from the environment only, are never accepted as
+arguments, and are never logged.
+
+## 3. Coverage and cost
+
+```bash
+export HL_NODE_DATA_REGION=... HL_ARCHIVE_REGION=...
+hl-backfill estimate > estimate.json                      # everything admitted
+hl-backfill estimate --datasets market_data --from 2023-09-01 --to 2023-09-30 \
+  --transfer-usd-per-gib 0                                 # priced for in-region copy
+```
+
+Per dataset the report gives objects, bytes, LIST requests, the first and
+last day (or block height) present, and the estimated cost. These first
+and last days are the coverage record for the import (ADM-0003: coverage
+comes from listings). Record them in the coverage map and in
+[hyperliquid-archive-buckets.md](../specs/hyperliquid-archive-buckets.md)
+§ 5 when the first real listing runs.
+
+## 4. Copy
+
+```bash
+export BLEH_RAW_ENDPOINT=... BLEH_RAW_ACCESS_KEY_ID=... BLEH_RAW_SECRET_ACCESS_KEY=...
+hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
+  --checkpoint /var/lib/hl-backfill/copy.jsonl \
+  --datasets node_fills_by_block,market_data --from 2025-07-27 --to 2025-08-31 \
+  --concurrency 32
+```
+
+- Objects land at `<raw prefix>/<source bucket>/<source key>`, byte for
+  byte. The destination size is checked after every write.
+- The checkpoint is a JSON-lines log of every copied object (bucket, key,
+  size, ETag, destination, SHA-256 of the bytes). Rerunning the same
+  command skips objects already copied with the same size and ETag and
+  recopies any whose size or ETag changed (reported as
+  `recopied_changed`). Keep the checkpoint with the raw tier; it is the
+  copy log.
+- Each object is retried with exponential backoff (`--max-attempts`,
+  default 6). Objects still failing are listed in the report and the exit
+  status is 1; rerun to pick them up.
+- `--shard INDEX/COUNT` splits work across hosts by whole days (or
+  100,000-block ranges for `explorer_blocks`); give each host its own
+  checkpoint file.
+- `--dry-run` lists and plans without reading or writing objects.
+- **Denylist.** `asset_ctxs` and `misc_events_by_block` are refused at
+  three points: listing never builds a prefix under them, every listed key
+  is checked, and the copier checks each key again before any request.
+  `market_data` types other than `l2Book` are refused the same way.
+  Tests assert that no request ever touches an excluded location.
+
+## 5. Process
+
+```bash
+hl-backfill process --raw s3://<raw-bucket>/hl-archive \
+  --filtered s3://<public-bucket>/hyperliquid-backfill-raw \
+  --out-dir ./partitions --registry registry.json \
+  --datasets node_fills_by_block,market_data --from 2025-07-27 --to 2025-07-27
+```
+
+Hour by hour (fills before `market_data` within an hour), each object is
+decompressed, filtered, written as filtered raw
+(`stream=<dataset>/date=<YYYY-MM-DD>/<HH>.jsonl.zst`; `market_data` adds
+`/<HH>/<coin>.jsonl.zst`), parsed to records, stamped with `ADM-0003` and
+the `backfill` flag (L2 snapshots also `low_resolution`), validated,
+checked against the mesh field allowlist, and written to partitions in
+canonical order.
+
+- **Field rules.** Fills keep `coin`, `px`, `sz`, `side`, `time`,
+  `crossed`, `tid`, `oid`, and only book-matched pairs (one `tid`, two
+  fills, opposite sides, exactly one `crossed`); backstop liquidations,
+  no-taker pairs and unpaired fills are dropped. Owner addresses, fees,
+  PnL, hashes, liquidation objects and client order IDs never reach the
+  output.
+- **Blocks for data without them.** L2 snapshots and unbatched fills or
+  trades get the last block at or before their time from a clock built
+  from batched fill lines (the last two hours are kept), or from
+  `--clock-lines`. Times outside the known blocks are counted as
+  `unresolved` and skipped, never guessed. Several snapshots that resolve
+  to one block keep the last (`superseded`).
+- **Snapshot frequency.** Each hour's report gives
+  `snapshot_interval_median_ms`, the measured interval between
+  consecutive snapshots in a file, which settles the frequency ADM-0003
+  asks for.
+- **Failures.** A file that fails any step contributes nothing; the hour
+  is listed with `failed` entries and the exit status is 1.
+- **Seams.** The filter, parser and partition writer are traits
+  (`RawLineFilter`, `RecordParser`, `PartitionWriter`). The binary uses
+  this crate's local implementations and writes partitions as canonical
+  JSON lines; the integrator swaps in the node reader's filter and parser
+  and the archive's Parquet writer without changing the pipeline.
+
+## 6. Compare against live recording
+
+```bash
+hl-backfill compare --backfill ./partitions --live ./live-partitions
+```
+
+For each UTC hour, kind and instrument the tool hashes a comparable
+projection of the records (admission set to a placeholder, `backfill` and
+`low_resolution` cleared, `ts_ingest_ns` zeroed, because those differ by
+construction) and reports `equal`, `different` (with counts and the first
+differing position) or one-sided groups. Only hours present on both sides
+count towards `matches`. Run it on every overlap day before publishing a
+backfilled range; a difference is a review trigger under ADM-0003.
+
+## 7. Order-level replay
+
+### 7.1 Design
+
+Raw book diffs exist only from the project's own nodes. Earlier
+order-level history is reconstructed from the L1 transaction log:
+
+1. **Decode** each `replica_cmds` block into book actions: `order`,
+   `cancel`, `cancelByCloid`, `modify`, `batchModify`, `scheduleCancel`.
+   Recover each signer from the action signature (EIP-712) in memory, and
+   map agent wallets and vault actions to their accounts; the account is
+   needed for self-trade prevention and client-order-ID cancels and is
+   never written out. Map asset indices to instruments with the metadata
+   valid at that block (indices change as markets are listed).
+2. **Order IDs.** With the `actions-and-responses` style the responses
+   carry each order's ID (and fills); otherwise the matcher assigns IDs,
+   which then differ from the venue's. Responses are strongly preferred.
+3. **Match** in block order through the emulated matcher, emitting book
+   events (add, fill, cancel) and trades.
+4. **Checkpoint** at every archived L2 snapshot: resolve the snapshot to
+   its block (as in § 5) and compare the emulated book's levels with the
+   archived ones (price, size and order count per level, to the archive's
+   depth).
+5. **Publish** a day's replay output only if every checkpoint that day
+   matched; otherwise publish nothing for that day and record the first
+   mismatch per instrument in the replay report and the coverage map.
+6. **Start state.** An L2 snapshot cannot seed an L3 book (it has no
+   order IDs or queue order). Replay starts from the earliest available
+   block with empty books; resting orders placed before that are unknown,
+   so early checkpoints fail until those orders are gone. Days before the
+   first matching checkpoint are not published.
+
+### 7.2 Prototype
+
+`hl-backfill replay-prototype` runs steps 3 and 4 on a simplified
+representation: JSON lines of `{block_number, block_time_ms, actions}`,
+each action `{account, action}` where `action` uses the documented
+exchange-endpoint shapes (so a real action object parses directly) and
+`account` is an opaque tag. Optional `oids`/`new_oid` carry order IDs
+from responses.
+
+```bash
+hl-backfill replay-prototype --blocks blocks.jsonl --assets assets.json \
+  --checkpoints ./partitions --out replayed.jsonl
+```
+
+`assets.json` maps asset indices to instruments and scales
+(`[{"asset": 0, "instrument": "hyperliquid:perp:BTC", "price_scale": 1, "size_scale": 5}]`);
+`--checkpoints` takes the L2 `book_snapshot` records `process` wrote.
+Output records carry `ADM-0003` and `backfill`; the report lists what was
+not emulated and each checkpoint result.
+
+The matcher implements price-time priority per asset; `Gtc` (match then
+rest), `Ioc` and front-end market orders (match, drop the remainder),
+`Alo` (rejected if it would cross); self-trade prevention by canceling
+the resting order of the same account (Hyperliquid's documented
+behaviour); cancels by order ID and client order ID, restricted to the
+owner; modifies as cancel plus a post-only replacement with a new order
+ID at the back of the queue, rejected (old order kept) if the
+replacement would cross. Trades execute at the resting price. Tests run
+synthetic streams with known outcomes for each rule, plus a generated
+stream checking that the book never crosses and that traded size equals
+filled size.
+
+### 7.3 Fidelity limits
+
+| Limit | Effect | Mitigation |
+|---|---|---|
+| Trigger orders (stop, take-profit, TP/SL groupings) fire on the **mark price**, an oracle-derived input ADM-0001 excludes | Triggered orders that then trade are missing; the book diverges | Infer triggers from fills in `node_fills_by_block` where those exist; otherwise the day fails its checkpoints |
+| **Liquidations** are protocol-generated orders driven by mark price and margin | Liquidation orders and their book impact are missing | Same as triggers; backstop transfers are not book events anyway |
+| **ADL** (auto-deleveraging) | Position transfers with no order-book action; no book effect, but fills in other data may disagree | None needed for the book; excluded from published trades unless book-matched |
+| **Margin checks**: orders rejected for insufficient margin, reduce-only rejections, `marginCanceled` / `reduceOnlyCanceled` when an account's margin or position changes | The emulator accepts orders the venue rejected and keeps orders the venue canceled | Needs account state (balances, positions, funding, oracle prices), which the project does not replay; responses (`actions-and-responses`) reveal rejections |
+| **Oracle price bands**: orders too far from the reference price are rejected | As above | Responses |
+| **TWAP** suborders are generated by the protocol every 30 seconds | Missing orders | Partly visible as fills; not emulated |
+| **`scheduleCancel`** (dead man's switch) fires later | Orders stay that the venue canceled | Emulate once the trigger time semantics are confirmed |
+| **HIP-3 `haltTrading`** cancels every order and settles at mark | Orders stay | Treat a halt action as cancel-all when its shape is confirmed |
+| **Modify semantics** (same or new order ID, queue priority, `always_place`) are not documented | Queue order and IDs may differ | Verify against raw book diffs on an overlap day |
+| **Ordering inside a block** (whether the venue processes some action types, such as cancels or post-only orders, before others) | Different matches within one block | Verify on overlap days; reorder before matching if needed |
+| **Order IDs and trade IDs** without responses are emulator-assigned; the venue's `tid` hash is undocumented | IDs differ from the venue's | Use responses; trade IDs in replay output are emulator IDs |
+| **Agent wallets, vaults and sub-accounts** | Wrong account grouping breaks self-trade prevention and client-order-ID cancels | Replay `approveAgent` and vault actions to map signers to accounts |
+| **Signer recovery** | Not implemented in the prototype | k256 recovery over the EIP-712 action hash |
+| **Start state** | Orders resting before the first replayed block are unknown | § 7.1 step 6 |
+
+The observation model has no `replayed` flag yet; replay records carry
+`backfill`. A `replayed` flag (Phase 2 plan, l3-replay) needs a minor
+version of observation-v0 from the integrator.
+
+## 8. Integration notes
+
+- `cargo deny check` currently rejects `webpki-root-certs`
+  (CDLA-Permissive-2.0), pulled in by `object_store` → `reqwest` →
+  `rustls-platform-verifier` **only for wasm32 targets**. Restricting
+  `[graph] targets` in `deny.toml` to the build targets (or allowing that
+  license, which covers the Mozilla root certificate list) resolves it;
+  any crate using `object_store` with the `aws` feature hits the same.
+- Partitions written by `process` are JSON lines under the archive's Hive
+  paths; publication uses the archive crate's Parquet writer behind
+  `PartitionWriter`.
+- Filtered raw for the backfill is its own archive
+  (`archive-layout-v0.md` § 1) under its own prefix, with its own manifest
+  chain.

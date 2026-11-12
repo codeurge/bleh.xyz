@@ -8,8 +8,32 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hl-backfill"
+path = "src/main.rs"
+
 [dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+clap = { workspace = true, features = ["env"] }
+futures.workspace = true
+lz4_flex = { version = "0.11", default-features = false, features = ["frame", "std"] }
 mesh-types.workspace = true
+object_store = { workspace = true, features = ["aws", "fs"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+zstd = "0.13"
+
+[dev-dependencies]
+async-trait = "0.1"
 
 [lints]
 workspace = true
