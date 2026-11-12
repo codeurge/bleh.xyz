@@ -1,6 +1,6 @@
 [package]
 name = "bus"
-description = "Internal bus client for the bleh.xyz mesh"
+description = "In-process bus, block signer and JetStream side tap for the bleh.xyz mesh"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,8 +8,26 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+default = ["jetstream"]
+# NATS JetStream side tap (`bus::jetstream`). Without it only the in-memory
+# tap is available.
+jetstream = ["dep:async-nats"]
+
 [dependencies]
+async-nats = { workspace = true, optional = true }
+bytes.workspace = true
+futures.workspace = true
 mesh-types.workspace = true
+serde = { workspace = true, features = ["rc"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize = "1.8"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 
 [lints]
 workspace = true
