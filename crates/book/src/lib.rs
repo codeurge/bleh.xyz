@@ -3,6 +3,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used))]
 #![warn(missing_docs)]
 
+pub mod bars;
 pub mod book;
 pub mod checkpoint;
 pub mod error;
