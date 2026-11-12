@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use mesh_types::{
     BarInterval, BlockBatch, BlockCommitment, EthAddress, InstrumentId, MerkleProof, Record,
-    RecordKind, Seq, StreamId, UnixMillis, UnixNanos,
+    RecordKind, Seq, StreamId, UnixMillis, UnixNanos, VenueId,
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -382,8 +382,12 @@ impl SnapshotReason {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
-    /// Malformed message, unknown field, or a limit exceeded.
+    /// Malformed message, unknown field, or a request that does not apply
+    /// (for example `resnapshot` for a channel not subscribed).
     BadRequest,
+    /// A channel cap (per connection or per client IP) would be exceeded;
+    /// nothing was subscribed.
+    LimitExceeded,
     /// Not in the registry.
     UnknownInstrument,
     /// Kind or depth not offered.
@@ -454,15 +458,18 @@ pub enum ServerMessage {
         /// The commitment.
         commitment: Arc<BlockCommitment>,
     },
-    /// Per-block heartbeat.
+    /// Per-block heartbeat of one venue.
     Block {
+        /// Venue whose block closed.
+        venue: VenueId,
         /// Block number.
         block_number: u64,
         /// Block time.
         block_time_ms: UnixMillis,
         /// When the upstream closed the block.
         ts_publish_ns: UnixNanos,
-        /// Last block with a batch, per subscribed channel key.
+        /// Last block with a batch, per subscribed channel key of this
+        /// venue.
         last: BTreeMap<String, u64>,
     },
     /// Inclusion proof.
@@ -602,5 +609,33 @@ mod tests {
             Some(Encoding::Cbor)
         );
         assert_eq!(SnapshotReason::SlowConsumer.as_str(), "slow_consumer");
+        let err = ServerMessage::Error {
+            id: Some("s".into()),
+            code: ErrorCode::LimitExceeded,
+            message: "too many".into(),
+        };
+        assert_eq!(
+            serde_json::to_value(&err).unwrap()["code"],
+            "limit_exceeded"
+        );
+    }
+
+    #[test]
+    fn heartbeats_carry_their_venue() {
+        let v = serde_json::json!({
+            "type": "block", "venue": "hyperliquid", "block_number": 7,
+            "block_time_ms": 1, "ts_publish_ns": "2",
+            "last": {"hyperliquid:perp:BTC|trade": 6}
+        });
+        let m: ServerMessage = serde_json::from_value(v.clone()).unwrap();
+        let ServerMessage::Block { venue, last, .. } = &m else {
+            panic!("{m:?}")
+        };
+        assert_eq!(venue.as_str(), "hyperliquid");
+        assert_eq!(last["hyperliquid:perp:BTC|trade"], 6);
+        assert_eq!(serde_json::to_value(&m).unwrap(), v);
+        let mut no_venue = v;
+        no_venue.as_object_mut().unwrap().remove("venue");
+        assert!(serde_json::from_value::<ServerMessage>(no_venue).is_err());
     }
 }

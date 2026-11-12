@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use futures::{SinkExt, StreamExt};
 use mesh_types::{
     BlockBatch, BlockCommitment, EthAddress, InstrumentId, Record, RecordKind, Seq, StreamId,
-    UnixMillis, UnixNanos,
+    UnixMillis, UnixNanos, VenueId,
 };
 use serde::Serialize;
 use tokio::net::TcpStream;
@@ -184,6 +184,8 @@ pub enum ClientEvent {
     },
     /// A block heartbeat.
     Block {
+        /// Venue whose block closed.
+        venue: VenueId,
         /// Block number.
         block_number: u64,
         /// Block time.
@@ -666,11 +668,12 @@ impl Client {
             }
             ServerMessage::Commitment { commitment } => self.on_commitment(commitment),
             ServerMessage::Block {
+                venue,
                 block_number,
                 block_time_ms,
                 ts_publish_ns,
                 last,
-            } => self.on_block(block_number, block_time_ms, ts_publish_ns, last),
+            } => self.on_block(venue, block_number, block_time_ms, ts_publish_ns, last),
             ServerMessage::Proof {
                 id,
                 commitment,
@@ -905,6 +908,7 @@ impl Client {
 
     fn on_block(
         &mut self,
+        venue: VenueId,
         block_number: u64,
         block_time_ms: UnixMillis,
         ts_publish_ns: UnixNanos,
@@ -1008,6 +1012,7 @@ impl Client {
         }
         self.collector.end_block(block_number);
         self.queue.push_back(ClientEvent::Block {
+            venue,
             block_number,
             block_time_ms,
             ts_publish_ns,

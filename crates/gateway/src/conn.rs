@@ -97,7 +97,7 @@ fn covers_venue(p: &InstrumentPattern, venue: &VenueId) -> bool {
 #[derive(Debug, Default)]
 struct Subs {
     channels: Vec<ChannelSpec>,
-    index: [KindIndex; 7],
+    index: [KindIndex; RecordKind::ALL.len()],
     commitments: bool,
     books: HashMap<InstrumentId, (BookState, Depth)>,
     last: HashMap<(InstrumentId, RecordKind), u64>,
@@ -322,13 +322,16 @@ where
             Item::Data(d) => self.on_data(d).await,
             Item::Snapshot(s) => self.on_snapshot(s).await,
             Item::Block(b) => {
+                let venue = b.venue.as_str();
                 let last: BTreeMap<String, u64> = self
                     .subs
                     .last
                     .iter()
+                    .filter(|((i, _), _)| i.venue_part() == venue)
                     .map(|((i, k), b)| (channel_key(i, *k), *b))
                     .collect();
                 let msg = ServerMessage::Block {
+                    venue: b.venue.clone(),
                     block_number: b.block_number,
                     block_time_ms: b.block_time_ms,
                     ts_publish_ns: b.ts_publish_ns,
@@ -476,6 +479,9 @@ where
         code: ErrorCode,
         message: impl Into<String>,
     ) -> Result<(), Exit> {
+        // Rate limits and malformed requests count towards the 4029 close;
+        // refusals that are not the client misbehaving (caps, unknown
+        // instruments, unavailable proofs) do not.
         if matches!(code, ErrorCode::RateLimited | ErrorCode::BadRequest) {
             if code == ErrorCode::RateLimited {
                 self.shared.metrics.rate_limited.inc();
@@ -631,7 +637,7 @@ where
                 "at most {} channels per connection",
                 limits.channels_per_connection
             );
-            return self.error(Some(id), ErrorCode::BadRequest, m).await;
+            return self.error(Some(id), ErrorCode::LimitExceeded, m).await;
         }
         let n = u32::try_from(new.len()).unwrap_or(u32::MAX);
         if !self
@@ -642,7 +648,7 @@ where
                 "at most {} channels per client IP",
                 self.shared.config.channels_per_ip
             );
-            return self.error(Some(id), ErrorCode::BadRequest, m).await;
+            return self.error(Some(id), ErrorCode::LimitExceeded, m).await;
         }
         self.subs.commitments |= commitments;
         self.subs.channels.extend(new.iter().cloned());

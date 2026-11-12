@@ -324,7 +324,7 @@ async fn main() -> anyhow::Result<()> {
             .with_upstream(Arc::clone(&status));
             let metrics = gw.metrics();
             let handle = gw.start();
-            let mut rcfg = RelayConfig::new(upstreams, signers)?;
+            let mut rcfg = RelayConfig::new(upstreams, signers);
             rcfg.trust_upstream_snapshots = trust_upstream_snapshots;
             rcfg.encoding = upstream_encoding;
             tokio::spawn(gateway::relay::run(rcfg, ring, proofs, status, metrics));

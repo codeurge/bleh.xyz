@@ -93,7 +93,7 @@ pub async fn relay(upstream: SocketAddr, allowlist: Vec<EthAddress>) -> Relay {
     let metrics = gw.metrics();
     let handle = gw.start();
     let addr = serve(&handle).await;
-    let cfg = RelayConfig::new(vec![ws_url(upstream)], allowlist).unwrap();
+    let cfg = RelayConfig::new(vec![ws_url(upstream)], allowlist);
     tokio::spawn(gateway::relay::run(
         cfg,
         ring,

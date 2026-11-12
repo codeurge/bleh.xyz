@@ -141,6 +141,7 @@ async fn hello_errors_and_caps() {
     )
     .await;
     let e = expect_type(&mut ws, "error").await;
+    assert_eq!(e["code"], "limit_exceeded");
     assert!(
         e["message"]
             .as_str()
@@ -166,6 +167,7 @@ async fn hello_errors_and_caps() {
     let snap = expect_type(&mut ws, "snapshot").await;
     assert_eq!(snap["reason"], "subscribe");
     let block = expect_type(&mut ws, "block").await;
+    assert_eq!(block["venue"], "hyperliquid");
     assert!(
         block["last"]
             .as_object()

@@ -29,10 +29,7 @@ use bus::{
 use mesh_client::{
     ChannelSpec, Client, ClientConfig, ClientEvent, Encoding, InstrumentPattern, SnapshotReason,
 };
-use mesh_types::{
-    BlockBatch, BlockCommitment, EthAddress, Record, RecordKind, StreamId, UnixMillis, UnixNanos,
-    VenueId,
-};
+use mesh_types::{BlockBatch, BlockCommitment, EthAddress, Record, RecordKind, StreamId};
 
 use crate::metrics::Metrics;
 
@@ -47,30 +44,21 @@ pub struct RelayConfig {
     pub trust_upstream_snapshots: bool,
     /// Encoding on the upstream connection.
     pub encoding: Encoding,
-    /// Venue for block heartbeats when a block carried no data.
-    pub default_venue: VenueId,
     /// Reconnect when no upstream heartbeat arrives for this long.
     pub stall_timeout: Duration,
 }
 
 impl RelayConfig {
     /// Defaults for `upstreams` and `allowlist`.
-    ///
-    /// # Errors
-    ///
-    /// Never in practice; the default venue is a constant.
-    pub fn new(
-        upstreams: Vec<String>,
-        allowlist: Vec<EthAddress>,
-    ) -> Result<Self, mesh_types::IdError> {
-        Ok(Self {
+    #[must_use]
+    pub fn new(upstreams: Vec<String>, allowlist: Vec<EthAddress>) -> Self {
+        Self {
             upstreams,
             allowlist,
             trust_upstream_snapshots: false,
             encoding: Encoding::Json,
-            default_venue: VenueId::new("hyperliquid")?,
             stall_timeout: Duration::from_secs(2),
-        })
+        }
     }
 }
 
@@ -133,12 +121,12 @@ pub fn all_channels() -> Vec<ChannelSpec> {
         .collect()
 }
 
-/// Verifies one block's held data and publishes what verified.
+/// Verifies one block's held data and publishes what verified. Data is
+/// held per venue until that venue's heartbeat.
 pub(crate) struct BlockVerifier {
     allowlist: Vec<EthAddress>,
     held: Vec<Held>,
     commitments: Vec<Arc<BlockCommitment>>,
-    venue: VenueId,
 }
 
 /// Outcome of closing a block.
@@ -149,12 +137,11 @@ pub(crate) struct Verdict {
 }
 
 impl BlockVerifier {
-    pub(crate) fn new(allowlist: Vec<EthAddress>, venue: VenueId) -> Self {
+    pub(crate) fn new(allowlist: Vec<EthAddress>) -> Self {
         Self {
             allowlist,
             held: Vec::new(),
             commitments: Vec::new(),
-            venue,
         }
     }
 
@@ -167,23 +154,23 @@ impl BlockVerifier {
         self.held.push(h);
     }
 
+    /// Closes `venue`'s block: verifies and publishes that venue's held
+    /// data; other venues' data stays held until their heartbeat.
     pub(crate) fn close(
         &mut self,
-        block_number: u64,
-        block_time_ms: UnixMillis,
-        ts_publish_ns: UnixNanos,
+        end: BlockEnd,
         ring: &RingSender<BusEvent>,
         proofs: &ProofStore,
     ) -> Verdict {
-        let held = std::mem::take(&mut self.held);
-        let commitments = std::mem::take(&mut self.commitments);
-        if let Some(v) = held
-            .first()
-            .map(|h| h.stream().venue)
-            .or_else(|| commitments.first().map(|c| c.stream.venue.clone()))
-        {
-            self.venue = v;
-        }
+        let block_number = end.block_number;
+        let (held, other): (Vec<Held>, Vec<Held>) = std::mem::take(&mut self.held)
+            .into_iter()
+            .partition(|h| h.stream().venue == end.venue);
+        self.held = other;
+        let (commitments, other): (Vec<_>, Vec<_>) = std::mem::take(&mut self.commitments)
+            .into_iter()
+            .partition(|c| c.stream.venue == end.venue);
+        self.commitments = other;
         let mut streams: HashMap<StreamId, StreamBlock> = HashMap::new();
         for h in &held {
             let r = match h {
@@ -245,12 +232,7 @@ impl BlockVerifier {
         for commitment in good_commitments {
             ring.publish_quiet(Arc::new(BusEvent::Commitment { commitment }));
         }
-        ring.publish_quiet(Arc::new(BusEvent::BlockEnd(BlockEnd {
-            venue: self.venue.clone(),
-            block_number,
-            block_time_ms,
-            ts_publish_ns,
-        })));
+        ring.publish_quiet(Arc::new(BusEvent::BlockEnd(end)));
         ring.wake();
         verdict
     }
@@ -278,7 +260,7 @@ pub async fn run(
         stall_timeout: cfg.stall_timeout,
         ..ClientConfig::default()
     });
-    let mut verifier = BlockVerifier::new(cfg.allowlist.clone(), cfg.default_venue.clone());
+    let mut verifier = BlockVerifier::new(cfg.allowlist.clone());
     let mut started = false;
     loop {
         let event = match client.next_event().await {
@@ -333,6 +315,7 @@ pub async fn run(
                 ring.publish(BusEvent::Resync { record, reason });
             }
             ClientEvent::Block {
+                venue,
                 block_number,
                 block_time_ms,
                 ts_publish_ns,
@@ -344,7 +327,13 @@ pub async fn run(
                     verifier.clear();
                     continue;
                 }
-                let v = verifier.close(block_number, block_time_ms, ts_publish_ns, &ring, &proofs);
+                let end = BlockEnd {
+                    venue,
+                    block_number,
+                    block_time_ms,
+                    ts_publish_ns,
+                };
+                let v = verifier.close(end, &ring, &proofs);
                 metrics
                     .relay_streams_rejected
                     .add(u64::try_from(v.rejected).unwrap_or(u64::MAX));
@@ -363,13 +352,18 @@ mod tests {
     use bus::{BlockSigner, KeyRing, keys::parse_key};
     use mesh_types::{
         AdmissionId, AggressorSide, InstrumentId, Price, Provenance, Seq, Size, Trade, TradeId,
+        UnixMillis, UnixNanos, VenueId,
     };
 
     fn batch(block: u64) -> Arc<BlockBatch> {
-        let inst = InstrumentId::new("hyperliquid:perp:SYN").unwrap();
+        batch_of("hyperliquid", block)
+    }
+
+    fn batch_of(venue: &str, block: u64) -> Arc<BlockBatch> {
+        let inst = InstrumentId::new(format!("{venue}:perp:SYN")).unwrap();
         Arc::new(BlockBatch {
             instrument: inst.clone(),
-            venue: VenueId::new("hyperliquid").unwrap(),
+            venue: VenueId::new(venue).unwrap(),
             kind: RecordKind::Trade,
             block_number: block,
             block_time_ms: UnixMillis(1),
@@ -379,7 +373,7 @@ mod tests {
                     Record::Trade(Trade {
                         prov: Provenance::new(
                             inst.clone(),
-                            VenueId::new("hyperliquid").unwrap(),
+                            VenueId::new(venue).unwrap(),
                             Seq::new(block, i),
                             UnixMillis(1),
                             UnixNanos(2),
@@ -413,6 +407,19 @@ mod tests {
         )
     }
 
+    fn end(block: u64) -> BlockEnd {
+        end_of("hyperliquid", block)
+    }
+
+    fn end_of(venue: &str, block: u64) -> BlockEnd {
+        BlockEnd {
+            venue: VenueId::new(venue).unwrap(),
+            block_number: block,
+            block_time_ms: UnixMillis(1),
+            ts_publish_ns: UnixNanos(1),
+        }
+    }
+
     fn drain(rx: &mut bus::RingReceiver<BusEvent>) -> Vec<&'static str> {
         std::iter::from_fn(|| rx.try_recv().unwrap())
             .map(|e| match &*e {
@@ -432,13 +439,13 @@ mod tests {
         let ring = bus::ring(64);
         let mut rx = ring.subscribe();
         let proofs = ProofStore::new(8);
-        let mut v = BlockVerifier::new(allow, VenueId::new("hyperliquid").unwrap());
+        let mut v = BlockVerifier::new(allow);
 
         // Verified block: forwarded with its commitment, proof stored.
         let b = batch(5);
         v.hold(Held::Batch(Arc::clone(&b)));
         v.commitments.push(sign(&good_key, &b));
-        let verdict = v.close(5, UnixMillis(1), UnixNanos(1), &ring, &proofs);
+        let verdict = v.close(end(5), &ring, &proofs);
         assert_eq!(
             verdict,
             Verdict {
@@ -458,11 +465,7 @@ mod tests {
         let b = batch(6);
         v.hold(Held::Batch(Arc::clone(&b)));
         v.commitments.push(sign(&bad_key, &b));
-        assert_eq!(
-            v.close(6, UnixMillis(1), UnixNanos(1), &ring, &proofs)
-                .rejected,
-            1
-        );
+        assert_eq!(v.close(end(6), &ring, &proofs).rejected, 1);
         assert_eq!(drain(&mut rx), vec!["end"]);
 
         // Tampered record: root mismatch.
@@ -474,21 +477,41 @@ mod tests {
         }
         v.hold(Held::Batch(Arc::new(t)));
         v.commitments.push(c);
-        assert_eq!(
-            v.close(7, UnixMillis(1), UnixNanos(1), &ring, &proofs)
-                .rejected,
-            1
-        );
+        assert_eq!(v.close(end(7), &ring, &proofs).rejected, 1);
         assert_eq!(drain(&mut rx), vec!["end"]);
 
         // No commitment at all.
         v.hold(Held::Batch(batch(8)));
-        assert_eq!(
-            v.close(8, UnixMillis(1), UnixNanos(1), &ring, &proofs)
-                .rejected,
-            1
-        );
+        assert_eq!(v.close(end(8), &ring, &proofs).rejected, 1);
         assert_eq!(drain(&mut rx), vec!["end"]);
         assert_eq!(all_channels().len(), RecordKind::ALL.len());
+    }
+
+    #[test]
+    fn a_heartbeat_closes_only_its_own_venue() {
+        let key = "11".repeat(32);
+        let allow = vec![parse_key(&key).unwrap().address()];
+        let ring = bus::ring(64);
+        let mut rx = ring.subscribe();
+        let proofs = ProofStore::new(8);
+        let mut v = BlockVerifier::new(allow);
+        let hl = batch(5);
+        let other = batch_of("othervenue", 900);
+        v.hold(Held::Batch(Arc::clone(&other)));
+        v.commitments.push(sign(&key, &other));
+        v.hold(Held::Batch(Arc::clone(&hl)));
+        v.commitments.push(sign(&key, &hl));
+        assert_eq!(v.close(end(5), &ring, &proofs).accepted, 1);
+        assert_eq!(drain(&mut rx), vec!["batch", "commitment", "end"]);
+        // The other venue's block is still held, intact, until its heartbeat.
+        let verdict = v.close(end_of("othervenue", 900), &ring, &proofs);
+        assert_eq!(
+            verdict,
+            Verdict {
+                accepted: 1,
+                rejected: 0
+            }
+        );
+        assert_eq!(drain(&mut rx), vec!["batch", "commitment", "end"]);
     }
 }
