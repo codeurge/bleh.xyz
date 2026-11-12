@@ -5,9 +5,11 @@ status in the same pull request as the work.
 
 | Plan | Status | Next action |
 |---|---|---|
-| [Phase 0: foundation](phase-0-foundation.md) | Active | Counsel review of ADM-0001 and ADM-0002; decide ADR 0004 |
+| [Phase 0: foundation](phase-0-foundation.md) | Active | Counsel review of ADM-0001–0003; decide ADR 0004; data-model and registry schemas |
+| [Phase 1: live data](phase-1-live-data.md) | Active | Decide ADR 0006; choose hosting; synthetic fixtures, book and bar builders |
+| [Phase 2: historical data](phase-2-historical-data.md) | Active | Manifest spec; partition writer; ADM-0003; raw archive starts with the Phase 1 node |
 
-Phases 1–5 get their own plans when Phase 0 exits. See
+Phases 3–6 get plans when Phases 1 and 2 near exit. See
 [docs/roadmap.md](../../docs/roadmap.md).
 
 ## Task statuses

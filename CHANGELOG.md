@@ -13,6 +13,11 @@ versions (see [AGENTS.md](AGENTS.md)).
   (Apache-2.0 for code, CC0 1.0 for data and methods), security and conduct
   policies, decision records, admission register, tracked plans, CI and
   data-leak guardrails.
+- Plans for Phase 1 (live data) and Phase 2 (historical data), with the
+  roadmap reordered so live and historical venue data come first.
+- ADR 0006 (proposed): service architecture for live and historical data.
+- Admission request ADM-0003: Hyperliquid public archive buckets for
+  backfill.
 
 ## 0.0.0 — 2026-11-11
 

@@ -13,3 +13,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0003](0003-field-level-admission.md) | Admit sources per field, with recorded decisions | Accepted |
 | [0004](0004-wire-format.md) | DBN-compatible wire format with provenance sidecar | Proposed |
 | [0005](0005-working-name.md) | "bleh.xyz" is a working name only | Accepted |
+| [0006](0006-phase-1-2-service-architecture.md) | Service architecture for live and historical data | Proposed |

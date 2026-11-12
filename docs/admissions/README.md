@@ -13,6 +13,7 @@ Every observation carries its admission ID.
 |---|---|---|---|
 | [ADM-0001](ADM-0001-hyperliquid-trades-orders.md) | Hyperliquid node: trades, fills, order statuses, book diffs | Trade and order fields only; oracle, mark and funding excluded | Requested |
 | [ADM-0002](ADM-0002-cftc-part43-swaps.md) | CFTC Part 43 public swap dissemination | Price, size, time, product, flags | Requested |
+| [ADM-0003](ADM-0003-hyperliquid-archive-buckets.md) | Hyperliquid public archive buckets | Historical fills, L1 data, hourly L2 snapshots; asset contexts excluded | Requested |
 
 No source is admitted yet. The remaining Phase 0 candidates are listed in
 [docs/sources.md](../sources.md) and tracked in

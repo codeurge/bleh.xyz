@@ -26,11 +26,11 @@ sources, and the registry schema.
 ## Ordered work
 
 1. **repo-foundation**
-   - Status: In review
+   - Status: Done
    - Owner: Maintainers
    - Dependencies: None
-   - PR: Opened from `chore/repo-foundation`
-   - Next action: Review and merge; then enable branch protection on `main`.
+   - PR: https://github.com/codeurge/bleh.xyz/pull/1 (on `main` as f01a4eb)
+   - Next action: None.
 
 2. **branch-protection**
    - Status: Ready
@@ -108,4 +108,6 @@ sources, and the registry schema.
 
 ## Exit
 
-All acceptance criteria met, then open the Phase 1 plan (Tier A ingest).
+All acceptance criteria met. Phase 1 (live data) and Phase 2 (historical
+data) plans are already open and depend on `data-model-schema`,
+`registry-schema` and `wire-format-decision`.
