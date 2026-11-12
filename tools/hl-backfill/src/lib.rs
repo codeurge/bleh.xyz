@@ -25,10 +25,16 @@
 
 pub mod buckets;
 pub mod checkpoint;
+pub mod clock;
 pub mod codec;
+pub mod compare;
 pub mod copy;
 pub mod estimate;
+pub mod filter;
 pub mod listing;
+pub mod parse;
+pub mod partition;
+pub mod process;
 pub mod retry;
 pub mod store;
 
