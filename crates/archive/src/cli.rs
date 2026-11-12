@@ -77,6 +77,9 @@ enum Command {
     Capture(CaptureCmd),
     /// Write partitions from records (JSON lines, observation-v0).
     Partition(PartitionArgs),
+    /// Partition a directory of daily record files (`date=YYYY-MM-DD/<file>`)
+    /// once per settled day, optionally following it.
+    PartitionDir(PartitionDirArgs),
     /// Rebuild a day's partitions from filtered raw.
     Replay(ReplayArgs),
     /// Rebuild the static Iceberg metadata of a normalized archive.
@@ -189,6 +192,35 @@ struct PartitionArgs {
     /// Write as a correction (new part numbers) instead of write-once.
     #[arg(long)]
     correction: bool,
+}
+
+#[derive(Debug, Args)]
+struct PartitionDirArgs {
+    /// Directory of daily record files laid out as `date=YYYY-MM-DD/<file>`.
+    #[arg(long, env = "BLEH_PARTITION_DIR_RECORDS")]
+    records_dir: PathBuf,
+    /// Record file name inside each day directory.
+    #[arg(
+        long,
+        env = "BLEH_PARTITION_DIR_FILE",
+        default_value = "swap_print.jsonl"
+    )]
+    file: String,
+    /// Normalized archive root.
+    #[arg(long, env = "BLEH_PARTITION_DIR_OUT")]
+    out: PathBuf,
+    /// Directory for per-day markers [default: <out>/.partition-dir/<file>].
+    #[arg(long, env = "BLEH_PARTITION_DIR_STATE")]
+    state_dir: Option<PathBuf>,
+    /// Partition a day only once it is this many whole days before today (UTC).
+    #[arg(long, env = "BLEH_PARTITION_DIR_SETTLE_DAYS", default_value_t = 2)]
+    settle_days: u32,
+    /// Keep running and rescan every --interval-secs.
+    #[arg(long, env = "BLEH_PARTITION_DIR_FOLLOW")]
+    follow: bool,
+    /// With --follow: seconds between scans.
+    #[arg(long, env = "BLEH_PARTITION_DIR_INTERVAL_SECS", default_value_t = 900)]
+    interval_secs: u64,
 }
 
 #[derive(Debug, Args)]
@@ -630,6 +662,7 @@ async fn dispatch(cmd: Command, hooks: &Hooks) -> Result<ExitCode> {
     match cmd {
         Command::Capture(c) => capture_cmd(c, hooks).await,
         Command::Partition(a) => partition_cmd(&a),
+        Command::PartitionDir(a) => partition_dir_cmd(&a).await,
         Command::Replay(a) => replay_cmd(&a, hooks),
         Command::Iceberg(a) => {
             let store = if a.upload {
@@ -763,6 +796,43 @@ fn partition_cmd(a: &PartitionArgs) -> Result<ExitCode> {
         );
     }
     Ok(ExitCode::SUCCESS)
+}
+
+async fn partition_dir_cmd(a: &PartitionDirArgs) -> Result<ExitCode> {
+    let opts = crate::partition_dir::PartitionDir {
+        records_dir: a.records_dir.clone(),
+        file: a.file.clone(),
+        out: a.out.clone(),
+        state_dir: a
+            .state_dir
+            .clone()
+            .unwrap_or_else(|| a.out.join(".partition-dir").join(&a.file)),
+        settle_days: a.settle_days,
+    };
+    if a.follow {
+        crate::partition_dir::follow(&opts, std::time::Duration::from_secs(a.interval_secs))
+            .await?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    let r = crate::partition_dir::scan(&opts, crate::partition_dir::today_utc())?;
+    for day in &r.written {
+        println!("{day} written");
+    }
+    for day in &r.changed {
+        println!("{day} changed after partitioning (left alone)");
+    }
+    println!(
+        "{} written, {} unchanged, {} changed, {} pending",
+        r.written.len(),
+        r.unchanged,
+        r.changed.len(),
+        r.pending
+    );
+    Ok(if r.changed.is_empty() {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(3)
+    })
 }
 
 fn replay_cmd(a: &ReplayArgs, hooks: &Hooks) -> Result<ExitCode> {

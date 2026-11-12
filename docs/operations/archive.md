@@ -122,6 +122,7 @@ All commands take `--log-format json` for structured logs and
 | `capture upload` | Uploads sealed hours in `<staging>/<archive>/ready/` write-once; conflicts go to `conflicts/` and fail the command |
 | `capture train-dict` | Trains a private-tier zstd dictionary from node files (`--dict stream=FILE` uses it) |
 | `partition` | Writes partitions from records in JSON lines (for derived records produced elsewhere) |
+| `partition-dir` | Partitions a directory of daily record files (`date=YYYY-MM-DD/<file>`, as swap-pollers writes) once per settled day; `--follow` keeps scanning (see "Daily record files") |
 | `replay` | Rebuilds a day from filtered raw; `--check-against DIR [--bytes]` compares with existing partitions |
 | `iceberg` | Rebuilds static Iceberg metadata from every manifest for a given location |
 | `manifest build` / `sign` / `verify` / `keygen` | Builds the day's manifest and torrent, signs, verifies (no file downloads), generates a key |
@@ -131,7 +132,28 @@ All commands take `--log-format json` for structured logs and
 | `verify` | Signature, chain, anchors, then files (`--deep` adds CIDs, pieces roots and partition content hashes); `--json`, `--strict` |
 
 Exit codes: `0` success (warnings allowed unless `--strict`), `1` failure,
-`2` usage error.
+`2` usage error; `partition-dir` exits `3` when a day's file changed after
+it was partitioned.
+
+### Daily record files
+
+`archive partition-dir --records-dir DIR --file NAME --out ROOT
+[--state-dir S] [--settle-days 2] [--follow --interval-secs 900]`
+(every flag also reads a `BLEH_PARTITION_DIR_*` variable). Compose runs it
+as `swap-partition` on the home-archive server for swap prints.
+
+- A day is written once it is `--settle-days` whole days before today
+  (UTC), when its file is complete (swap-pollers finishes a day from the
+  repository's end-of-day file).
+- Each written day leaves a marker in the state directory with the file's
+  SHA-256; unchanged days are skipped on later scans.
+- Partitions are write-once. A file that changes after its day was
+  partitioned is logged and counted
+  (`archive_partition_dir_changed_total`) and left alone; correct it
+  deliberately with `archive partition --correction`.
+- On a self-hosted server without object storage, set
+  `LOCAL_NORMALIZED_DIR` to a host directory and `HISTORY_API_ARCHIVE` to
+  `/srv/normalized` to serve the result locally.
 
 ### Live capture
 

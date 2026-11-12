@@ -13,6 +13,7 @@
 //! | [`follow`] | Live capture: following node files, sealing, upload, the `.captured-through` watermark |
 //! | [`store`] | S3-compatible and local object storage with write-once uploads |
 //! | [`partition`] | Deterministic Parquet partitions, records to Arrow and back, Iceberg metadata |
+//! | [`partition_dir`] | Daily record files (`date=YYYY-MM-DD/<file>`) to partitions, once per settled day |
 //! | [`replay`] | Filtered raw to partitions through the injected parser |
 //! | [`manifest`] | Building, signing, writing and indexing daily manifests |
 //! | [`ipfs`], [`torrent`], [`digest`] | UnixFS CIDs, BitTorrent v2, one-pass file digests |
@@ -52,6 +53,7 @@ pub mod layout;
 pub mod manifest;
 pub mod metrics;
 pub mod partition;
+pub mod partition_dir;
 pub mod publish;
 pub mod replay;
 pub mod store;

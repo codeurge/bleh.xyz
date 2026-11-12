@@ -9,6 +9,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- `archive partition-dir`: partitions daily record files
+  (`date=YYYY-MM-DD/<file>`) once per settled day, with SHA-256 markers and
+  write-once partitions; compose runs it as `swap-partition` so swap prints
+  reach the history API. Self-hosted servers can keep the normalized
+  archive in a local directory (`LOCAL_NORMALIZED_DIR`) and serve it with
+  the history API; the swap raw mirror can be turned off
+  (`SWAP_RAW_MIRROR_BUCKET` empty).
 - Repository foundation: agent and contributor conventions, licenses
   (Apache-2.0 for code, CC0 1.0 for data and methods), security and conduct
   policies, decision records, admission register, tracked plans, CI and

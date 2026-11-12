@@ -397,7 +397,8 @@ services:
       SWAP_POLLERS_OUT_DIR: /var/lib/bleh/swap/records
       SWAP_POLLERS_USER_AGENT: ${SWAP_USER_AGENT:-bleh.xyz swap-pollers}
       # Raw files are mirrored to the private bucket as they are captured.
-      SWAP_POLLERS_S3_BUCKET: ${BLEH_PRIVATE_BUCKET:-bleh-raw-private}
+      # Set SWAP_RAW_MIRROR_BUCKET empty in .env to keep raw files local only.
+      SWAP_POLLERS_S3_BUCKET: ${SWAP_RAW_MIRROR_BUCKET-${BLEH_PRIVATE_BUCKET:-bleh-raw-private}}
       SWAP_POLLERS_S3_PREFIX: swap-raw
       SWAP_POLLERS_S3_ENDPOINT: ${S3_ENDPOINT:-}
       SWAP_POLLERS_S3_REGION: ${S3_REGION:-auto}
@@ -406,6 +407,27 @@ services:
     ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9187:9187"]
     volumes:
       - swap-data:/var/lib/bleh/swap
+
+  # Partitions each settled day of swap records into the normalized
+  # archive (archive partition-dir; docs/operations/archive.md). On a
+  # self-hosted server without object storage, LOCAL_NORMALIZED_DIR is a
+  # host directory the history API can serve directly.
+  swap-partition:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    command: ["partition-dir", "--follow", "--log-format", "json"]
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_PARTITION_DIR_RECORDS: /var/lib/bleh/swap/records
+      BLEH_PARTITION_DIR_FILE: swap_print.jsonl
+      BLEH_PARTITION_DIR_OUT: /srv/normalized
+      BLEH_PARTITION_DIR_STATE: /var/lib/bleh/partition-state/swap
+      BLEH_PARTITION_DIR_SETTLE_DAYS: ${SWAP_PARTITION_SETTLE_DAYS:-2}
+    volumes:
+      - swap-data:/var/lib/bleh/swap:ro
+      - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized
+      - partition-state:/var/lib/bleh/partition-state
 
   # ==================================================================
   # History API: staging on home-archive, public on relays
@@ -428,6 +450,10 @@ services:
       HISTORY_API_MEMORY_LIMIT_MB: ${HISTORY_API_MEMORY_LIMIT_MB:-1024}
     # /metrics is served on the same port; published on the overlay only.
     ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:8081:8081"]
+    # Self-hosted: HISTORY_API_ARCHIVE=/srv/normalized serves the local
+    # normalized archive that swap-partition writes.
+    volumes:
+      - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized:ro
     # DuckDB installs its httpfs extension under $HOME on first start.
     tmpfs: ["/tmp:size=2g", "/home/nonroot:size=512m,uid=65532,gid=65532"]
 
@@ -711,6 +737,8 @@ volumes:
   minio-data:
   raw:
   swap-data:
+  normalized:
+  partition-state:
   reader-state:
   archive-work:
   archive-mirror:

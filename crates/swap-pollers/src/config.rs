@@ -180,7 +180,8 @@ impl Args {
     ///
     /// Fails if the S3 client cannot be built.
     pub fn mirror(&self) -> anyhow::Result<Option<Mirror>> {
-        let Some(bucket) = &self.s3_bucket else {
+        // An empty bucket (for example an empty variable) disables the mirror.
+        let Some(bucket) = self.s3_bucket.as_deref().filter(|b| !b.trim().is_empty()) else {
             return Ok(None);
         };
         let mut b = object_store::aws::AmazonS3Builder::from_env().with_bucket_name(bucket);
