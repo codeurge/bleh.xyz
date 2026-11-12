@@ -1580,6 +1580,7 @@ dependencies = [
  "bytes",
  "clap",
  "futures",
+ "history-api",
  "hl-node-reader",
  "hl-synth",
  "lz4_flex",

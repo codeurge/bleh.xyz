@@ -36,6 +36,7 @@ zstd = "0.14"
 
 [dev-dependencies]
 async-trait = "0.1"
+history-api = { path = "../../crates/history-api" }
 hl-synth = { path = "../../tools/hl-synth" }
 
 [lints]
