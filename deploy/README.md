@@ -67,17 +67,19 @@ home server none (optional 6881 and 4101 forwards for seeding).
 What each service lane must implement for these configurations to work.
 Every service:
 
-- reads configuration from environment variables (below) and logs JSON to
-  stdout (`RUST_LOG`);
+- reads configuration from environment variables (below) and logs JSON
+  (`RUST_LOG` sets the level);
 - serves Prometheus metrics at `GET /metrics` and liveness at
-  `GET /health` on `BLEH_METRICS_ADDR` (an `ip:port`);
+  `GET /health` on a configurable `ip:port` (`BLEH_METRICS_ADDR` for
+  services not yet built; the merged reader and pollers use their own
+  variable names, listed below);
 - reads secrets from files named by `*_FILE` variables, never from the
   environment;
 - runs as UID 65532 with a read-only root filesystem; writable paths are
   `/tmp` and the `/var/lib/bleh/*` volumes listed below;
 - exits non-zero on fatal errors (the orchestrator restarts it) and stops
   cleanly on SIGTERM within 30 s;
-- labels nothing with a site: Prometheus adds `site` and `path`.
+- labels nothing with a site: Prometheus adds `site` (and `path` where useful).
 
 Object storage settings use the `object_store` conventions: `AWS_ENDPOINT`,
 `AWS_REGION` (`auto` for R2), `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
@@ -87,24 +89,28 @@ Object storage settings use the `object_store` conventions: `AWS_ENDPOINT`,
 optional `0x` and trailing newline), `BLEH_SIGNERS` (comma-separated
 addresses to accept).
 
-### hl-node-reader (node-reader lane)
+### hl-node-reader (node-reader lane, merged)
+
+Implemented; full reference in
+[node-reader.md](../docs/operations/node-reader.md). What the
+configurations here use:
 
 | | |
 |---|---|
-| Ports | `READER_STREAM_LISTEN` (7400): record stream for gateways, local and from the other origin; `BLEH_METRICS_ADDR` (9101) |
-| Variables | `READER_MODE` `live` or `replay`; `READER_PATH_ID` (`a`, `b`); `READER_NODE_DATA_DIR` (`/hl/data`, read-only; directory names for the three streams configurable, default trying `node_<s>_by_block` then `node_<s>`); `READER_INFO_URL` (`http://127.0.0.1:3001/info`); `READER_SNAPSHOT_DIR` (`/snapshots`, used as the `fileSnapshot` `outPath` directory; the node writes it, the reader reads it); `READER_RAW_DIR` (`/var/lib/bleh/raw`, writable); `READER_REPLAY_DIR`, `READER_REPLAY_LOOP` (replay mode over `fixtures/synthetic/hl/<case>`) |
-| Files | Writes hourly filtered and unfiltered raw under `READER_RAW_DIR`; together with archive-capture maintains `READER_RAW_DIR/.captured-through` (last UTC hour `YYYY-MM-DDTHH` whose node files are fully read and whose raw is in object storage). The pruner deletes node output only up to this watermark |
+| Ports | `HL_METRICS_ADDR` (9184 on the overlay address): `/metrics`, `/health` |
+| Variables set | `HL_NODE_DIRS` (`/hl/data`; both nodes' directories in Tier 2, merged in one reader), `HL_INFO_URL`, `HL_REGISTRY_OUT`, `HL_CHECKPOINT` (under the `reader-state` volume, `/var/lib/bleh/reader`), `HL_SNAPSHOT_INTERVAL_SECS` (600), `HL_SNAPSHOT_PATH` (`/snapshots/l4.json`; the node writes it, the reader reads the same path), `HL_OUTPUT` (`none` until a consumer exists), `HL_LOG_FORMAT=json`; synthetic replay: `HL_REPLAY`, `HL_REGISTRY`, `HL_WRITE_FILTERED` |
 | Networking | Host network (the info server is loopback-only) |
-| Metrics | `bleh_reader_last_block_number`, `bleh_reader_last_block_time_seconds`, `bleh_reader_last_local_time_seconds`, `bleh_reader_ingest_lag_seconds` (histogram, `ts_ingest − ts_node`), `bleh_reader_seq_gaps_total{stream}`, `bleh_reader_parse_errors_total{stream}`, `bleh_reader_schema_unknown_total{stream,field}`, `bleh_reader_stream_halted{stream}`, `bleh_reader_snapshot_failures_total`; book builder in process: `bleh_book_reconcile_mismatch_total`, `bleh_book_resyncs_total`; `bleh_signing_failures_total` |
+| Metrics used by rules and dashboards | `hl_reader_last_block`, `hl_reader_block_lag_seconds`, `hl_reader_emit_lag_seconds`, `hl_reader_parse_errors_total`, `hl_reader_rejected_blocks_total`, `hl_reader_incomplete_blocks_total`, `hl_output_last_block`, `hl_output_block_lag_seconds`, `hl_output_gaps_total`, `hl_merge_mismatches_total`, `hl_merge_one_sided_gap_blocks_total`, `hl_registry_refreshes_total`, `hl_checkpoint_writes_total` |
+| Still requested | (1) A network output the gateway can consume (`--output tcp://0.0.0.0:7400` or equivalent; the compose file reserves 7400 on the overlay); stdout JSON lines are not a production transport. (2) Live filtered and unfiltered raw capture (today `--write-filtered` exists only with `--replay`). (3) With archive-capture, the watermark file `<raw dir>/.captured-through` holding the last UTC hour (`YYYY-MM-DDTHH`) whose node files are fully read and whose raw is in object storage; `hl-prune.sh` deletes node output only up to it. (4) Block signing with `BLEH_SIGNING_KEY_FILE` (32-byte secp256k1 secret as 64 hex characters) and `bleh_signing_failures_total`. (5) A histogram for emit lag, so p99 does not depend on scrape sampling. (6) `hl_reader_snapshot_failures_total`, so failed `fileSnapshot` requests alert |
 
 ### gateway (bus, gateway and client lane)
 
 | | |
 |---|---|
 | Ports | `GATEWAY_LISTEN` (8080): `/v0/ws`, `/health`, `/freshness` (docs/protocol/gateway-v0.md); `BLEH_METRICS_ADDR` (9102) |
-| Variables | `GATEWAY_MODE` `live` (upstream readers), `relay` (upstream gateways; verify every commitment against `BLEH_SIGNERS` and re-serve unchanged) or `demo` (synthetic records, signed with `BLEH_SIGNING_KEY_FILE`); `GATEWAY_UPSTREAMS` (comma-separated `tcp://host:7400` readers, deduplicated on `(block, event_index)`, or `ws(s)://.../v0/ws` gateways in preference order); `GATEWAY_UPSTREAM_HEADERS_FILE` (relay: HTTP headers, one `Name: value` per line, sent on the upstream websocket handshake; carries the Cloudflare Access service token); `GATEWAY_TRUSTED_PROXIES` (CIDRs) and `GATEWAY_CLIENT_IP_HEADER` (`X-Real-IP` behind Caddy, `CF-Connecting-IP` behind the tunnel) for per-IP limits; protocol limits overridable as `GATEWAY_MAX_CONNECTIONS_PER_IP` etc. |
+| Variables | `GATEWAY_MODE` `live` (upstream readers), `relay` (upstream gateways; verify every commitment against `BLEH_SIGNERS` and re-serve unchanged) or `demo` (synthetic records, signed with `BLEH_SIGNING_KEY_FILE`); `GATEWAY_UPSTREAMS` (comma-separated reader outputs such as `tcp://host:7400`, or `ws(s)://.../v0/ws` gateways, in preference order with failover; the reader already merges and deduplicates two nodes); `GATEWAY_UPSTREAM_HEADERS_FILE` (relay: HTTP headers, one `Name: value` per line, sent on the upstream websocket handshake; carries the Cloudflare Access service token); `GATEWAY_TRUSTED_PROXIES` (CIDRs) and `GATEWAY_CLIENT_IP_HEADER` (`X-Real-IP` behind Caddy, `CF-Connecting-IP` behind the tunnel) for per-IP limits; protocol limits overridable as `GATEWAY_MAX_CONNECTIONS_PER_IP` etc. |
 | Health | `/health` 200 only when connected upstream and fresh, else 503 (relays and update-host.sh rely on it) |
-| Metrics | `bleh_gateway_publish_latency_seconds` (histogram of `ts_publish − ts_node`; buckets must include 0.005, 0.01, 0.025, 0.05, 0.1, 0.25), `bleh_gateway_block_lag_seconds`, `bleh_gateway_last_block_number`, `bleh_gateway_connections`, `bleh_gateway_subscriptions`, `bleh_gateway_bytes_sent_total`, `bleh_gateway_resnapshots_total{reason}`, `bleh_gateway_slow_consumer_closes_total`, `bleh_gateway_rate_limited_total`, `bleh_gateway_upstream_connected{upstream}`; dedupe: `bleh_dedupe_path_last_block{path}`, `bleh_dedupe_mismatch_total{stream}` |
+| Metrics | `bleh_gateway_publish_latency_seconds` (histogram of `ts_publish − ts_node`; buckets must include 0.005, 0.01, 0.025, 0.05, 0.1, 0.25), `bleh_gateway_block_lag_seconds`, `bleh_gateway_last_block_number`, `bleh_gateway_connections`, `bleh_gateway_subscriptions`, `bleh_gateway_bytes_sent_total`, `bleh_gateway_resnapshots_total{reason}`, `bleh_gateway_slow_consumer_closes_total`, `bleh_gateway_rate_limited_total`, `bleh_gateway_upstream_connected{upstream}`; the book builder (book lane library, run in the gateway or reader process) adds `bleh_book_reconcile_mismatch_total` |
 
 ### archive (archive lane)
 
@@ -124,21 +130,26 @@ addresses to accept).
 | Notes | Runs on arm64 relays: the image must build for linux/arm64 |
 | Metrics | `bleh_history_http_request_duration_seconds{route,status}` (histogram), `bleh_history_query_timeouts_total` |
 
-### swap-pollers (swap-pollers lane)
+### swap-pollers (swap-pollers lane, merged)
+
+Implemented; reference in [swap-pollers.md](../docs/operations/swap-pollers.md).
 
 | | |
 |---|---|
-| Ports | `BLEH_METRICS_ADDR` (9105) |
-| Variables | `SWAP_SOURCES` (`cftc-dtcc,cftc-ice,sbsr-dtcc,sbsr-ice`), `SWAP_RAW_DIR`, `SWAP_USER_AGENT`, `BLEH_NATS_URL`, object-storage variables for raw capture |
-| Metrics | `bleh_swap_poll_last_success_timestamp_seconds{source}`, `bleh_swap_poll_failures_total{source}` |
+| Ports | `SWAP_POLLERS_LISTEN` (9187): `/metrics`, `/health` |
+| Variables set | `SWAP_POLLERS_RAW_DIR`, `SWAP_POLLERS_STATE_DIR`, `SWAP_POLLERS_OUT_DIR` (under the `swap-data` volume), `SWAP_POLLERS_USER_AGENT`, `SWAP_POLLERS_S3_BUCKET`/`_PREFIX`/`_ENDPOINT`/`_REGION` with `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` (raw mirrored to the private bucket), `SWAP_POLLERS_LOG_JSON` |
+| Metrics used | `swap_last_successful_poll_timestamp_seconds{listing}`, `swap_raw_persist_errors_total{store}`, `swap_unknown_columns_total{bucket,column}`, `swap_lag_seconds{bucket}` |
+| Still requested | ICE Trade Vault sources once admitted fields are confirmed (today DTCC only) |
 
-### hl-backfill (backfill lane)
+### hl-backfill (backfill lane, merged)
+
+Implemented; reference in [backfill.md](../docs/operations/backfill.md).
 
 | | |
 |---|---|
-| Ports | `BLEH_METRICS_ADDR` (9106) while running |
-| Variables | Command-line range (`--from`, `--to`, paths); `BACKFILL_SOURCE_AWS_ACCESS_KEY_ID`, `BACKFILL_SOURCE_AWS_SECRET_ACCESS_KEY`, `BACKFILL_SOURCE_REGION` (requester-pays source, separate from the R2 destination credentials); `BACKFILL_WORK_DIR` |
-| Run | `deploy/up.sh home-archive backfill --from ... --to ...` (one-off container, exits when done) |
+| Run | `deploy/up.sh home-archive backfill <estimate|copy|process|compare|replay-prototype> [args]` (one-off container on the home server's NVMe scratch) |
+| Variables set | Source (requester-pays): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` from `BACKFILL_SOURCE_*` in `.env`, `HL_NODE_DATA_REGION`, `HL_ARCHIVE_REGION`; destination: `BLEH_RAW_ENDPOINT`, `BLEH_RAW_ACCESS_KEY_ID`, `BLEH_RAW_SECRET_ACCESS_KEY`, `BLEH_RAW_REGION` from the R2 settings |
+| Still requested | Progress metrics (`/metrics` while running) for long copies |
 
 ### mesh-client (client lane)
 

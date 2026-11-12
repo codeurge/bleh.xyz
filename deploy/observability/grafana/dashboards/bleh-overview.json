@@ -367,7 +367,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(bleh_dedupe_mismatch_total[24h])) or vector(0)",
+          "expr": "sum(increase(hl_merge_mismatches_total[24h])) or vector(0)",
           "legendFormat": ""
         }
       ]
@@ -528,7 +528,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Reader ingest lag p99 (ts_ingest - ts_node)",
+      "title": "Reader emit lag p99 (now - node local_time)",
       "id": 10,
       "datasource": {
         "type": "prometheus",
@@ -587,7 +587,7 @@
             "uid": "prometheus"
           },
           "expr": "bleh:reader_ingest_lag_seconds:p99_5m",
-          "legendFormat": "path {{path}}"
+          "legendFormat": "{{reader}} ({{site}})"
         }
       ]
     },
@@ -635,8 +635,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time() - bleh_reader_last_block_time_seconds",
-          "legendFormat": "node path {{path}}"
+          "expr": "hl_reader_block_lag_seconds",
+          "legendFormat": "node {{reader}} ({{site}})"
         },
         {
           "refId": "B",
@@ -738,7 +738,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Last block per path",
+      "title": "Last block per node",
       "id": 14,
       "datasource": {
         "type": "prometheus",
@@ -779,8 +779,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "bleh_dedupe_path_last_block",
-          "legendFormat": "path {{path}} (seen by {{site}})"
+          "expr": "hl_reader_last_block",
+          "legendFormat": "node {{reader}} ({{site}})"
         },
         {
           "refId": "B",
@@ -788,14 +788,14 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "bleh_reader_last_block_number",
-          "legendFormat": "reader {{path}}"
+          "expr": "hl_output_last_block",
+          "legendFormat": "published ({{site}})"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Blocks behind leading path",
+      "title": "Blocks behind leading node",
       "id": 15,
       "datasource": {
         "type": "prometheus",
@@ -854,13 +854,13 @@
             "uid": "prometheus"
           },
           "expr": "bleh:dedupe_path_blocks_behind",
-          "legendFormat": "path {{path}} ({{site}})"
+          "legendFormat": "node {{reader}} ({{site}})"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Integrity mismatches",
+      "title": "Integrity alarms",
       "id": 16,
       "datasource": {
         "type": "prometheus",
@@ -902,8 +902,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (stream) (increase(bleh_dedupe_mismatch_total[5m]))",
-          "legendFormat": "{{stream}}"
+          "expr": "sum by (site) (increase(hl_merge_mismatches_total[5m]))",
+          "legendFormat": "mismatch {{site}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (site, missing) (increase(hl_merge_one_sided_gap_blocks_total[5m]))",
+          "legendFormat": "one-sided gap {{missing}}"
         }
       ]
     },
@@ -951,8 +960,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (path) (increase(bleh_reader_seq_gaps_total[10m]))",
-          "legendFormat": "gaps path {{path}}"
+          "expr": "sum by (site) (increase(hl_output_gaps_total[10m]))",
+          "legendFormat": "gaps {{site}}"
         },
         {
           "refId": "B",
@@ -969,8 +978,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (path) (increase(bleh_book_reconcile_mismatch_total[10m]))",
-          "legendFormat": "reconcile mismatch {{path}}"
+          "expr": "sum by (site) (increase(bleh_book_reconcile_mismatch_total[10m]))",
+          "legendFormat": "reconcile mismatch {{site}}"
         }
       ]
     },
@@ -1018,8 +1027,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (path, stream) (increase(bleh_reader_schema_unknown_total[10m]))",
-          "legendFormat": "unknown fields {{path}} {{stream}}"
+          "expr": "sum by (site) (increase(hl_reader_rejected_blocks_total[10m]))",
+          "legendFormat": "rejected blocks {{site}}"
         },
         {
           "refId": "B",
@@ -1027,8 +1036,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "bleh_reader_stream_halted",
-          "legendFormat": "halted {{path}} {{stream}}"
+          "expr": "sum by (site) (increase(hl_reader_incomplete_blocks_total[10m]))",
+          "legendFormat": "incomplete blocks {{site}}"
         },
         {
           "refId": "C",
@@ -1085,8 +1094,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (path, stream) (rate(bleh_reader_parse_errors_total[5m]))",
-          "legendFormat": "{{path}} {{stream}}"
+          "expr": "sum by (reader, stream) (rate(hl_reader_parse_errors_total[5m]))",
+          "legendFormat": "{{reader}} {{stream}}"
         }
       ]
     },
@@ -1393,7 +1402,7 @@
               },
               {
                 "color": "red",
-                "value": 1800
+                "value": 900
               }
             ]
           }
@@ -1417,8 +1426,17 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "time() - bleh_swap_poll_last_success_timestamp_seconds",
-          "legendFormat": "{{source}}"
+          "expr": "time() - swap_last_successful_poll_timestamp_seconds",
+          "legendFormat": "poll {{listing}}"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "swap_lag_seconds",
+          "legendFormat": "capture lag {{bucket}}"
         }
       ]
     }

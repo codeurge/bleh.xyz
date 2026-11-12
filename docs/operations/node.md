@@ -104,7 +104,8 @@ reads it from the same path (both containers mount `/srv/hl/snapshots` at
 `/snapshots`). The server listens on loopback only, which is why the node
 and the reader use host networking.
 
-If `BlehSnapshotRequestsFailing` fires:
+If `BlehRegistryRefreshFailing` fires, or the reader logs L4 snapshot errors
+(`HL_SNAPSHOT_INTERVAL_SECS`, default 600 here, sets how often it asks):
 
 ```bash
 curl -s -X POST -H 'Content-Type: application/json' \
@@ -123,6 +124,11 @@ advance once an hour's raw is in R2. Other directories are pruned by age:
 `replica_cmds` and TWAP statuses after 24 h, all but the newest three ABCI
 states, logs after 7 days, snapshots after 6 h. Settings:
 `/etc/bleh/prune.env` (template `deploy/systemd/env/prune.example.conf`).
+
+Until live raw capture and the watermark exist (pending reader and archive
+work, deploy/README.md), stream files would be held forever; on such a host
+set `CAPTURE_REQUIRED=0` in `/etc/bleh/prune.env` to prune by age alone,
+knowing those hours are not archived from this node (backfill covers fills).
 
 Emergency: below 5% free, the oldest stream hours are deleted regardless of
 capture, `bleh_hl_prune_emergency_deleted_files` records how many, and those

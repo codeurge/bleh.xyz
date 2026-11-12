@@ -44,10 +44,10 @@ must include 0.05). Its parts:
 
 | Segment | Metric | Budget |
 |---|---|---|
-| Node write → reader receive (inotify, parse) | `bleh_reader_ingest_lag_seconds` | 25 ms at p99 |
+| Node write → reader emit (inotify, parse, join) | `hl_reader_emit_lag_seconds` (gauge; p99 over scrapes) | 25 ms at p99 |
 | Reader → gateway send (book, signing, encode) | difference of the two | 25 ms at p99 |
 
-Lag behind `block_time` (`time() - bleh_reader_last_block_time_seconds`) is
+Lag behind `block_time` (`hl_reader_block_lag_seconds` per node) is
 reported, not gated: it depends on the node's location (higher in Europe
 than in Tokyo; ADR 0010) and is shown on the live dashboard and the status
 page.

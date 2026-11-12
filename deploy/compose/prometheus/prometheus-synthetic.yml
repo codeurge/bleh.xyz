@@ -22,7 +22,7 @@ scrape_configs:
 
   - job_name: hl-node-reader
     static_configs:
-      - targets: ["hl-node-reader:9101"]
+      - targets: ["hl-node-reader-replay:9184"]
         labels: {site: local, path: a}
 
   - job_name: gateway

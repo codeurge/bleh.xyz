@@ -65,7 +65,7 @@ runs the signed images the deploy workflow published. Local laptop stack:
    peers file (kept outside the repository; format in
    `deploy/scripts/wg-mesh.sh`) and run `sudo deploy/scripts/wg-mesh.sh
    peers.conf` on each host. The home server has no endpoint and dials out.
-   Check with `wg show` and `curl http://10.77.0.1:9101/metrics` from home.
+   Check with `wg show` and `curl http://10.77.0.1:9184/metrics` from home.
 7. **Relays' secrets.** Write `relay_upstream_headers` to
    `secrets/upstream-headers.txt`, the Origin CA files to
    `secrets/origin-ca/`, and `RELAY_UPSTREAMS`, `BLEH_SIGNERS`,

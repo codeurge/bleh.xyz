@@ -175,7 +175,7 @@ if ((has_node)); then
     "$repo/deploy/scripts/disk-setup.sh" /srv/hl "$node_disk" || echo "disk setup skipped; /srv/hl stays on the root filesystem" >&2
   fi
   install -d -o 10000 -g 10000 -m 0755 /srv/hl /srv/hl/hl /srv/hl/hl/data /srv/hl/snapshots
-  install -d -o 65532 -g 65532 -m 0750 /srv/bleh /srv/bleh/raw
+  install -d -o 65532 -g 65532 -m 0750 /srv/bleh /srv/bleh/raw /srv/bleh/reader /srv/bleh/archive
 fi
 if ((has_home)); then
   # Mount the disk array at /srv/archive and NVMe scratch at /srv/scratch

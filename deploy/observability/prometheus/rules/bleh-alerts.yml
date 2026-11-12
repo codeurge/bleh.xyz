@@ -19,26 +19,26 @@ groups:
         for: 3m
         labels: {severity: ticket}
         annotations:
-          summary: "Ingest path {{ $labels.path }} ({{ $labels.instance }}) is down; running on one path"
+          summary: "Reader {{ $labels.instance }} (site {{ $labels.site }}) is down"
           runbook: docs/operations/incident.md#one-ingest-path-down
 
       - alert: BlehNodeBehindChain
-        # Node block_time vs wall clock. Hyperliquid produces blocks
-        # continuously, so more than 10 s means the node is not applying
-        # blocks (peer loss, upgrade, crash).
-        expr: time() - bleh_reader_last_block_time_seconds > 10
+        # Now minus block time of each node's last block (reader label).
+        # Hyperliquid produces blocks continuously, so more than 10 s means
+        # the node is not applying blocks (peer loss, upgrade, crash).
+        expr: hl_reader_block_lag_seconds > 10
         for: 2m
         labels: {severity: ticket}
         annotations:
-          summary: "Node on path {{ $labels.path }} is {{ $value | humanizeDuration }} behind the chain"
+          summary: "Node {{ $labels.reader }} on {{ $labels.site }} is {{ $value | humanizeDuration }} behind the chain"
           runbook: docs/operations/node.md#node-not-applying-blocks
 
       - alert: BlehNodeStalled
-        expr: time() - bleh_reader_last_block_time_seconds > 120
+        expr: hl_output_block_lag_seconds > 120
         for: 1m
         labels: {severity: page}
         annotations:
-          summary: "Node on path {{ $labels.path }} has applied no block for 2 minutes"
+          summary: "Reader on {{ $labels.site }} has published no block for 2 minutes"
           runbook: docs/operations/node.md#node-not-applying-blocks
 
       - alert: BlehReaderIngestLagHigh
@@ -48,7 +48,7 @@ groups:
         for: 10m
         labels: {severity: ticket}
         annotations:
-          summary: "Reader on path {{ $labels.path }}: p99 ingest lag {{ $value | humanizeDuration }} (> 25 ms)"
+          summary: "Reader {{ $labels.reader }} on {{ $labels.site }}: p99 emit lag {{ $value | humanizeDuration }} (> 25 ms)"
           runbook: docs/operations/observability.md#latency-budget
 
       - alert: BlehPathBehind
@@ -56,23 +56,46 @@ groups:
         for: 2m
         labels: {severity: ticket}
         annotations:
-          summary: "Path {{ $labels.path }} is {{ $value }} blocks behind the leading path"
+          summary: "Node {{ $labels.reader }} is {{ $value }} blocks behind the leading node"
           runbook: docs/operations/incident.md#one-ingest-path-down
 
       - alert: BlehIntegrityMismatch
-        # The two ingest paths disagree on a (block, event_index).
-        expr: increase(bleh_dedupe_mismatch_total[5m]) > 0
+        # The two nodes' copies of a block differ (reader merge).
+        expr: increase(hl_merge_mismatches_total[5m]) > 0
         labels: {severity: page}
         annotations:
-          summary: "Integrity mismatch between ingest paths on stream {{ $labels.stream }}"
+          summary: "Integrity mismatch between the two nodes on {{ $labels.site }}"
           runbook: docs/operations/incident.md#node-divergence
 
+      - alert: BlehOneSidedGap
+        # One node lacked blocks the other delivered; output is complete.
+        expr: increase(hl_merge_one_sided_gap_blocks_total[10m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Node {{ $labels.missing }} on {{ $labels.site }} is missing blocks the other node had"
+          runbook: docs/operations/incident.md#one-ingest-path-down
+
+      - alert: BlehIncompleteBlocks
+        # Blocks released without every stream (a stream stalled).
+        expr: increase(hl_reader_incomplete_blocks_total[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }} released blocks without every stream"
+          runbook: docs/operations/incident.md#gaps-and-resnapshots
+
+      - alert: BlehReaderCheckpointErrors
+        expr: increase(hl_checkpoint_writes_total{result="error"}[15m]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Reader on {{ $labels.site }} cannot write its checkpoint"
+          runbook: docs/operations/incident.md#both-ingest-paths-down
+
       - alert: BlehSeqGaps
-        expr: sum by (path) (bleh:reader_seq_gaps:rate10m) * 600 > 3
+        expr: bleh:reader_seq_gaps:rate10m * 600 > 3
         for: 10m
         labels: {severity: ticket}
         annotations:
-          summary: "Path {{ $labels.path }}: more than 3 sequence gaps per 10 minutes"
+          summary: "Reader on {{ $labels.site }}: more than 3 gaps per 10 minutes"
           runbook: docs/operations/incident.md#gaps-and-resnapshots
 
       - alert: BlehResnapshotRateHigh
@@ -87,25 +110,26 @@ groups:
         expr: increase(bleh_book_reconcile_mismatch_total[15m]) > 0
         labels: {severity: ticket}
         annotations:
-          summary: "Book reconciliation against the node L4 snapshot failed on path {{ $labels.path }}"
+          summary: "Book reconciliation against the node L4 snapshot failed on {{ $labels.site }}"
           runbook: docs/operations/incident.md#gaps-and-resnapshots
 
-      - alert: BlehSnapshotRequestsFailing
-        expr: increase(bleh_reader_snapshot_failures_total[30m]) > 2
+      - alert: BlehRegistryRefreshFailing
+        # Node metadata (info server) unreachable: new markets cannot register.
+        expr: increase(hl_registry_refreshes_total{result="error"}[30m]) > 2
         labels: {severity: ticket}
         annotations:
-          summary: "fileSnapshot requests to the node info server are failing on path {{ $labels.path }}"
+          summary: "Reader on {{ $labels.site }} cannot refresh market metadata from the info server"
           runbook: docs/operations/node.md#info-server
 
   - name: bleh-schema-drift
     rules:
       - alert: BlehSchemaDriftLive
-        # The reader saw an unknown field or shape and stopped that kind
-        # (hl-visor upgrades hl-node without notice).
-        expr: increase(bleh_reader_schema_unknown_total[10m]) > 0 or bleh_reader_stream_halted == 1
+        # Lines the reader cannot parse, or blocks it rejects, usually mean
+        # the node's output changed (hl-visor upgrades hl-node without notice).
+        expr: increase(hl_reader_parse_errors_total[10m]) > 0 or increase(hl_reader_rejected_blocks_total[10m]) > 0
         labels: {severity: page}
         annotations:
-          summary: "Schema drift on path {{ $labels.path }}, stream {{ $labels.stream }}"
+          summary: "Reader on {{ $labels.site }} rejects node output: possible schema drift"
           runbook: docs/operations/upgrades.md#schema-drift
 
       - alert: BlehSchemaDriftCheckFailed
@@ -319,11 +343,25 @@ groups:
 
       - alert: BlehSwapPollStale
         # Part 43 repositories keep only a year online; capture is
-        # time-critical.
-        expr: time() - bleh_swap_poll_last_success_timestamp_seconds > 1800
+        # time-critical (docs/operations/swap-pollers.md).
+        expr: time() - swap_last_successful_poll_timestamp_seconds > 600
         labels: {severity: ticket}
         annotations:
-          summary: "Swap poller {{ $labels.source }} has not succeeded for 30 minutes"
+          summary: "Swap poller listing {{ $labels.listing }} has not succeeded for 10 minutes"
+          runbook: docs/operations/incident.md#swap-pollers-stalled
+
+      - alert: BlehSwapRawPersistErrors
+        expr: increase(swap_raw_persist_errors_total[15m]) > 0
+        labels: {severity: page}
+        annotations:
+          summary: "Swap poller cannot persist raw files ({{ $labels.store }})"
+          runbook: docs/operations/incident.md#swap-pollers-stalled
+
+      - alert: BlehSwapUnknownColumns
+        expr: increase(swap_unknown_columns_total[1h]) > 0
+        labels: {severity: ticket}
+        annotations:
+          summary: "Swap dissemination layout changed: unknown column {{ $labels.column }} in {{ $labels.bucket }}"
           runbook: docs/operations/incident.md#swap-pollers-stalled
 
       - alert: BlehHistoryApiDown

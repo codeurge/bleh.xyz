@@ -26,6 +26,8 @@
 #   BLEH_RAW_DIR [/srv/bleh/raw]  RETAIN_HOURS [24]  OTHER_RETAIN_HOURS [24]
 #   ABCI_KEEP [3]  LOG_RETAIN_DAYS [7]  SNAPSHOT_RETAIN_HOURS [6]
 #   EMERGENCY_FREE_PCT [5]  DRY_RUN [0]
+#   CAPTURE_REQUIRED [1]: 0 prunes stream files by age alone, for hosts
+#   that run before archive capture exists (their hours are not archived)
 #   TEXTFILE_DIR [/var/lib/node_exporter/textfile]
 set -uo pipefail
 
@@ -38,6 +40,7 @@ abci_keep=${ABCI_KEEP:-3}
 log_days=${LOG_RETAIN_DAYS:-7}
 snap_h=${SNAPSHOT_RETAIN_HOURS:-6}
 emergency_pct=${EMERGENCY_FREE_PCT:-5}
+capture_required=${CAPTURE_REQUIRED:-1}
 dry=${DRY_RUN:-0}
 textfile_dir=${TEXTFILE_DIR:-/var/lib/node_exporter/textfile}
 
@@ -100,7 +103,7 @@ if [[ -d "$data" ]]; then
     case "$stream" in
       node_fills*|node_order_statuses*|node_raw_book_diffs*)
         if ((age_h >= retain_h)); then
-          if ((end <= watermark)); then remove "$f"; else held=$((held + 1)); fi
+          if ((end <= watermark)) || [[ "$capture_required" == 0 ]]; then remove "$f"; else held=$((held + 1)); fi
         fi
         ;;
       *)

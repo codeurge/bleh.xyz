@@ -27,10 +27,13 @@ detect them:
 
 A new `hl-node` can add, rename or reshape fields. Two independent checks:
 
-1. **Live, in the reader.** The reader rejects unknown fields or shapes at
-   parse time, stops that record kind (never guesses), increments
-   `bleh_reader_schema_unknown_total` and sets `bleh_reader_stream_halted`.
-   Alert: `BlehSchemaDriftLive` (page).
+1. **Live, in the reader.** Lines the reader cannot parse and blocks it
+   rejects are counted (`hl_reader_parse_errors_total`,
+   `hl_reader_rejected_blocks_total`; see
+   [node-reader.md](node-reader.md)), and affected blocks are released
+   with gap flags rather than guessed. Alert: `BlehSchemaDriftLive` (page).
+   A field the reader does not know but can ignore does not show here,
+   which is why the scheduled check exists.
 2. **Scheduled, outside the reader.** `bleh-schema-drift.timer` runs
    `schema-drift-check.sh`, which samples the newest lines of each stream,
    reduces them to key paths and compares them with the key paths of the
