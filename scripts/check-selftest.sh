@@ -130,7 +130,8 @@ put fixtures/admitted/x/ADMISSION "covered by the trades admission"
 expect_fail "ADMISSION without an ADM id" "does not name an admission record"
 
 put fixtures/admitted/x/a.csv "1"
-put fixtures/admitted/x/ADMISSION "ADM-0002"
+put docs/admissions/ADM-9998-selftest.md "- Status: Requested"
+put fixtures/admitted/x/ADMISSION "ADM-9998"
 expect_fail "ADMISSION naming a non-admitted record" "is not Admitted"
 
 put fixtures/admitted/x/a.csv "1"
