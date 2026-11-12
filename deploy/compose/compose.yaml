@@ -389,7 +389,7 @@ services:
       GATEWAY_LISTEN: 0.0.0.0:8080
       # Origins in preference order. Relays verify every commitment
       # signature against BLEH_SIGNERS before re-serving.
-      GATEWAY_UPSTREAMS: ${RELAY_UPSTREAMS:-wss://origin.bleh.xyz/v0/ws}
+      GATEWAY_UPSTREAMS: ${RELAY_UPSTREAMS:-wss://origin-a.bleh.xyz/v0/ws}
       GATEWAY_UPSTREAM_HEADERS_FILE: /run/secrets/upstream_headers
       BLEH_SIGNERS: ${BLEH_SIGNERS:-}
       GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12

@@ -20,7 +20,7 @@ ingress:
   # The gateway, for relays only (Access: service token). Relays fan out to
   # users, so the origin's upload is a few relay connections, not every
   # client.
-  - hostname: origin.bleh.xyz
+  - hostname: origin-a.bleh.xyz
     service: http://gateway:8080
     originRequest:
       connectTimeout: 10s

@@ -1,0 +1,178 @@
+# Proposed workflow (the integrator moves it to .github/workflows/deploy.yml).
+#
+# - On every push to main: build every service image from the commit, push
+#   to GHCR tagged with the full commit SHA, attach SBOM and provenance, and
+#   sign with cosign (keyless, GitHub OIDC). Relay images (gateway,
+#   history-api) are multi-arch because the default relays are arm64.
+# - Manual promote: "Run workflow" with a commit SHA and an environment.
+#   The staging and production GitHub environments carry protection rules
+#   (required reviewers; production only from main). Promotion verifies the
+#   signatures, moves the environment tag to those digests and, if the
+#   environment lists hosts, updates each over SSH to that exact SHA.
+#   Rollback is the same action with an earlier SHA.
+#
+# Environment configuration (Settings > Environments > staging|production):
+#   vars.DEPLOY_HOSTS      space-separated "profile@user@host" entries, for
+#                          example "node-box@ops@198.51.100.10 relay@ops@203.0.113.5"
+#                          (the home-archive server is behind NAT and pulls
+#                          the same SHA by hand: docs/operations/deploy.md)
+#   secrets.DEPLOY_SSH_KEY private key of a deploy-only SSH user
+#   secrets.DEPLOY_KNOWN_HOSTS  pinned host keys for those hosts
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit SHA to promote (built by a previous run)
+        required: true
+        type: string
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.event_name }}-${{ inputs.environment || 'build' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository }}
+
+jobs:
+  build:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: hl-node-reader, platforms: linux/amd64, file: deploy/docker/Dockerfile}
+          - {target: gateway, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
+          - {target: archive, platforms: linux/amd64, file: deploy/docker/Dockerfile}
+          - {target: history-api, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
+          - {target: swap-pollers, platforms: linux/amd64, file: deploy/docker/Dockerfile}
+          - {target: hl-backfill, platforms: linux/amd64, file: deploy/docker/Dockerfile}
+          - {target: tools, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
+          - {target: hl-node, platforms: linux/amd64, file: deploy/docker/hl-node/Dockerfile}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Commit time for reproducible timestamps
+        id: meta
+        run: echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target != 'hl-node' && matrix.target || '' }}
+          platforms: ${{ matrix.platforms }}
+          build-args: |
+            SOURCE_DATE_EPOCH=${{ steps.meta.outputs.epoch }}
+            VCS_REF=${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ matrix.target }}:${{ github.sha }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          outputs: type=image,push=true,rewrite-timestamp=true
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,scope=${{ matrix.target }},mode=max
+
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      - name: Sign
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE: ${{ env.REGISTRY }}/${{ matrix.target }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  promote:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      SHA: ${{ inputs.sha }}
+      ENVIRONMENT: ${{ inputs.environment }}
+    steps:
+      - name: Check the SHA
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "sha must be a full commit SHA"; exit 1; }
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Production promotes only commits on main
+        if: inputs.environment == 'production'
+        run: git merge-base --is-ancestor "$SHA" origin/main
+
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify signatures and move the environment tag
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          for t in hl-node-reader gateway archive history-api swap-pollers hl-backfill tools hl-node; do
+            image="${REGISTRY}/${t}"
+            cosign verify "${image}:${SHA}" \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity "https://github.com/${REPO}/.github/workflows/deploy.yml@refs/heads/main" \
+              >/dev/null
+            docker buildx imagetools create --tag "${image}:${ENVIRONMENT}" "${image}:${SHA}"
+            echo "${t}: ${ENVIRONMENT} -> ${SHA}"
+          done
+
+      - name: Update hosts over SSH
+        if: vars.DEPLOY_HOSTS != ''
+        env:
+          DEPLOY_HOSTS: ${{ vars.DEPLOY_HOSTS }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # One origin or relay at a time; stop at the first failure.
+          for entry in $DEPLOY_HOSTS; do
+            profile=${entry%%@*}
+            target=${entry#*@}
+            echo "::group::${profile} on ${target#*@}"
+            ssh -i ~/.ssh/id_deploy -o BatchMode=yes "$target" \
+              "sudo /opt/bleh/src/deploy/scripts/update-host.sh '$profile' '$SHA' '$REGISTRY'"
+            echo "::endgroup::"
+          done

@@ -117,7 +117,7 @@ if uses synthetic; then
 fi
 if uses node-box; then
   need_secret signing-key.hex "block-signing key for this ingest path"
-  need_secret tunnel-token.txt "Cloudflare Tunnel token for origin.bleh.xyz"
+  need_secret tunnel-token.txt "Cloudflare Tunnel token for origin-a.bleh.xyz"
   [[ -n "$(get_env HL_DATA_DIR)" ]] || note "HL_DATA_DIR is empty: node data goes to a Docker volume, not /srv/hl (run deploy/scripts/host-bootstrap.sh)"
   [[ "$(get_env S3_ENDPOINT)" != http://minio:9000 ]] || die "set S3_ENDPOINT and R2 credentials in $env_file for node-box"
 fi
