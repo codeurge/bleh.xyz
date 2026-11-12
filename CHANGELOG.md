@@ -37,6 +37,8 @@ versions (see [AGENTS.md](AGENTS.md)).
 - Brand system: guidelines, marketing site and manifesto (`brand/site/`), a
   30-second film in landscape and vertical plus a logo sting
   (`brand/video/`), and a social kit with launch copy (`brand/social/`).
+- ADR 0010: budget-first hosting, about $150 a month (one rented node box,
+  a self-hosted archive, seed and processing server, free relays, R2).
 
 ### Changed
 

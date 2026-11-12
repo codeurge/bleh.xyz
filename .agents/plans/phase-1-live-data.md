@@ -116,19 +116,20 @@ Node facts to plan around (verify at provisioning):
    - Owner: Repository owner
    - Dependencies: None (vendor figures first; refine with node-runbook)
    - PR: Not opened
-   - Next action: Estimate two nodes, unfiltered raw (kept as long as
-     storage allows), filtered raw, partitions, backfill transfer and
-     download egress. Choose zero-egress storage or a CDN for bulk access.
-     Set the budget and a retention bound per tier.
+   - Next action: The infrastructure lane writes `docs/operations/costs.md`
+     and `docs/operations/hosting.md` for the budget-first tiers in
+     ADR 0010. Refine with measured node disk growth once the node runs.
 
 3. **hosting-and-node-provisioning**
    - Status: Ready
    - Owner: Repository owner
    - Dependencies: cost-and-retention-model
    - PR: Not opened
-   - Next action: Pick two providers that meet the node minimums with NVMe,
-     primary close to Hyperliquid peers (Tokyo; verify by measuring), and
-     zero-egress object storage. Write `docs/operations/node.md`.
+   - Next action: Launch per ADR 0010: rent one dedicated node box (16+
+     modern cores, 128 GB RAM, NVMe; provider's policy must allow blockchain
+     nodes) and set up the owner's home server as the archive, seed and
+     processing node behind a Cloudflare Tunnel; free relays in front. Write
+     `docs/operations/node.md`. Second origin and Tokyo follow usage.
 
 4. **infrastructure-as-code**
    - Status: Ready
