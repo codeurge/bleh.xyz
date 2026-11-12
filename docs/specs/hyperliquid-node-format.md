@@ -3,8 +3,9 @@
 - Status: Draft. Facts marked **to verify** must be checked against a
   running node before the node reader merges.
 - Covers: the files a non-validating Hyperliquid node writes, which of them
-  the mesh reads, and how the node reader maps them to
-  [observation-v0](observation-v0.md) records.
+  the mesh reads, how the node reader maps them to
+  [observation-v0](observation-v0.md) records, and the filtered-raw form
+  that is published (§ 12).
 
 ## 0. Sources and clean-room note
 
@@ -133,17 +134,24 @@ is **excluded**.
    each pair's first fill.
 4. **Liquidations.** A fill with `liquidation.method = market` came from a
    liquidation order that matched the book: keep the trade, drop the
-   `liquidation` object. A pair with `method = backstop` is a transfer to
-   the liquidator at the mark price, not a book trade: drop the pair.
+   `liquidation` object. A group with a `method = backstop` fill is a
+   transfer to the liquidator at the mark price, not a book trade: drop the
+   group. A group with any other `method` is dropped too, never guessed.
 5. **No taker.** A pair with no `crossed = true` fill (backstop
    liquidations, and settlement fills when a HIP-3 market is halted and
    settled) is not an order-book trade: drop it and count it in metrics.
    **To verify:** how halt-settlement fills are marked on a live node; the
    fixtures model them as a no-taker pair with `dir = "Settlement"`, and the
    rule above does not depend on `dir`.
-6. A pair with two `crossed = true` fills, or a single unmatched fill, is
-   an error: mark the instrument's stream with `gap_before` at the next
-   record and alert.
+6. A malformed group is an error: a single unmatched fill, more than two
+   fills, two `crossed = true` fills, or two fills on the same side. Emit
+   no trade for it, set `gap_before` on the instrument's next trade (in
+   this block or a later one) and alert.
+
+Checks apply in this order: liquidation method (step 4), then the number
+of fills (one, or more than two, is malformed), then no taker (step 5),
+then two takers, then same side. Fills of spot markets are dropped
+whatever their group (§ 8).
 
 ## 5. Order statuses
 
@@ -186,13 +194,41 @@ Each event: `{user, oid, coin, side, px, raw_book_diff}`. `user` is
 One `book_event` per diff, in file order; `event_index` counts book events
 of that instrument in the block; `ts_source_ms` is `block_time`.
 
-| Diff | Same block has | `action` |
+An order can have several diffs in one block (a partial fill, then a
+modify or a cancel), so a diff is classified as a fill only when a fill
+accounts for it. Per order (`coin`, `oid`), the block's **pending maker
+fills** are the sizes of the trades of § 4.1 in which that order was the
+resting side (`crossed = false`), in fill order. A diff that matches a
+pending maker fill consumes it.
+
+Before classifying, if the order's last diff in the block is `remove` and
+the block has an order status `filled` for it, the last pending maker fill
+is reserved for that `remove`: it is taken out of the queue, and the
+`remove` still classifies as a fill through the status. A modify earlier
+in the block with the same size change is then not mistaken for that
+fill.
+
+Then each diff, in file order:
+
+| Diff | Condition | `action` |
 |---|---|---|
-| `new` | | `add {size}` |
-| `update` | a fill with this `oid` | `fill {orig_size: a, new_size: b}` |
-| `update` | no fill with this `oid` | `modify {orig_size: a, new_size: b}` |
-| `remove` | a fill with this `oid`, or status `filled` | `fill {new_size: 0}` |
+| `new {sz}` | | `add {size}` |
+| `update {a, b}`, `b < a` | the next pending maker fill has size `a - b` (consumed) | `fill {orig_size: a, new_size: b}` |
+| `update {a, 0}`, `a > 0` | otherwise | `cancel` |
+| `update {a, b}` | otherwise | `modify {orig_size: a, new_size: b}` |
+| `remove` | a maker fill is pending (the next one is consumed) | `fill {new_size: 0}` |
+| `remove` | status `filled` in the block | `fill {new_size: 0}` |
 | `remove` | otherwise | `cancel` |
+
+This replaces the simpler rule "a fill with this `oid` in the block makes
+the diff a fill", which misclassifies a modify or cancel next to a partial
+fill of the same order. One case stays ambiguous: a modify and a later
+partial fill of the same order in the same block with equal size changes.
+The earlier diff takes the fill, so the two actions come out swapped;
+sizes stay correct.
+
+Without the order-status line, no status is `filled`; without the fills
+line, the block yields no records at all (§ 9).
 
 **To verify:** how user modifies appear (in-place `update`, or `remove`
 plus `new` with a new `oid`). The mapping above handles both. The fixtures
@@ -235,36 +271,46 @@ this parsing.
 
 ### 7.4 Mapping
 
-Drop trigger orders (they are not resting), drop `user`, and emit one
-`book_snapshot` (L4) per coin with `seq = end_of_block(H)`,
-`ts_order_ms = timestamp`. The book builder compares its own book after
+Drop trigger orders (they are not resting), drop `user`, skip spot coins
+(§ 8) and unregistered coins, and emit one `book_snapshot` (L4) per
+remaining coin with `seq = end_of_block(H)`, `ts_order_ms = timestamp`. The book builder compares its own book after
 block `H` with the snapshot and resyncs on mismatch.
 
 ## 8. Markets
 
-The reader builds the instrument registry from node metadata at start-up
-and whenever an unknown `coin` appears. There is no hard-coded market list.
+The reader builds the instrument registry from node metadata at start-up,
+whenever an admitted `coin` that is not registered appears, and
+periodically. There is no hard-coded market list. The market class is
+read from the `coin` syntax alone.
 
 | Market | `coin` in node files | Metadata | Mesh ID |
 |---|---|---|---|
 | Core perpetual | name, e.g. `BTC` | `meta` | `hyperliquid:perp:BTC` |
 | HIP-3 deployer perpetual | `{dex}:{coin}`, e.g. `xyz:CL` | `perpDexs`, `meta` with `dex` | `hyperliquid:perp:xyz:CL` |
-| Spot | `@{index}` or a pair name such as `PURR/USDC` | `spotMeta` | `hyperliquid:spot:@107`, `hyperliquid:spot:PURR-USDC` |
 | HIP-4 outcome | `#{10 * outcome + side}`, e.g. `#10` | `outcomeMeta` | `hyperliquid:outcome:#10` |
+| Spot | `@{index}`, or a pair name containing `/` such as `PURR/USDC` | not read | none: **not ingested** |
+
+**Spot is outside ADM-0001.** The admission covers core perpetuals, HIP-3
+deployer perpetuals and HIP-4 outcome markets only. Spot markets are not
+registered, and every event with a spot `coin` (fills, order statuses,
+raw book diffs, L4 snapshot books) is dropped by the reader (stream events
+are counted in metrics, never as unknown coins) and by the filter (§ 12).
 
 - Scales: size scale `szDecimals`; price scale `6 - szDecimals` for
-  perpetuals and `8 - szDecimals` for spot (prices have at most 5
-  significant figures and at most that many decimals; integer prices are
-  always allowed). **To verify:** whether HIP-3 markets follow the perp
-  rule, and the outcome-market rule (prices lie between 0 and 1; the
-  fixtures assume scale 4).
+  perpetuals (prices have at most 5 significant figures and at most that
+  many decimals; integer prices are always allowed). **To verify:**
+  whether HIP-3 markets follow the perp rule, and the outcome-market rule
+  (prices lie between 0 and 1; the fixtures assume scale 4, and size
+  decimals 0 when metadata gives none).
 - HIP-4 Yes and No books for one outcome are merged (buying Yes at `p`
   equals selling No at `1 - p`). **To verify:** which coin the node
-  reports fills and diffs under for a merged book.
-- HIP-3 markets get `oracle_anchored_venue` where the deployer's oracle
-  drives funding or price bands (decided per market in the registry).
-- Spot: `@{index}` coin names come from the node files and spot metadata,
-  not from the asset-ID page. **To verify** on a node.
+  reports fills and diffs under for a merged book. Until then both coins
+  of an outcome (`#{10n}` and `#{10n+1}`) are registered.
+- HIP-3 markets get `oracle_anchored_venue` by default, because the
+  deployer's oracle drives the mark price and funding; the registry can
+  override flags per market.
+- Spot coins are recognized by syntax (`@` prefix or `/`) so they can be
+  dropped. **To verify** on a node that no admitted coin uses either form.
 
 ## 9. Gaps and ordering
 
@@ -276,7 +322,10 @@ and whenever an unknown `coin` appears. There is no hard-coded market list.
 - The three streams are separate files written by one process. The reader
   joins them per block: it waits until all three have the block (or a
   later one) before emitting that block's records, so fill-based
-  classification (§ 6.1) is complete.
+  classification (§ 6.1) is complete. A block released without one of its
+  lines is incomplete: the first record of every known stream from that
+  block on carries `gap_before`. Without the fills line the block yields
+  no records, without the diffs line no book events.
 - Never infer order between fills and diffs within a block (see
   observation-v0 § 3).
 
@@ -300,4 +349,54 @@ update this spec, the generator and the reader together.
 7. How halt-settlement fills are marked.
 8. L4 snapshot top-level shape with `includeHeightInOutput`.
 9. Price-scale rule for HIP-3 and outcome markets; coin used for merged
-   HIP-4 books; `@index` spot coin names.
+   HIP-4 books; spot coin syntax (`@index`, `A/B`).
+
+## 12. Filtered raw
+
+Filtered raw is node output with everything ADM-0001 excludes removed: the
+public reproducibility root from which normalized records are rebuilt
+([archive-layout-v0](archive-layout-v0.md) § 2). It is defined line by
+line, so it can be produced while tailing.
+
+**Directories.** Lines of the three read streams (§ 2) are filtered.
+Lines of every other directory are dropped, as are blank lines. A filtered
+file keeps its node path (`<stream>/hourly/{date}/{hour}`) unless the
+archive layout renames it.
+
+**Lines.** One filtered line per raw line, in the same `--batch-by-block`
+format (§ 3) with `block_number`, `block_time` and `local_time` unchanged
+and the remaining events in their original order. A line of the three
+streams is never dropped, even when no events remain, so block continuity
+and gap detection (§ 9) survive filtering.
+
+**Events and fields.** Events of spot markets (§ 8) are removed from every
+stream. Otherwise:
+
+| Stream | Events kept | Fields kept |
+|---|---|---|
+| Fills | Fills of book trades and of malformed groups (§ 4.1). Dropped groups (backstop and unknown liquidation methods, no-taker pairs such as halt settlements) are removed whole | The bare fill object `{coin, crossed, oid, px, side, sz, tid, time}` instead of `[user, fill]`; `liquidation` is removed from kept `market` liquidation fills |
+| Order statuses | All | `{order, status, time}`, with `order` reduced to `{coin, limitPx, oid, origSz, side, sz, timestamp}` (`origSz` only when the raw order has it) |
+| Raw book diffs | All | `{coin, oid, px, raw_book_diff, side}` |
+
+Malformed fill groups keep their admitted fields so that the `gap_before`
+they cause is reproducible from filtered raw.
+
+**Encoding.** Compact JSON with no whitespace. Keys are written in sorted
+order, except inside an `update` diff, where `origSz` precedes `newSz`.
+Strings, including decimal prices and sizes and time texts, are copied
+unchanged.
+
+**Strictness.** A line that does not parse, or that has a field the
+format does not document, fails filtering exactly as it fails parsing; it
+is never passed through.
+
+**L4 snapshots.** A snapshot file (§ 7.3) keeps its envelope
+`{height, snapshot}`. Spot coins are removed, trigger orders are removed,
+and each order is reduced to `{coin, limitPx, oid, origSz, side, sz,
+timestamp}` (no `user`, no order attributes).
+
+**Properties.** The parser accepts both fill forms, so filtered raw parses
+like raw: parsing filtered raw yields exactly the records, including
+`gap_before` flags, that parsing the original raw yields, and filtering
+filtered raw changes nothing. The reader's tests check both over every
+fixture and generated scenario.

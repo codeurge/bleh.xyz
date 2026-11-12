@@ -22,19 +22,14 @@ a separate archive with its own admission ID (for example
 
 ## 2. Filtered raw archive
 
-Node files contain fields ADM-0001 excludes (owner addresses, liquidation
-details, fees), so raw files are never published as written. The capture
-step removes, line by line:
-
-- whole streams other than fills, order statuses and raw book diffs
-  ([hyperliquid-node-format.md](hyperliquid-node-format.md) § 2);
-- every excluded field (`user`, `liquidation`, `hash`, fees, builders,
-  PnL and position fields, `cloid`, `twapId`);
-
-and keeps the block lines, their order, `block_number`, `local_time`,
-`block_time` and every field the reader uses (`coin`, `px`, `sz`, `side`,
-`time`, `crossed`, `tid`, `oid`, `status`, order times, `raw_book_diff`).
-Keys are written in sorted order with no whitespace. The replay tool
+Node files contain fields and events ADM-0001 excludes (owner addresses,
+liquidation details, fees, spot markets, non-book fills), so raw files are
+never published as written. The capture step passes every line through
+the node reader's filter, which defines the filtered-raw format:
+[hyperliquid-node-format.md](hyperliquid-node-format.md) § 12. In short,
+it drops streams other than fills, order statuses and raw book diffs,
+keeps every block line of those three (even with no events left), and
+keeps only admitted events and fields, as compact JSON. The replay tool
 rebuilds normalized partitions from these files alone.
 
 Layout:
