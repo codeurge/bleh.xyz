@@ -1,0 +1,685 @@
+# bleh.xyz stack: one compose file, one profile per host role. Start it with
+# deploy/up.sh <profile>; settings come from deploy/compose/.env, created by
+# up.sh from env.example.conf. Default production layout (ADR 0010):
+#
+#   node-box      rented box (16+ modern cores, 128 GB RAM free for the node,
+#                 NVMe): Hyperliquid non-validating node, reader (book and
+#                 block signer in process), gateway, raw capture to R2, NATS
+#                 side tap. Publishes the gateway to relays through a
+#                 Cloudflare Tunnel; no inbound HTTP ports.
+#   home-archive  self-hosted home or LAN server: archive processing
+#                 (replay, partitions, manifests, anchors), full archive
+#                 mirror, BitTorrent seeder, IPFS pinning, backfill, swap
+#                 pollers, staging history API, monitoring and alerting.
+#                 Publishes through a Cloudflare Tunnel; no inbound ports.
+#   relay         small public VM: gateway in relay mode (re-serves the
+#                 signed stream; clients verify), history API, Caddy.
+#
+# Other profiles:
+#   synthetic     laptop stack, no node: gateway demo mode, reader replaying
+#                 fixtures/synthetic, archive to MinIO, history API, NATS,
+#                 Prometheus, Grafana, Loki, Caddy with TLS on *.localhost.
+#   node-box + home-archive together (deploy/up.sh origin): one self-hosted
+#                 box that qualifies to run the node itself (Tier 0.5 in
+#                 docs/operations/hosting.md).
+#   backfill      one-off hl-backfill jobs (deploy/up.sh <profile> backfill ...).
+#
+# Networking: services share the "bleh" bridge network, except hl-node,
+# hl-node-reader and node-exporter, which use host networking (gossip on TCP
+# 4001-4002; the node's info server listens on localhost:3001 and writes
+# snapshots into a directory the reader reads). Bridge services reach the
+# host as host.docker.internal. Metrics ports are published on
+# BLEH_OVERLAY_IP (the WireGuard address; loopback by default) so the
+# home-archive Prometheus can scrape the other hosts over the overlay.
+
+name: bleh
+
+x-bleh-service: &bleh-service
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs: ["/tmp:size=256m"]
+  networks: [bleh]
+  extra_hosts: ["host.docker.internal:host-gateway"]
+  logging: &logging
+    driver: json-file
+    options: {max-size: "50m", max-file: "5"}
+
+x-s3-env: &s3-env
+  AWS_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  AWS_REGION: ${S3_REGION:-auto}
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-bleh}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+  AWS_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
+  BLEH_PUBLIC_BUCKET: ${BLEH_PUBLIC_BUCKET:-bleh-archive}
+  BLEH_PRIVATE_BUCKET: ${BLEH_PRIVATE_BUCKET:-bleh-raw-private}
+
+services:
+  # ==================================================================
+  # Shared infrastructure
+  # ==================================================================
+  nats:
+    profiles: [synthetic, node-box, home-archive]
+    image: docker.io/library/nats:2.15.3-alpine@sha256:558394a23dd3c36f2d3a64b51865fd09908010e80a542cea5e75c2af543ed62a
+    restart: unless-stopped
+    command: ["-c", "/etc/nats/nats.conf"]
+    environment:
+      NATS_SERVER_NAME: bleh-${BLEH_SITE:-local}
+    volumes:
+      - ./nats/nats.conf:/etc/nats/nats.conf:ro
+      - nats-data:/data
+    ports:
+      # Loopback only: the host-network reader publishes here.
+      - "127.0.0.1:4222:4222"
+    networks: [bleh]
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8222/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+  nats-exporter:
+    profiles: [synthetic, node-box, home-archive]
+    image: docker.io/natsio/prometheus-nats-exporter:0.20.3@sha256:4b8ddc1c86fec360b5cd3d5e1fbc6fb52bdafd5805bba3901cc52926538af255
+    restart: unless-stopped
+    command: ["-varz", "-jsz=all", "-connz", "-port", "7777", "http://nats:8222"]
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:7777:7777"]
+    depends_on: [nats]
+    networks: [bleh]
+    logging: *logging
+
+  node-exporter:
+    profiles: [node-box, home-archive, relay]
+    image: docker.io/prom/node-exporter:v1.12.1-distroless@sha256:8c9bac11973b94b59be88d6e11fee4429aa743c8846cdc75d65b18db33f6a106
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=${BLEH_OVERLAY_IP:-127.0.0.1}:9100
+      - --collector.textfile.directory=/host/var/lib/node_exporter/textfile
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($|/)
+    volumes:
+      - /:/host:ro,rslave
+    logging: *logging
+
+  vector:
+    profiles: [synthetic, node-box, home-archive, relay]
+    image: docker.io/timberio/vector:0.61.0-distroless-libc@sha256:1a3451978644d5cd4b99a0b28c990791e2f7e1efbea4184122f1c59a56448143
+    restart: unless-stopped
+    command: ["--config", "/etc/vector/vector.yaml"]
+    environment:
+      BLEH_SITE: ${BLEH_SITE:-local}
+      BLEH_ROLE: ${BLEH_PROFILE:-synthetic}
+      # home-archive: http://loki:3100; other hosts: http://<home overlay IP>:3100
+      LOKI_URL: ${LOKI_URL:-http://loki:3100}
+    volumes:
+      - ./vector/vector.yaml:/etc/vector/vector.yaml:ro
+      # Read-only access to container logs through the Docker API.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - vector-data:/var/lib/vector
+    networks: [bleh]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    logging: *logging
+
+  # Cloudflare Tunnel: outbound-only publishing. Ingress rules (which
+  # hostname maps to which service) live in the tunnel's remote
+  # configuration (deploy/terraform/modules/cloudflare-tunnel) or, for a
+  # locally managed tunnel, in cloudflared/config.example.yml.
+  cloudflared:
+    profiles: [node-box, home-archive]
+    image: docker.io/cloudflare/cloudflared:2026.10.7@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run", "--token-file", "/run/secrets/tunnel_token"]
+    secrets: [tunnel_token]
+    networks: [bleh]
+    logging: *logging
+
+  # ==================================================================
+  # node-box: Hyperliquid node and the live path
+  # ==================================================================
+  hl-node:
+    profiles: [node-box]
+    image: ${BLEH_REGISTRY:-bleh}/hl-node:${BLEH_TAG:-local}
+    restart: unless-stopped
+    network_mode: host
+    stop_grace_period: 2m
+    environment:
+      HL_CHAIN: ${HL_CHAIN:-Mainnet}
+      HL_ROOT_NODE_IPS: ${HL_ROOT_NODE_IPS:-}
+    volumes:
+      # Node output on the NVMe volume (host-bootstrap.sh: /srv/hl/hl).
+      - ${HL_DATA_DIR:-hl-data}:/home/hluser/hl
+      - ${HL_SNAPSHOT_DIR:-hl-snapshots}:/snapshots
+    ulimits:
+      nofile: {soft: 1048576, hard: 1048576}
+    logging: *logging
+
+  hl-node-reader:
+    # Same hardening as x-bleh-service, spelled out because host networking
+    # excludes the shared network settings.
+    profiles: [node-box]
+    image: ${BLEH_REGISTRY:-bleh}/hl-node-reader:${BLEH_TAG:-local}
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=256m"]
+    logging: *logging
+    network_mode: host
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-a}
+      BLEH_METRICS_ADDR: ${BLEH_OVERLAY_IP:-127.0.0.1}:9101
+      BLEH_NATS_URL: nats://127.0.0.1:4222
+      BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
+      READER_MODE: live
+      READER_PATH_ID: ${READER_PATH_ID:-a}
+      READER_NODE_DATA_DIR: /hl/data
+      READER_INFO_URL: http://127.0.0.1:3001/info
+      READER_SNAPSHOT_DIR: /snapshots
+      # The local gateway connects here; a second origin's gateway connects
+      # over the overlay (Tier 2). The host firewall keeps 7400 off the
+      # public internet.
+      READER_STREAM_LISTEN: 0.0.0.0:7400
+      READER_RAW_DIR: /var/lib/bleh/raw
+    volumes:
+      - ${HL_DATA_DIR:-hl-data}:/hl:ro
+      - ${HL_SNAPSHOT_DIR:-hl-snapshots}:/snapshots:ro
+      - ${BLEH_RAW_DIR:-raw}:/var/lib/bleh/raw
+    secrets: [signing_key]
+    depends_on: [hl-node, nats]
+
+  gateway:
+    <<: *bleh-service
+    profiles: [node-box]
+    image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-a}
+      BLEH_METRICS_ADDR: 0.0.0.0:9102
+      BLEH_NATS_URL: nats://nats:4222
+      GATEWAY_MODE: live
+      GATEWAY_LISTEN: 0.0.0.0:8080
+      # Comma-separated reader streams, deduplicated on (block, event_index).
+      # Tier 2 adds the other origin: tcp://10.77.0.3:7400.
+      GATEWAY_UPSTREAMS: ${GATEWAY_UPSTREAMS:-tcp://host.docker.internal:7400}
+      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
+      GATEWAY_CLIENT_IP_HEADER: CF-Connecting-IP
+    ports:
+      - "${BLEH_OVERLAY_IP:-127.0.0.1}:8080:8080"
+      - "${BLEH_OVERLAY_IP:-127.0.0.1}:9102:9102"
+    depends_on: [hl-node-reader, nats]
+
+  # Raw capture: ships the reader's hourly filtered and unfiltered raw files
+  # to R2 and marks them captured so the pruner may delete node output.
+  archive-capture:
+    <<: *bleh-service
+    profiles: [node-box]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-a}
+      BLEH_METRICS_ADDR: 0.0.0.0:9103
+      ARCHIVE_ROLE: capture
+      ARCHIVE_RAW_DIR: /var/lib/bleh/raw
+      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9103:9103"]
+    volumes:
+      - ${BLEH_RAW_DIR:-raw}:/var/lib/bleh/raw
+      - archive-work:/var/lib/bleh/archive
+
+  # ==================================================================
+  # home-archive: processing, mirror, seeding, monitoring
+  # ==================================================================
+  archive-process:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-home}
+      BLEH_METRICS_ADDR: 0.0.0.0:9103
+      ARCHIVE_ROLE: process
+      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
+      ARCHIVE_MIRROR_DIR: /srv/archive
+      # Torrent creation and IPFS adds (--nocopy from the mirror path).
+      ARCHIVE_IPFS_API: http://ipfs:5001
+      ARCHIVE_TORRENT_WATCH_DIR: /srv/archive/_torrents
+      ARCHIVE_WEB_SEED_BASE: ${ARCHIVE_WEB_SEED_BASE:-https://data.bleh.xyz}
+      BLEH_MANIFEST_KEY_FILE: /run/secrets/manifest_key
+      ARCHIVE_OTS_ENABLED: ${ARCHIVE_OTS_ENABLED:-true}
+      ARCHIVE_L2_RPC_URL: ${ARCHIVE_L2_RPC_URL:-}
+      ARCHIVE_L2_ANCHOR_KEY_FILE: /run/secrets/anchor_key
+    volumes:
+      - ${ARCHIVE_SCRATCH_DIR:-archive-work}:/var/lib/bleh/archive
+      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive
+    secrets: [manifest_key, anchor_key]
+    tmpfs: ["/tmp:size=8g"]
+
+  # Keeps a full copy of the public archive on the local disk array, the
+  # source for seeding and pinning. Runs rclone once an hour.
+  archive-mirror:
+    profiles: [home-archive]
+    image: docker.io/rclone/rclone:1.76.0@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while :; do
+          rclone sync --fast-list --checksum --transfers 8 \
+            ":s3:$${BLEH_PUBLIC_BUCKET}" /srv/archive \
+            && date +%s > /srv/archive/.last-sync
+          sleep 3600
+        done
+    environment:
+      BLEH_PUBLIC_BUCKET: ${BLEH_PUBLIC_BUCKET:-bleh-archive}
+      RCLONE_S3_PROVIDER: Cloudflare
+      RCLONE_S3_ENDPOINT: ${S3_ENDPOINT:-}
+      # A read-only R2 token is enough for the mirror.
+      RCLONE_S3_ACCESS_KEY_ID: ${MIRROR_S3_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID:-}}
+      RCLONE_S3_SECRET_ACCESS_KEY: ${MIRROR_S3_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY:-}}
+    volumes:
+      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive
+    tmpfs: ["/tmp:size=64m", "/config:size=1m"]
+    networks: [bleh]
+    logging: *logging
+
+  # Always-on BitTorrent v2 seeder for the daily torrents (web seeds point
+  # at data.bleh.xyz). Seeds read-only from the mirror.
+  seeder:
+    profiles: [home-archive]
+    image: docker.io/qbittorrentofficial/qbittorrent-nox:5.3.0-2@sha256:43b2d352cf76330a7ca34c7320b9b74227d6f31e662e0e123d0457206b09a7ea
+    restart: unless-stopped
+    environment:
+      QBT_LEGAL_NOTICE: confirm
+      QBT_WEBUI_PORT: "8090"
+      QBT_TORRENTING_PORT: ${SEEDER_PORT:-6881}
+    ports:
+      # Optional port forward on the home router improves reachability;
+      # without it the seeder still serves peers that accept connections.
+      - "${SEEDER_PORT:-6881}:${SEEDER_PORT:-6881}/tcp"
+      - "${SEEDER_PORT:-6881}:${SEEDER_PORT:-6881}/udp"
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - seeder-config:/config
+      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive:ro
+    networks: [bleh]
+    logging: *logging
+
+  # IPFS pinning node (Kubo). Swarm on 4101 so it never collides with the
+  # Hyperliquid gossip ports when node-box and home-archive share a host.
+  ipfs:
+    profiles: [home-archive]
+    image: docker.io/ipfs/kubo:v0.43.1@sha256:b293923d66e490e70ced64df42ea7a6cf7eac2740e3fb29101df18070fa7be48
+    restart: unless-stopped
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "${IPFS_SWARM_PORT:-4101}:4101/tcp"
+      - "${IPFS_SWARM_PORT:-4101}:4101/udp"
+      - "127.0.0.1:5001:5001"
+    volumes:
+      - ./ipfs/init.sh:/container-init.d/010-bleh.sh:ro
+      - ipfs-data:/data/ipfs
+      - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive:ro
+    networks: [bleh]
+    logging: *logging
+
+  swap-pollers:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/swap-pollers:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-home}
+      BLEH_METRICS_ADDR: 0.0.0.0:9105
+      BLEH_NATS_URL: nats://nats:4222
+      SWAP_SOURCES: ${SWAP_SOURCES:-cftc-dtcc,cftc-ice,sbsr-dtcc,sbsr-ice}
+      SWAP_RAW_DIR: /var/lib/bleh/raw
+      SWAP_USER_AGENT: ${SWAP_USER_AGENT:-bleh.xyz swap-pollers}
+    volumes:
+      - swap-raw:/var/lib/bleh/raw
+    depends_on: [nats]
+
+  # ==================================================================
+  # History API: staging on home-archive, public on relays
+  # ==================================================================
+  history-api:
+    <<: *bleh-service
+    profiles: [synthetic, home-archive, relay]
+    image: ${BLEH_REGISTRY:-bleh}/history-api:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-local}
+      BLEH_METRICS_ADDR: 0.0.0.0:9104
+      HISTORY_LISTEN: 0.0.0.0:8081
+      HISTORY_DATA_URL: ${HISTORY_DATA_URL:-s3://bleh-archive}
+      HISTORY_QUERY_TIMEOUT: ${HISTORY_QUERY_TIMEOUT:-10s}
+      HISTORY_MEMORY_LIMIT: ${HISTORY_MEMORY_LIMIT:-2GiB}
+      HISTORY_TRUSTED_PROXIES: 172.16.0.0/12
+      HISTORY_CLIENT_IP_HEADER: X-Real-IP
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9104:9104"]
+    tmpfs: ["/tmp:size=2g"]
+
+  # ==================================================================
+  # relay: public fan-out
+  # ==================================================================
+  relay:
+    <<: *bleh-service
+    profiles: [relay]
+    image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: ${BLEH_SITE:-relay}
+      BLEH_METRICS_ADDR: 0.0.0.0:9102
+      GATEWAY_MODE: relay
+      GATEWAY_LISTEN: 0.0.0.0:8080
+      # Origins in preference order. Relays verify every commitment
+      # signature against BLEH_SIGNERS before re-serving.
+      GATEWAY_UPSTREAMS: ${RELAY_UPSTREAMS:-wss://origin.bleh.xyz/v0/ws}
+      GATEWAY_UPSTREAM_HEADERS_FILE: /run/secrets/upstream_headers
+      BLEH_SIGNERS: ${BLEH_SIGNERS:-}
+      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
+      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9102:9102"]
+    secrets: [upstream_headers]
+
+  # ==================================================================
+  # Edge (synthetic and relay) and monitoring (synthetic, home-archive)
+  # ==================================================================
+  caddy:
+    profiles: [synthetic, relay]
+    image: docker.io/library/caddy:2.11.9-alpine@sha256:0bbb055bda6793c999bde78b1b5ce3e89f829fb031af2cf50056ea1246559fee
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - "${CADDY_HTTP_PORT:-8080}:80"
+      - "${CADDY_HTTPS_PORT:-8443}:443"
+      - "${CADDY_HTTPS_PORT:-8443}:443/udp"
+    environment:
+      BLEH_MODE: ${BLEH_PROFILE:-synthetic}
+      BLEH_DOMAIN: ${BLEH_DOMAIN:-localhost}
+      CADDY_TLS: ${CADDY_TLS:-internal}
+      CADDY_TRUSTED_PROXIES: ${CADDY_TRUSTED_PROXIES:-private_ranges}
+      RELAY_HOST: ${RELAY_HOST:-relay.localhost}
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - ${CADDY_ORIGIN_CERT_DIR:-./secrets/origin-ca}:/etc/caddy-origin:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile.conf", "--adapter", "caddyfile"]
+    networks: [bleh]
+    logging: *logging
+
+  prometheus:
+    profiles: [synthetic, home-archive]
+    image: docker.io/prom/prometheus:v3.16.0-distroless@sha256:e8b8fb0e336fe0affce6f9ea347b11d24975465fd3ba8119420186679c3efd5f
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-90d}
+      - --web.enable-lifecycle
+    volumes:
+      - ${PROMETHEUS_CONFIG:-./prometheus/prometheus-synthetic.yml}:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [bleh]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    logging: *logging
+
+  alertmanager:
+    profiles: [synthetic, home-archive]
+    image: docker.io/prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ../observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./secrets/alertmanager:/etc/alertmanager/secrets:ro
+      - alertmanager-data:/alertmanager
+    ports: ["127.0.0.1:9093:9093"]
+    networks: [bleh]
+    logging: *logging
+
+  blackbox:
+    profiles: [synthetic, home-archive]
+    image: docker.io/prom/blackbox-exporter:v0.29.1-distroless@sha256:4d6d2d50ecabf3a0b10e8f6f5c4b14fc0c2326dcc2f7fe161668de722d5bf61e
+    restart: unless-stopped
+    command: ["--config.file=/etc/blackbox/blackbox.yml"]
+    volumes:
+      - ../observability/blackbox/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    networks: [bleh]
+    logging: *logging
+
+  loki:
+    profiles: [synthetic, home-archive]
+    image: docker.io/grafana/loki:3.6.20@sha256:be040ec94865dabe4821ce1c0f109452bd4b5acb566ae376672696eb43caedb7
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ../observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:3100:3100"]
+    networks: [bleh]
+    logging: *logging
+
+  grafana:
+    profiles: [synthetic, home-archive]
+    image: docker.io/grafana/grafana:13.2.6@sha256:b21409d7951ddcfd63a4b49083e4ef2cc35bc1437d071813bf82bfb238b00bca
+    restart: unless-stopped
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.localhost:8443/}
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    secrets: [grafana_admin_password]
+    ports: ["127.0.0.1:3000:3000"]
+    networks: [bleh]
+    logging: *logging
+
+  # ==================================================================
+  # synthetic: laptop stack
+  # ==================================================================
+  minio:
+    profiles: [synthetic]
+    # MinIO no longer publishes community images on Docker Hub or Quay;
+    # Chainguard's build is pinned by digest. Any S3-compatible server works
+    # (Garage, SeaweedFS): only S3_ENDPOINT changes.
+    image: cgr.dev/chainguard/minio@sha256:db3f583fa49121942168bd6383a773b2cde3384c9a99bf7193560b9a0f3a28fd
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-bleh}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    networks: [bleh]
+    logging: *logging
+
+  minio-init:
+    profiles: [synthetic]
+    image: docker.io/amazon/aws-cli:2.40.1@sha256:4ade0fe3e60e0b9e1fb0910f86c6d992baf4e12d3172c25a3c8c11f6c81cee08
+    depends_on: [minio]
+    restart: "no"
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-bleh}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: us-east-1
+      PUBLIC_BUCKET: ${BLEH_PUBLIC_BUCKET:-bleh-archive}
+      PRIVATE_BUCKET: ${BLEH_PRIVATE_BUCKET:-bleh-raw-private}
+    entrypoint: ["/bin/sh", "/init/minio-init.sh"]
+    volumes:
+      - ./minio/minio-init.sh:/init/minio-init.sh:ro
+    networks: [bleh]
+    logging: *logging
+
+  hl-node-reader-replay:
+    <<: *bleh-service
+    profiles: [synthetic]
+    image: ${BLEH_REGISTRY:-bleh}/hl-node-reader:${BLEH_TAG:-local}
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: local
+      BLEH_METRICS_ADDR: 0.0.0.0:9101
+      BLEH_NATS_URL: nats://nats:4222
+      BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
+      READER_MODE: replay
+      READER_PATH_ID: a
+      READER_REPLAY_DIR: /fixtures/hl/base
+      READER_REPLAY_LOOP: "true"
+      READER_STREAM_LISTEN: 0.0.0.0:7400
+      READER_RAW_DIR: /var/lib/bleh/raw
+    volumes:
+      - ../../fixtures/synthetic:/fixtures:ro
+      - raw:/var/lib/bleh/raw
+    secrets: [signing_key]
+    networks:
+      bleh:
+        aliases: [hl-node-reader]
+    depends_on: [nats]
+
+  gateway-demo:
+    <<: *bleh-service
+    profiles: [synthetic]
+    image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: local
+      BLEH_METRICS_ADDR: 0.0.0.0:9102
+      BLEH_NATS_URL: nats://nats:4222
+      BLEH_SIGNING_KEY_FILE: /run/secrets/signing_key
+      GATEWAY_MODE: demo
+      GATEWAY_LISTEN: 0.0.0.0:8080
+      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
+      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
+    secrets: [signing_key]
+    networks:
+      bleh:
+        aliases: [gateway]
+    depends_on: [nats]
+
+  relay-demo:
+    <<: *bleh-service
+    profiles: [synthetic]
+    image: ${BLEH_REGISTRY:-bleh}/gateway:${BLEH_TAG:-local}
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: local-relay
+      BLEH_METRICS_ADDR: 0.0.0.0:9102
+      GATEWAY_MODE: relay
+      GATEWAY_LISTEN: 0.0.0.0:8080
+      GATEWAY_UPSTREAMS: ws://gateway:8080/v0/ws
+      GATEWAY_TRUSTED_PROXIES: 172.16.0.0/12
+      GATEWAY_CLIENT_IP_HEADER: X-Real-IP
+    networks:
+      bleh:
+        aliases: [relay]
+    depends_on: [gateway-demo]
+
+  archive-demo:
+    <<: *bleh-service
+    profiles: [synthetic]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      AWS_ALLOW_HTTP: "true"
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SITE: local
+      BLEH_METRICS_ADDR: 0.0.0.0:9103
+      ARCHIVE_ROLE: all
+      ARCHIVE_RAW_DIR: /var/lib/bleh/raw
+      ARCHIVE_WORK_DIR: /var/lib/bleh/archive
+      BLEH_MANIFEST_KEY_FILE: /run/secrets/manifest_key
+      ARCHIVE_OTS_ENABLED: "false"
+    volumes:
+      - raw:/var/lib/bleh/raw
+      - archive-work:/var/lib/bleh/archive
+    secrets: [manifest_key]
+    depends_on: [minio-init]
+
+  # ==================================================================
+  # backfill: one-off jobs from Hyperliquid's public buckets (ADM-0003)
+  #   deploy/up.sh home-archive backfill --from 2025-01-01 --to 2025-01-31
+  # ==================================================================
+  hl-backfill:
+    <<: *bleh-service
+    profiles: [backfill]
+    restart: "no"
+    image: ${BLEH_REGISTRY:-bleh}/hl-backfill:${BLEH_TAG:-local}
+    environment:
+      <<: *s3-env
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_METRICS_ADDR: 0.0.0.0:9106
+      BACKFILL_SOURCE_AWS_ACCESS_KEY_ID: ${BACKFILL_SOURCE_AWS_ACCESS_KEY_ID:-}
+      BACKFILL_SOURCE_AWS_SECRET_ACCESS_KEY: ${BACKFILL_SOURCE_AWS_SECRET_ACCESS_KEY:-}
+      BACKFILL_SOURCE_REGION: ${BACKFILL_SOURCE_REGION:-ap-northeast-1}
+      BACKFILL_WORK_DIR: /var/lib/bleh/backfill
+    volumes:
+      - ${BACKFILL_SCRATCH_DIR:-backfill-work}:/var/lib/bleh/backfill
+    tmpfs: ["/tmp:size=4g"]
+
+secrets:
+  signing_key:
+    file: ./secrets/signing-key.hex
+  manifest_key:
+    file: ./secrets/manifest-key.hex
+  anchor_key:
+    file: ./secrets/anchor-key.hex
+  grafana_admin_password:
+    file: ./secrets/grafana-admin-password.txt
+  tunnel_token:
+    file: ./secrets/tunnel-token.txt
+  upstream_headers:
+    file: ./secrets/upstream-headers.txt
+
+networks:
+  bleh:
+    name: bleh
+
+volumes:
+  nats-data:
+  minio-data:
+  raw:
+  swap-raw:
+  archive-work:
+  archive-mirror:
+  backfill-work:
+  seeder-config:
+  ipfs-data:
+  caddy-data:
+  caddy-config:
+  prometheus-data:
+  alertmanager-data:
+  loki-data:
+  vector-data:
+  grafana-data:
+  hl-data:
+  hl-snapshots:

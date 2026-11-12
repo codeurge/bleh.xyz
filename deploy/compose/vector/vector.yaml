@@ -1,0 +1,45 @@
+# Vector for compose hosts: container logs through the Docker API, shipped
+# to Loki (LOKI_URL). Hosts managed by systemd units instead use
+# deploy/observability/vector/vector.yaml, which reads the journal.
+data_dir: /var/lib/vector
+
+sources:
+  containers:
+    type: docker_logs
+    exclude_containers: [bleh-vector]
+
+transforms:
+  shape:
+    type: remap
+    inputs: [containers]
+    source: |
+      .site = get_env_var("BLEH_SITE") ?? "unknown"
+      .role = get_env_var("BLEH_ROLE") ?? "unknown"
+      .unit = .label."com.docker.compose.service" || .container_name || "unknown"
+      parsed, err = parse_json(.message)
+      if err == null && is_object(parsed) {
+        . = merge(., object!(parsed))
+      }
+      .level = downcase(string(.level || "info") ?? "info")
+
+  drop_debug:
+    type: filter
+    inputs: [shape]
+    condition: '!includes(["debug", "trace"], .level)'
+
+sinks:
+  loki:
+    type: loki
+    inputs: [drop_debug]
+    endpoint: "${LOKI_URL}"
+    encoding:
+      codec: json
+    labels:
+      site: "{{ site }}"
+      role: "{{ role }}"
+      unit: "{{ unit }}"
+    out_of_order_action: accept
+    buffer:
+      type: disk
+      max_size: 536870912
+      when_full: drop_newest

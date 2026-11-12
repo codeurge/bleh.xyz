@@ -1,0 +1,70 @@
+# Prometheus for the synthetic (laptop) stack. Same rule files as
+# production; host-level alerts stay silent because there is no
+# node_exporter locally.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    replica: local
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: hl-node-reader
+    static_configs:
+      - targets: ["hl-node-reader:9101"]
+        labels: {site: local, path: a}
+
+  - job_name: gateway
+    static_configs:
+      - targets: ["gateway:9102"]
+        labels: {site: local}
+      - targets: ["relay:9102"]
+        labels: {site: local-relay, mode: relay}
+
+  - job_name: archive
+    static_configs:
+      - targets: ["archive-demo:9103"]
+        labels: {site: local}
+
+  - job_name: history-api
+    static_configs:
+      - targets: ["history-api:9104"]
+        labels: {site: local}
+
+  - job_name: nats
+    static_configs:
+      - targets: ["nats-exporter:7777"]
+        labels: {site: local}
+
+  - job_name: caddy
+    static_configs:
+      - targets: ["caddy:2020"]
+        labels: {site: local}
+
+  - job_name: blackbox-origin
+    metrics_path: /probe
+    params:
+      module: [http_2xx_internal]
+    static_configs:
+      - targets:
+          - http://gateway:8080/health
+          - http://relay:8080/health
+          - http://history-api:8081/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115

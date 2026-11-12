@@ -1,0 +1,39 @@
+# Locally managed Cloudflare Tunnel configuration, an alternative to the
+# remotely managed tunnels that deploy/terraform/modules/cloudflare-tunnel
+# creates (those need only the token in secrets/tunnel-token.txt and ignore
+# this file). Copy to config.yml, run `cloudflared tunnel login` and
+# `cloudflared tunnel create <name>` on a workstation, put the credentials
+# JSON in secrets/, and change the cloudflared service command to
+# `tunnel --config /etc/cloudflared/config.yml run`.
+#
+# Every hostname below must also be protected by a Cloudflare Access
+# application (service token for machine clients, email login for people);
+# a tunnel hostname without an Access policy is public.
+
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /etc/cloudflared/credentials.json
+no-autoupdate: true
+metrics: 0.0.0.0:2000
+
+ingress:
+  # --- node-box -------------------------------------------------------
+  # The gateway, for relays only (Access: service token). Relays fan out to
+  # users, so the origin's upload is a few relay connections, not every
+  # client.
+  - hostname: origin.bleh.xyz
+    service: http://gateway:8080
+    originRequest:
+      connectTimeout: 10s
+      keepAliveTimeout: 2m
+      # Websocket upgrades are passed through by default.
+
+  # --- home-archive ---------------------------------------------------
+  # Staging history API (Access: service token or email login).
+  - hostname: api-staging.bleh.xyz
+    service: http://history-api:8081
+  # Grafana (Access: owner email login only).
+  - hostname: grafana.bleh.xyz
+    service: http://grafana:3000
+
+  # Anything else is refused.
+  - service: http_status:404
