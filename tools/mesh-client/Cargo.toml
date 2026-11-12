@@ -9,7 +9,20 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+ciborium = "0.2.2"
+clap.workspace = true
+futures.workspace = true
 mesh-types.workspace = true
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+serde = { workspace = true, features = ["rc"] }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-native-roots"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [lints]
 workspace = true

@@ -2,11 +2,11 @@
 
 Reference client for the bleh.xyz gateway.
 
-**Status:** skeleton.
+**Status:** implemented and tested.
 
 ## Responsibility
 
-Connects to a gateway, subscribes, keeps a correct local book from snapshot plus deltas, detects gaps and requests re-snapshots, and optionally verifies block commitments and inclusion proofs.
+Connects (rotating across gateway URLs), subscribes, keeps a correct L4 book from snapshot plus deltas, detects gaps and requests re-snapshots, verifies commitment signatures, full-stream roots and sampled inclusion proofs, and prints or records the stream as JSON lines. Runbook: [docs/operations/client.md](../../docs/operations/client.md).
 
 ## Rules
 
