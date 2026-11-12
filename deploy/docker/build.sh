@@ -18,6 +18,8 @@
 #   --platform P      target platform (default linux/amd64; the node binary
 #                     is x86_64 only)
 #   --also-tag TAG    extra tag for every image (for example "local")
+#   --jobs N          parallel compile jobs (default: one per CPU of the
+#                     builder); about 1.5 GiB of memory each
 #
 # The build context is a tar of the commit's files (`git archive`), so
 # target/, .git and anything uncommitted never reach the daemon and the input
@@ -26,7 +28,7 @@
 # image config and layers inside the pinned build container.
 set -euo pipefail
 
-usage() { sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; }
 
 repo_root=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 cd "$repo_root"
@@ -37,6 +39,7 @@ registry=${BLEH_REGISTRY:-bleh}
 push=0
 platform=linux/amd64
 extra_tags=()
+jobs=
 targets=()
 all_targets=(origin hl-node-reader gateway archive history-api swap-pollers reference-pollers hl-backfill mesh-client tools)
 
@@ -48,6 +51,7 @@ while (($#)); do
     --push) push=1; shift ;;
     --platform) platform=${2:?}; shift 2 ;;
     --also-tag) extra_tags+=("${2:?}"); shift 2 ;;
+    --jobs) jobs=${2:?}; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "unknown option $1" >&2; usage >&2; exit 64 ;;
     *) targets+=("$1"); shift ;;
@@ -107,6 +111,7 @@ for t in "${targets[@]}"; do
     "${target_args[@]+"${target_args[@]}"}" \
     --build-arg "SOURCE_DATE_EPOCH=${epoch}" \
     --build-arg "VCS_REF=${sha}" \
+    --build-arg "CARGO_BUILD_JOBS=${jobs}" \
     --label "org.opencontainers.image.revision=${sha}" \
     --provenance=false \
     --output "$output" \
