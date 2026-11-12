@@ -6,7 +6,9 @@ Runbook for `tools/mesh-client` (library and binary). Wire protocol:
 ## Run
 
 Streaming is the default command (also available as `mesh-client stream`
-with the same flags); `probe` and `keys` are subcommands.
+with the same flags); `probe`, `keys` and `byo` are subcommands. `byo`
+(bring your own feed) compares a feed you license yourself with bleh.xyz on
+your machine only: see [byo-feed.md](byo-feed.md).
 
 ```bash
 cargo run -p mesh-client -- \

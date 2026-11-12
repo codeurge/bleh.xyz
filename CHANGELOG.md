@@ -78,6 +78,16 @@ versions (see [AGENTS.md](AGENTS.md)).
 - Deploy: the node box runs the origin image; the deploy workflow lives in
   `.github/workflows/deploy.yml` (manual promote); root `.dockerignore`.
 - ADR 0011: data model and gateway amendments for the integrated origin.
+- Bring your own feed (ADR 0014, proposed): `mesh-client byo merge` merges a
+  feed the user licenses themselves (CSV, JSON lines, DBN files, or the
+  vendor's live client behind the off-by-default `databento-live` feature)
+  with bleh.xyz prices on the user's machine only, through a user-written
+  mapping file, and writes a side-by-side stream, an optional loopback
+  websocket and local tracking statistics (basis, tracking error,
+  lead/lag), every line tagged `user_supplied`. User data cannot reach
+  signing, publishing or the archive; `mesh-client byo check-map` validates
+  a mapping. The admission policy gains "User-supplied data stays local".
+  Guide: `docs/operations/byo-feed.md`.
 
 ### Changed
 

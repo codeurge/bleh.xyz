@@ -59,9 +59,18 @@ futures data, live and historical:
 3. **bring-your-own-feed**
    - Status: In progress
    - Owner: client lane
-   - Dependencies: None
-   - PR: Not opened
-   - Next action: ADR 0014 and the `mesh-client` adapter
+   - Dependencies: None (`synthetic_month` and `exposure` mapping targets
+     activate once task 2 publishes those series)
+   - PR: Not opened (branch `feat/byo-feed`, awaiting owner review)
+   - Done: ADR 0014 (Proposed); admission policy section "User-supplied
+     data stays local"; `mesh_client::byo` and `mesh-client byo merge` /
+     `check-map` with CSV, JSON-lines and DBN-file connectors and the
+     vendor live client behind `databento-live`; boundary enforced by
+     `UserSupplied`, `LocalPath` and `LoopbackAddr` with compile-fail and
+     source-scan tests; synthetic-only tests; user guide
+     `docs/operations/byo-feed.md`
+   - Next action: owner accepts ADR 0014 and merges; then wire the
+     synthetic-month target to the series task 2 publishes
 
 4. **reference-pollers**
    - Status: Ready
