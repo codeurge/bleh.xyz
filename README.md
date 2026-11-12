@@ -1,0 +1,69 @@
+# bleh.xyz — open market-data mesh
+
+> Working name. Status: design. No code yet.
+
+An open-source, freely redistributable source of futures-grade market data
+that never touches exchange-licensed feeds.
+
+Exchange groups control their prices through data contracts. Anyone who
+receives those prices, or data derived from them, inherits the contract. This
+project takes a different route. It collects prices for the **same economic
+exposure** from places where that exposure trades in the open, and combines
+them with published, reproducible methods:
+
+- on-chain order-book venues, read from our own nodes
+- swap trades that US law requires to be published free of charge
+- public-domain cash-market and rates data from US agencies
+
+Arbitrage keeps these prices close to exchange prices. The link is economic,
+not contractual.
+
+## What it aims to provide
+
+- Trade-by-trade tapes with native aggressor side
+- Order-by-order books, for the venues that publish them
+- Bars from 1 second to 1 day, and a permanent, tamper-evident archive
+- Composite prices per exposure (for example "S&P 500 front", "WTI front", "gold")
+- Dated-contract equivalents for perpetual markets, from an open cost-of-carry model
+- An open daily reference close, recomputable by anyone
+- Rate curves, cash-market prices and positioning data
+- An open instrument registry: contract specs, rolls, session calendars
+
+It does **not** aim to provide exchange prices, official settlements, or
+execution-grade marks for positions held at an exchange. See
+[docs/requirements.md](docs/requirements.md).
+
+## Principles
+
+1. **Clean lineage over coverage.** A source joins only if nothing upstream of
+   it carries an exchange data contract. See
+   [docs/admission-policy.md](docs/admission-policy.md).
+2. **Provenance on every record.** Source, venue, license and lineage travel
+   with the data. Node operators sign what they publish.
+3. **Reproducible outputs.** Composites, conversions and settlements use
+   published methods, and anyone can recompute them from the archive.
+4. **Honest labels.** Proxies are called proxies. The basis to the reference
+   market is measured and published, not hidden.
+5. **No single point of control.** Independent nodes, several gateways, and a
+   content-addressed archive.
+
+## Documents
+
+| Document | Contents |
+|---|---|
+| [docs/requirements.md](docs/requirements.md) | What consumers need, and the targets this project sets |
+| [docs/sources.md](docs/sources.md) | The source register: tiers, terms, and what still needs checking |
+| [docs/admission-policy.md](docs/admission-policy.md) | Rules a source must meet to join |
+| [docs/architecture.md](docs/architecture.md) | Data model, nodes, composites, settlement, transport, archive |
+| [docs/coverage.md](docs/coverage.md) | Expected coverage by asset class |
+| [docs/roadmap.md](docs/roadmap.md) | Phases, exit criteria, open questions |
+
+## License
+
+To be decided. The proposal is Apache-2.0 for code and CC0 for data and
+methods, so that downstream users carry no obligations.
+
+## Not legal advice
+
+These documents record engineering research. Every source's terms need review
+by counsel before the project publishes data from it.
