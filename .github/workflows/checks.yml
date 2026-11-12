@@ -12,13 +12,63 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Repository checks
         run: scripts/check.sh
 
-      - name: DCO sign-off
+      - name: Check self-test
+        run: scripts/check-selftest.sh
+
+      - name: DCO sign-off (pull request)
         if: github.event_name == 'pull_request'
-        run: scripts/check.sh --dco "${{ github.event.pull_request.base.sha }}"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: scripts/check.sh --dco "$BASE_SHA"
+
+      # Pushes to main are checked too. A new branch or a rewritten history
+      # falls back to the whole history; the initial commit is exempt in
+      # scripts/check.sh.
+      - name: DCO sign-off (push)
+        if: github.event_name == 'push'
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            scripts/check.sh --dco "$BEFORE_SHA"
+          else
+            scripts/check.sh --dco ROOT
+          fi
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install
+          rustup show active-toolchain
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: cargo deny
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          command: check
