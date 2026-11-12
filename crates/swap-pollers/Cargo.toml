@@ -1,0 +1,15 @@
+[package]
+name = "swap-pollers"
+description = "Pollers for CFTC Part 43 and SEC SBSR public swap dissemination, normalized to SwapPrint records"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+mesh-types.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "hl-backfill"
+description = "Backfill from Hyperliquid's public archive buckets into the private raw tier, filtered raw and partitions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+mesh-types.workspace = true
+
+[lints]
+workspace = true

@@ -45,6 +45,8 @@ record.
 | `crates/archive` | library and binary | archive | Filtered raw capture, partition writer, replay, manifests |
 | `crates/history-api` | library and binary | historical API | HTTP range queries over partitions |
 | `tools/hl-synth` | library and binary | integrator | Synthetic node-format fixture generator |
+| `crates/swap-pollers` | library and binary | swap pollers | CFTC Part 43 and SEC SBSR public dissemination to `SwapPrint` records |
+| `tools/hl-backfill` | library and binary | backfill | Hyperliquid public archive buckets to private raw, filtered raw and partitions |
 | `deploy/` | not a crate | infrastructure | Containers, infrastructure as code |
 
 ### Ownership rules

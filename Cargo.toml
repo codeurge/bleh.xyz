@@ -10,8 +10,10 @@ members = [
     "crates/gateway",
     "crates/archive",
     "crates/history-api",
+    "crates/swap-pollers",
     "tools/hl-synth",
     "tools/mesh-client",
+    "tools/hl-backfill",
 ]
 
 [workspace.package]

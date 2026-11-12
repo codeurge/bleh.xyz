@@ -69,7 +69,7 @@ in_list() {
 #      permitted, JSON only in documentation, CI and test directories, and
 #      every file is capped at 1 MiB. Files in fixtures/ are capped at 5 MiB.
 data_ext=' dbn zst parquet arrow feather ipc csv tsv pcap pcapng h5 hdf5 ndjson jsonl gz bz2 xz zip tar 7z rmp msgpack avro orc '
-allowed_ext=' rs toml md yml yaml sh lock '
+allowed_ext=' rs toml md yml yaml sh lock tf hcl py pyi ts tsx js mjs cjs css html service timer conf ini sql txt '
 allowed_names=' LICENSE LICENSE-DATA CODEOWNERS Dockerfile .gitignore .gitattributes .editorconfig .dockerignore ADMISSION '
 
 check_admission() {
@@ -137,7 +137,7 @@ while IFS= read -r -d '' f; do
   fi
   if in_list " json " "$ext"; then
     case "$f" in
-      docs/*|.github/*|crates/*/tests/*|tools/*/tests/*) ;;
+      docs/*|.github/*|crates/*/tests/*|tools/*/tests/*|deploy/*|sdks/*) ;;
       *) err "$f: JSON is allowed only under docs/, .github/ and crate tests/ directories" ;;
     esac
     continue
