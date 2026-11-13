@@ -48,13 +48,13 @@ Phase 3.
      Add a one-approval rule once there are three maintainers.
 
 3. **code-layout-decision**
-   - Status: In progress
+   - Status: Done
    - Owner: Maintainers
    - Dependencies: None
    - PR: Not opened
-   - Next action: Review ADR 0007 (workspace under `crates/`, `tools/`,
-     `fixtures/synthetic/`, `docs/specs/`, `docs/protocol/`,
-     `docs/operations/`) and accept it.
+   - Next action: None. ADR 0007 is Accepted and the workspace follows it
+     (`crates/`, `tools/`, `fixtures/synthetic/`, `docs/specs/`,
+     `docs/protocol/`, `docs/operations/`).
 
 4. **admission-hyperliquid**
    - Status: Done
