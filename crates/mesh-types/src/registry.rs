@@ -19,8 +19,23 @@
 //!   spot (Hyperliquid's documented tick rule, which allows at most that
 //!   many decimals). Outcome markets take an explicit price scale until
 //!   their rule is confirmed.
+//!
+//! # Registry document (`registry-v0`)
+//!
+//! The serialized registry is the document of `docs/specs/registry-v0.md`:
+//! `instruments` plus optional [`Sections`] (exposures, calendars, roll
+//! schedules, reference series, liquidity grades). A registry with only
+//! instruments serializes as `{"instruments": [...]}`, as before.
 
 use std::collections::BTreeMap;
+
+mod sections;
+
+pub use sections::{
+    Calendar, EarlyClose, EntryId, ExpiryRule, Exposure, ExposureClass, ExposureForm, HolidayRules,
+    LiquidityEntry, MappingRelation, MethodPeriod, REGISTRY_VERSION, RollReference, RollRule,
+    RollSchedule, Sections, SeriesEntry, Session, VenueMapping, Weekday,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -74,6 +89,13 @@ pub enum RegistryError {
     /// The instrument or venue symbol is already registered.
     #[error("duplicate registration for {0}")]
     Duplicate(String),
+    /// The document names a registry version this code does not read.
+    #[error("unsupported registry version {0:?} (expected {REGISTRY_VERSION:?})")]
+    Version(String),
+    /// A registry section entry is malformed or refers to something
+    /// missing.
+    #[error("invalid registry entry: {0}")]
+    Invalid(String),
 }
 
 /// Everything a reader needs to normalize one market.
@@ -162,22 +184,49 @@ impl InstrumentSpec {
 pub struct Registry {
     by_id: BTreeMap<InstrumentId, InstrumentSpec>,
     by_symbol: BTreeMap<(VenueId, String), InstrumentId>,
+    sections: Sections,
 }
 
-/// Serialized form: `{"instruments": [...]}`, sorted by ID.
+/// Serialized form: `{"registry": "registry-v0", "instruments": [...],
+/// ...sections}`, instruments sorted by ID. `registry` is optional on input
+/// and written only when a section is present.
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RegistryFile {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    registry: Option<String>,
     instruments: Vec<InstrumentSpec>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    exposures: Vec<Exposure>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    calendars: Vec<Calendar>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    rolls: Vec<RollSchedule>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    series: Vec<SeriesEntry>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    liquidity: Vec<LiquidityEntry>,
 }
 
 impl TryFrom<RegistryFile> for Registry {
     type Error = RegistryError;
     fn try_from(file: RegistryFile) -> Result<Self, Self::Error> {
+        if let Some(v) = file.registry
+            && v != REGISTRY_VERSION
+        {
+            return Err(RegistryError::Version(v));
+        }
         let mut r = Registry::default();
         for spec in file.instruments {
             r.insert(spec)?;
         }
+        r.set_sections(Sections {
+            exposures: file.exposures,
+            calendars: file.calendars,
+            rolls: file.rolls,
+            series: file.series,
+            liquidity: file.liquidity,
+        })?;
         Ok(r)
     }
 }
@@ -185,7 +234,13 @@ impl TryFrom<RegistryFile> for Registry {
 impl From<Registry> for RegistryFile {
     fn from(r: Registry) -> Self {
         RegistryFile {
+            registry: (!r.sections.is_empty()).then(|| REGISTRY_VERSION.to_owned()),
             instruments: r.by_id.into_values().collect(),
+            exposures: r.sections.exposures,
+            calendars: r.sections.calendars,
+            rolls: r.sections.rolls,
+            series: r.sections.series,
+            liquidity: r.sections.liquidity,
         }
     }
 }
@@ -243,12 +298,33 @@ impl Registry {
         Ok(old)
     }
 
-    /// Removes an instrument, returning its spec if it was registered.
+    /// Removes an instrument, returning its spec if it was registered. Its
+    /// liquidity entry, if any, goes with it.
     pub fn remove(&mut self, id: &InstrumentId) -> Option<InstrumentSpec> {
         let old = self.by_id.remove(id)?;
         self.by_symbol
             .remove(&(old.venue.clone(), old.venue_symbol.clone()));
+        self.sections.liquidity.retain(|l| l.subject != id.as_str());
         Some(old)
+    }
+
+    /// The sections besides instruments.
+    #[must_use]
+    pub fn sections(&self) -> &Sections {
+        &self.sections
+    }
+
+    /// Replaces the sections besides instruments.
+    ///
+    /// # Errors
+    ///
+    /// Fails if an entry is malformed, an ID repeats, or a reference
+    /// (calendar, roll, liquidity subject) does not resolve.
+    pub fn set_sections(&mut self, sections: Sections) -> Result<(), RegistryError> {
+        sections
+            .validate(|id| InstrumentId::new(id).is_ok_and(|id| self.by_id.contains_key(&id)))?;
+        self.sections = sections;
+        Ok(())
     }
 
     /// Looks up by mesh ID.

@@ -18,8 +18,9 @@ in parallel.
       public archive) admitted (owner decision, 2026-11-11)
 - [ ] Code layout decided (ADR 0007)
 - [x] Data model specified as a machine-readable schema in `docs/specs/`
-- [ ] Registry schema, with automatic registration of Hyperliquid markets
+- [x] Registry schema, with automatic registration of Hyperliquid markets
       from node metadata, neutral names and a liquidity-grade field
+      (registry-v0, ADR 0018)
 - [x] Project name: bleh.xyz (ADR 0008)
 - [ ] Reporting address set
 
@@ -90,15 +91,16 @@ Phase 3.
      Merkle leaf encoding. Include synthetic examples.
 
 6. **registry-schema**
-   - Status: Ready
-   - Owner: Unassigned
+   - Status: Done
+   - Owner: Repository owner
    - Dependencies: None
-   - PR: Not opened
-   - Next action: Define instrument, exposure, venue-mapping, roll,
-     session-calendar and liquidity-grade schemas, with entries written
-     fresh from public facts, neutral output names (for example "US
-     large-cap index front"), and a mapping from node metadata for automatic
-     registration.
+   - PR: Not applicable (pushed to `main`)
+   - Next action: None. [registry-v0](../../docs/specs/registry-v0.md) and
+     its JSON Schema (ADR 0018): instruments with the node-metadata
+     mapping, exposures with neutral names and venue mappings, session
+     calendars, roll schedules, reference series and liquidity grades.
+     Follow-ups: serve exposures and grades from the history API; a grade
+     publisher for the `liquidity` section.
 
 7. **wire-format-decision**
    - Status: Done

@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bleh.xyz/specs/registry-v0.schema.json",
+  "title": "Instrument registry, v0",
+  "description": "A registry document. See registry-v0.md. Implemented by crates/mesh-types (mesh_types::Registry). Cross-references (calendar, roll, liquidity subject) and some value ranges are checked by the implementation, not by this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["instruments"],
+  "properties": {
+    "registry": { "const": "registry-v0" },
+    "instruments": { "type": "array", "items": { "$ref": "#/$defs/instrument" } },
+    "exposures": { "type": "array", "items": { "$ref": "#/$defs/exposure" } },
+    "calendars": { "type": "array", "items": { "$ref": "#/$defs/calendar" } },
+    "rolls": { "type": "array", "items": { "$ref": "#/$defs/roll" } },
+    "series": { "type": "array", "items": { "$ref": "#/$defs/series" } },
+    "liquidity": { "type": "array", "items": { "$ref": "#/$defs/liquidity" } }
+  },
+  "$defs": {
+    "instrument_id": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,31}:[a-z0-9][a-z0-9-]{0,15}:[A-Za-z0-9_.@#+-]+(:[A-Za-z0-9_.@#+-]+)*$"
+    },
+    "venue_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,31}$" },
+    "admission_id": { "type": "string", "pattern": "^ADM-[0-9]{4,9}$" },
+    "method_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,47}@[1-9][0-9]{0,5}$" },
+    "entry_id": {
+      "description": "Exposure, calendar or roll schedule ID. Never contains ':', so it cannot be confused with an instrument ID.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+    },
+    "scale": { "type": "integer", "minimum": 0, "maximum": 18 },
+    "positive_decimal": {
+      "description": "Fixed-point decimal greater than zero.",
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]{1,18})?$",
+      "not": { "pattern": "^0+(\\.0+)?$" }
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$"
+    },
+    "wall_time": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+    "wall_time_close": { "type": "string", "pattern": "^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$" },
+    "text": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "flags": {
+      "description": "Flag names in bit order, no duplicates (observation-v0 § 2.9).",
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "oracle_anchored_venue",
+          "backfill",
+          "gap_before",
+          "low_resolution",
+          "size_capped",
+          "block_trade_delayed",
+          "replayed",
+          "exchange_referenced"
+        ]
+      }
+    },
+    "record_kind": {
+      "enum": [
+        "trade",
+        "book_event",
+        "book_snapshot",
+        "bar",
+        "footprint",
+        "volume_profile",
+        "swap_print",
+        "activity_bar",
+        "delta_bar",
+        "profile_summary",
+        "order_activity",
+        "queue_positions",
+        "sweep",
+        "heatmap_tile",
+        "liquidity_grade",
+        "coverage",
+        "reference_value",
+        "synthetic_month",
+        "positioning"
+      ]
+    },
+    "weekday": { "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] },
+
+    "instrument": {
+      "description": "One venue market and how to normalize it (mesh_types::InstrumentSpec). The (venue, venue_symbol) pair is the venue mapping; the venue symbol is never an output name.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "venue", "class", "venue_symbol", "price_scale", "size_scale", "admission"],
+      "properties": {
+        "id": { "$ref": "#/$defs/instrument_id" },
+        "venue": { "$ref": "#/$defs/venue_id" },
+        "class": { "enum": ["perp", "spot", "outcome", "swap"] },
+        "venue_symbol": { "type": "string", "minLength": 1 },
+        "namespace": { "type": "string", "minLength": 1 },
+        "price_scale": { "$ref": "#/$defs/scale" },
+        "size_scale": { "$ref": "#/$defs/scale" },
+        "flags": { "$ref": "#/$defs/flags" },
+        "admission": { "$ref": "#/$defs/admission_id" }
+      }
+    },
+
+    "venue_mapping": {
+      "description": "A venue market giving an exposure.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument", "relation"],
+      "properties": {
+        "instrument": { "$ref": "#/$defs/instrument_id" },
+        "relation": { "enum": ["tracks_spot", "tracks_front_month", "proxy"] },
+        "multiplier": { "$ref": "#/$defs/positive_decimal" },
+        "from": { "$ref": "#/$defs/date" },
+        "to": { "$ref": "#/$defs/date" }
+      }
+    },
+
+    "exposure": {
+      "description": "An economic exposure with a neutral name. An exchange contract or named index may appear only in 'tracks', as the economic reference stated as a fact.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "tracks", "class", "form"],
+      "properties": {
+        "id": { "$ref": "#/$defs/entry_id" },
+        "name": { "$ref": "#/$defs/text" },
+        "tracks": { "$ref": "#/$defs/text" },
+        "class": {
+          "enum": [
+            "crypto",
+            "equity_index",
+            "equity",
+            "energy",
+            "metal",
+            "agriculture",
+            "livestock",
+            "short_rate",
+            "rates",
+            "fx",
+            "other"
+          ]
+        },
+        "form": { "enum": ["spot", "front", "months"] },
+        "quote": { "$ref": "#/$defs/text" },
+        "unit": { "$ref": "#/$defs/text" },
+        "calendar": { "$ref": "#/$defs/entry_id" },
+        "roll": { "$ref": "#/$defs/entry_id" },
+        "venue_mappings": { "type": "array", "items": { "$ref": "#/$defs/venue_mapping" } },
+        "note": { "type": "string" }
+      },
+      "if": { "properties": { "form": { "enum": ["front", "months"] } } },
+      "then": { "required": ["roll"] }
+    },
+
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "open", "close"],
+      "properties": {
+        "name": { "$ref": "#/$defs/text" },
+        "open": { "$ref": "#/$defs/wall_time" },
+        "close": { "$ref": "#/$defs/wall_time_close" }
+      }
+    },
+
+    "calendar": {
+      "description": "A session calendar. Holiday rules are public rule sets; closures, openings, early closes and sessions not stated as public facts are operator-filled.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "time_zone", "weekdays", "holidays"],
+      "properties": {
+        "id": { "$ref": "#/$defs/entry_id" },
+        "time_zone": { "$ref": "#/$defs/text" },
+        "weekdays": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/weekday" }
+        },
+        "holidays": { "enum": ["none", "us_trading", "us_government_securities"] },
+        "sessions": { "type": "array", "items": { "$ref": "#/$defs/session" } },
+        "closures": { "type": "array", "items": { "$ref": "#/$defs/date" } },
+        "openings": { "type": "array", "items": { "$ref": "#/$defs/date" } },
+        "early_closes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["date", "close"],
+            "properties": {
+              "date": { "$ref": "#/$defs/date" },
+              "close": { "$ref": "#/$defs/wall_time" }
+            }
+          }
+        },
+        "note": { "type": "string" }
+      }
+    },
+
+    "expiry": {
+      "description": "Last-trading-day rule (synthetic-months@1 § 5.2).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule", "n", "weekday", "month_offset", "business_days_before"],
+          "properties": {
+            "rule": { "const": "nth_weekday" },
+            "n": { "type": "integer", "minimum": 1, "maximum": 5 },
+            "weekday": { "$ref": "#/$defs/weekday" },
+            "month_offset": { "type": "integer" },
+            "business_days_before": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule", "day", "month_offset", "business_days_before"],
+          "properties": {
+            "rule": { "const": "before_day" },
+            "day": { "type": "integer", "minimum": 1, "maximum": 31 },
+            "month_offset": { "type": "integer" },
+            "business_days_before": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule", "n", "month_offset"],
+          "properties": {
+            "rule": { "const": "nth_last_business_day" },
+            "n": { "type": "integer", "minimum": 1 },
+            "month_offset": { "type": "integer" }
+          }
+        }
+      ]
+    },
+
+    "roll": {
+      "description": "Contract months, last trading days and the fixed-days roll (synthetic-months@1 §§ 5.2, 6).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "calendar", "cycle", "expiry", "roll"],
+      "properties": {
+        "id": { "$ref": "#/$defs/entry_id" },
+        "calendar": { "$ref": "#/$defs/entry_id" },
+        "cycle": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 1, "maximum": 12 }
+        },
+        "expiry": { "$ref": "#/$defs/expiry" },
+        "settlement_time": { "$ref": "#/$defs/wall_time" },
+        "roll": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["business_days_before", "reference"],
+          "properties": {
+            "business_days_before": { "type": "integer", "minimum": 0 },
+            "reference": { "enum": ["last_trade", "month_start"] }
+          }
+        },
+        "note": { "type": "string" }
+      }
+    },
+
+    "series": {
+      "description": "A reference series family (reference-pollers catalogue).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["instrument", "kind", "source", "admission", "description", "unit", "flags", "notice"],
+      "properties": {
+        "instrument": { "$ref": "#/$defs/text" },
+        "kind": { "$ref": "#/$defs/record_kind" },
+        "source": { "$ref": "#/$defs/text" },
+        "admission": { "$ref": "#/$defs/admission_id" },
+        "description": { "type": "string" },
+        "unit": { "type": "string" },
+        "flags": { "$ref": "#/$defs/flags" },
+        "notice": { "$ref": "#/$defs/text" },
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "method"],
+            "properties": {
+              "from": { "$ref": "#/$defs/date" },
+              "to": { "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+              "method": { "$ref": "#/$defs/text" }
+            }
+          }
+        }
+      }
+    },
+
+    "liquidity": {
+      "description": "Latest liquidity grade of an instrument (subject contains ':') or exposure. A subject without an entry is ungraded and treated as a tape.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "grade", "label", "as_of_ms", "method"],
+      "properties": {
+        "subject": {
+          "oneOf": [{ "$ref": "#/$defs/instrument_id" }, { "$ref": "#/$defs/entry_id" }]
+        },
+        "grade": { "enum": ["A", "B", "C", "D"] },
+        "label": { "enum": ["benchmark", "tape"] },
+        "as_of_ms": { "type": "integer", "minimum": 0 },
+        "method": { "$ref": "#/$defs/method_id" }
+      }
+    }
+  }
+}

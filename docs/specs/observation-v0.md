@@ -433,6 +433,8 @@ Hyperliquid, size scale is `szDecimals` and price scale is
 `6 - szDecimals` (perpetuals) or `8 - szDecimals` (spot), from the venue's
 documented tick rule; outcome markets take an explicit scale until their
 rule is confirmed.
+The registry document that holds these specs, with exposures, calendars,
+rolls and liquidity grades, is [registry-v0](registry-v0.md).
 
 ## 5. Block batches (bus unit)
 

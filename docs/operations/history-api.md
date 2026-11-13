@@ -47,7 +47,7 @@ history-api serve --archive https://data.example --public-base-url https://data.
 |---|---|---|---|
 | `--archive` | `HISTORY_API_ARCHIVE` | required | Local directory, `s3://`/`r2://`/`gcs://` URL, or HTTPS base |
 | `--archive-name` | `HISTORY_API_ARCHIVE_NAMES` | `hyperliquid-normalized` | Archive names under the root, unioned (for example live plus backfill) |
-| `--registry` | `HISTORY_API_REGISTRY` | none | `mesh_types::Registry` JSON; without it instruments are discovered from partitions |
+| `--registry` | `HISTORY_API_REGISTRY` | none | Registry document ([registry-v0](../specs/registry-v0.md), `mesh_types::Registry`); without it instruments are discovered from partitions |
 | `--public-base-url` | `HISTORY_API_PUBLIC_BASE_URL` | the root, for HTTPS roots | Base for links in `/v0/manifests` |
 | `--bind` | `HISTORY_API_BIND` | `127.0.0.1:8080` | Listen address |
 | `--trust-forwarded-for` | `HISTORY_API_TRUST_FORWARDED_FOR` | off | Rate-limit by the first `X-Forwarded-For` address (only behind a proxy that sets it) |

@@ -2776,6 +2776,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "boon",
  "clap",
  "hl-synth",
  "mesh-types",
@@ -4574,6 +4575,7 @@ dependencies = [
  "anyhow",
  "archive",
  "axum",
+ "boon",
  "bytes",
  "clap",
  "csv",

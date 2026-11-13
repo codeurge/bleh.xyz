@@ -35,6 +35,15 @@ versions (see [AGENTS.md](AGENTS.md)).
   committed bytecode in an in-process EVM (`revm`) against the bus signer
   with test keys; CI recompiles with the pinned `solc` 0.8.38 and fails if
   the bytecode differs. Not deployed anywhere.
+- Registry document `registry-v0` (ADR 0018,
+  [docs/specs/registry-v0.md](docs/specs/registry-v0.md) and a JSON
+  Schema): beside `instruments`, optional `exposures` (neutral names, venue
+  mappings), `calendars`, `rolls`, `series` (the reference pollers'
+  catalogue) and `liquidity` (latest grades; ungraded means tape).
+  `mesh_types::Registry` reads and validates them; instrument-only
+  registries are unchanged. The spec documents the node-metadata mapping
+  for automatic registration and lists fields left out because they would
+  need exchange data. Example in `fixtures/synthetic/registry/`.
 - Records archives (ADR 0017): `reference-normalized` and
   `swaps-normalized`, each with its own manifest chain, partitioned in
   place under the normalized directory. `archive-pipeline.sh records` and

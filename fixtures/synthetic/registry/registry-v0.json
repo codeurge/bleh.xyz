@@ -1,0 +1,137 @@
+{
+  "registry": "registry-v0",
+  "instruments": [
+    {
+      "id": "hyperliquid:outcome:#9001",
+      "venue": "hyperliquid",
+      "class": "outcome",
+      "venue_symbol": "#9001",
+      "price_scale": 4,
+      "size_scale": 0,
+      "flags": [],
+      "admission": "ADM-0001"
+    },
+    {
+      "id": "hyperliquid:perp:SYN",
+      "venue": "hyperliquid",
+      "class": "perp",
+      "venue_symbol": "SYN",
+      "price_scale": 3,
+      "size_scale": 3,
+      "flags": [],
+      "admission": "ADM-0001"
+    },
+    {
+      "id": "hyperliquid:perp:syn:IDX",
+      "venue": "hyperliquid",
+      "class": "perp",
+      "venue_symbol": "syn:IDX",
+      "namespace": "syn",
+      "price_scale": 4,
+      "size_scale": 2,
+      "flags": ["oracle_anchored_venue"],
+      "admission": "ADM-0001"
+    }
+  ],
+  "exposures": [
+    {
+      "id": "us-large-cap-index",
+      "name": "US large-cap index",
+      "tracks": "Tracks the level of a US large-cap equity index (the cash index). Synthetic example entry: the venue market is invented.",
+      "class": "equity_index",
+      "form": "spot",
+      "quote": "USD",
+      "unit": "index points",
+      "calendar": "us_trading",
+      "venue_mappings": [
+        { "instrument": "hyperliquid:perp:syn:IDX", "relation": "tracks_spot", "from": "2026-01-01" }
+      ]
+    },
+    {
+      "id": "us-large-cap-index-front",
+      "name": "US large-cap index front",
+      "tracks": "Tracks the front quarterly US large-cap equity index futures month, rolled on the schedule below. No venue market is mapped; operators add them.",
+      "class": "equity_index",
+      "form": "front",
+      "quote": "USD",
+      "unit": "index points",
+      "calendar": "us_trading",
+      "roll": "quarterly-third-friday"
+    },
+    {
+      "id": "wti-crude-front",
+      "name": "WTI crude front",
+      "tracks": "Tracks the front monthly WTI crude oil futures month. Synthetic example entry: the mapped venue market is invented and is a proxy.",
+      "class": "energy",
+      "form": "front",
+      "quote": "USD",
+      "unit": "US dollars per barrel",
+      "calendar": "us_trading",
+      "roll": "monthly-crude",
+      "venue_mappings": [
+        { "instrument": "hyperliquid:perp:SYN", "relation": "proxy", "multiplier": "1" }
+      ]
+    }
+  ],
+  "calendars": [
+    {
+      "id": "continuous",
+      "time_zone": "UTC",
+      "weekdays": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+      "holidays": "none",
+      "sessions": [{ "name": "continuous", "open": "00:00", "close": "24:00" }],
+      "note": "Venues that trade around the clock every day."
+    },
+    {
+      "id": "us_trading",
+      "time_zone": "America/New_York",
+      "weekdays": ["mon", "tue", "wed", "thu", "fri"],
+      "holidays": "us_trading",
+      "sessions": [{ "name": "regular", "open": "09:30", "close": "16:00" }],
+      "note": "US trading days under the public holiday rules of synthetic-months@1 § 5.1, with the regular US cash equity session. Early closes are operator-filled."
+    },
+    {
+      "id": "us_government_securities",
+      "time_zone": "America/New_York",
+      "weekdays": ["mon", "tue", "wed", "thu", "fri"],
+      "holidays": "us_government_securities",
+      "note": "Overnight-rate fixing days (Federal Reserve holiday rules)."
+    }
+  ],
+  "rolls": [
+    {
+      "id": "quarterly-third-friday",
+      "calendar": "us_trading",
+      "cycle": [3, 6, 9, 12],
+      "expiry": { "rule": "nth_weekday", "n": 3, "weekday": "fri", "month_offset": 0, "business_days_before": 0 },
+      "settlement_time": "09:30",
+      "roll": { "business_days_before": 8, "reference": "last_trade" },
+      "note": "Quarterly months ending on the third Friday; front rolls 8 business days earlier."
+    },
+    {
+      "id": "monthly-crude",
+      "calendar": "us_trading",
+      "cycle": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "expiry": { "rule": "before_day", "day": 25, "month_offset": -1, "business_days_before": 3 },
+      "settlement_time": "14:30",
+      "roll": { "business_days_before": 3, "reference": "last_trade" },
+      "note": "Monthly months ending 3 business days before the 25th of the prior month."
+    }
+  ],
+  "liquidity": [
+    {
+      "subject": "hyperliquid:perp:syn:IDX",
+      "grade": "C",
+      "label": "tape",
+      "as_of_ms": 1767225600000,
+      "method": "liquidity-grade@1"
+    },
+    {
+      "subject": "us-large-cap-index",
+      "grade": "C",
+      "label": "tape",
+      "as_of_ms": 1767225600000,
+      "method": "liquidity-grade@1"
+    }
+  ]
+}

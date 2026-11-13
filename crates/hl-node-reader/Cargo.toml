@@ -23,6 +23,7 @@ tracing-subscriber.workspace = true
 
 [dev-dependencies]
 hl-synth.workspace = true
+boon.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 

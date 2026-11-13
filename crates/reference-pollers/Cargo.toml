@@ -37,6 +37,7 @@ tracing-subscriber.workspace = true
 zip = { version = "9", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
+boon.workspace = true
 synthetic = { path = "../synthetic" }
 tempfile.workspace = true
 wiremock = "0.6"

@@ -10,8 +10,9 @@ crate but do not edit it; request changes through the integrator (see
 
 One definition of every record, identifier, encoding, hash and signature
 used anywhere in the mesh, so the live path and the archive agree byte for
-byte. Specified in [observation-v0](../../docs/specs/observation-v0.md)
-and [manifest-v0](../../docs/specs/manifest-v0.md).
+byte. Specified in [observation-v0](../../docs/specs/observation-v0.md),
+[manifest-v0](../../docs/specs/manifest-v0.md) and
+[registry-v0](../../docs/specs/registry-v0.md).
 
 ## Contents
 
@@ -31,7 +32,7 @@ and [manifest-v0](../../docs/specs/manifest-v0.md).
 | `positioning` | `Positioning` (regulator positioning statistics; `PositioningReport`, `PositioningCategory`) |
 | `synthetic` | `SyntheticMonth` (fair value of a contract month; `SyntheticQuality`, `CarrySource`) |
 | `batch` | `BlockBatch` (bus unit), gap detection |
-| `registry` | `InstrumentSpec::hyperliquid`, `Registry` (`insert`, `replace`, `remove`) |
+| `registry` | `InstrumentSpec::hyperliquid`, `Registry` (`insert`, `replace`, `remove`, `sections`, `set_sections`), registry-v0 `Sections` (`Exposure`, `VenueMapping`, `Calendar`, `RollSchedule`, `SeriesEntry`, `LiquidityEntry`) |
 | `allowlist` | `check_record`, `check_batch`, `EXCLUDED_SOURCE_FIELDS` |
 | `hash` | `canonical_json`, `canonical_record`, `ContentHasher`, `content_hash`, `Sha256Digest` |
 | `canonical` | Direct canonical encoders for trades, book events and snapshots (byte-identical to the generic path; used by `canonical_record`) |

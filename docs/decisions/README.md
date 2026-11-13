@@ -25,4 +25,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0015](0015-v0-amendments-for-reference-pollers.md) | Data model amendments for the reference pollers: `exchange_referenced` bit, `positioning` kind, reference-value periods, manifest notices | Accepted |
 | [0016](0016-web-snapshots.md) | Web snapshots for static sites (`bleh-web-snapshot/v0`) | Accepted |
 | [0017](0017-records-archives.md) | Archives for poller records (`reference-normalized`, `swaps-normalized`) | Accepted |
-
+| [0018](0018-registry-v0.md) | Registry document, v0: exposures, venue mappings, calendars, rolls, series and liquidity grades beside instruments | Accepted |
