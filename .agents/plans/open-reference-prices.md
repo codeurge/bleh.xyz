@@ -97,7 +97,7 @@ futures data, live and historical:
      `archive-pipeline.sh`); then a first real backfill
 
 5. **web-snapshots**
-   - Status: In progress
+   - Status: Done
    - Owner: owner session
    - Dependencies: task 4 (record files to read)
    - PR: Not opened (owner pushes to main)
@@ -108,8 +108,7 @@ futures data, live and historical:
      panel with source notices; runbook `docs/operations/web-snapshots.md`.
      Found while building it: the Federal Reserve readers emitted the
      SDMX no-data placeholder (-9999) as values; fixed.
-   - Next action: attach the `data.bleh.xyz` custom domain to the public
-     bucket once the `bleh.xyz` zone is active, then check the site panel
-     against the live snapshot. Bucket, cache rule, write token and the
-     home-archive upload settings are in place; free-tier guidance and
+   - Next action: none. Live since 2026-11-13: the home-archive server
+     uploads to the public bucket and bleh.xyz shows the panel from
+     `https://data.bleh.xyz/web/v0/`. Free-tier guidance and
      `scripts/r2-usage.sh` are in the runbook.
