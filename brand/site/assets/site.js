@@ -68,7 +68,8 @@
       ['Class III milk', 'usda-dairy', 'usda-dairy:ref:FMMO.class_3_Price', '$/cwt', 2]
     ];
     var NAMES = { 'nyfed': 'Federal Reserve Bank of New York', 'frb-h15': 'Federal Reserve H.15', 'frb-h10': 'Federal Reserve H.10',
-      'us-treasury': 'U.S. Treasury', 'usda-dairy': 'USDA dairy', 'usda-lmr': 'USDA livestock', 'cftc-cot': 'CFTC Commitments of Traders', 'ercot': 'ERCOT' };
+      'us-treasury': 'U.S. Treasury', 'usda-dairy': 'USDA dairy', 'usda-lmr': 'USDA livestock', 'cftc-cot': 'CFTC Commitments of Traders', 'ercot': 'ERCOT',
+      'cftc-part43': 'CFTC Part 43 swaps', 'sec-sbsr': 'SEC security-based swaps' };
     function get(path) {
       return fetch(base + path, { mode: 'cors', credentials: 'omit' }).then(function (r) {
         if (!r.ok) throw new Error(path + ' ' + r.status); return r.json();

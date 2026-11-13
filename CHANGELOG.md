@@ -15,7 +15,8 @@ versions (see [AGENTS.md](AGENTS.md)).
   reports, swap print counts and recent prints, with every source's
   notice) and uploads changed files to the public bucket under `web/v0/`.
   Compose runs it as `web-snapshot`. The site shows a reference data panel
-  from it, hidden when the snapshot is unreachable.
+  from it, hidden when the snapshot is unreachable. Every source in its
+  notices list has a display name.
 - `scripts/r2-usage.sh`: month-to-date R2 storage and operations against
   the free tier, exiting 1 at 80 percent.
 - `deploy/docker/build.sh --jobs N` (build argument `CARGO_BUILD_JOBS`)
