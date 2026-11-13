@@ -164,6 +164,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- `archive publish` sends Kubo the file name instead of its archive path.
+  With the path, Kubo returned a directory's CID and every publish failed
+  its CID check.
 - The New York Fed notice for SOFR, BGCR and the SOFR averages and index
   now includes the Terms of Use's DTCC Solutions LLC disclaimer verbatim,
   instead of referring to it.
