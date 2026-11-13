@@ -51,7 +51,7 @@ versions (see [AGENTS.md](AGENTS.md)).
   notices list has a display name.
 - `scripts/r2-usage.sh`: month-to-date R2 storage and operations against
   the free tier, exiting 1 at 80 percent.
-- `deploy/docker/build.sh --jobs N` (build argument `CARGO_BUILD_JOBS`)
+- `deploy/docker/build.sh --jobs N` (build argument `BLEH_CARGO_JOBS`)
   caps parallel compile jobs on builders that are short of memory.
 - `archive partition-dir`: partitions daily record files
   (`date=YYYY-MM-DD/<file>`) once per settled day, with SHA-256 markers and

@@ -111,7 +111,7 @@ for t in "${targets[@]}"; do
     "${target_args[@]+"${target_args[@]}"}" \
     --build-arg "SOURCE_DATE_EPOCH=${epoch}" \
     --build-arg "VCS_REF=${sha}" \
-    --build-arg "CARGO_BUILD_JOBS=${jobs}" \
+    --build-arg "BLEH_CARGO_JOBS=${jobs}" \
     --label "org.opencontainers.image.revision=${sha}" \
     --provenance=false \
     --output "$output" \

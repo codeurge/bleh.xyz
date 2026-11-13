@@ -81,13 +81,15 @@ COPY . .
 
 # Parallel compile jobs. Empty means one per CPU. Set it on hosts that are
 # short of memory: the bundled DuckDB build needs about 1.5 GiB per job.
-ARG CARGO_BUILD_JOBS=
+# Not named CARGO_BUILD_JOBS: cargo reads that variable itself and rejects
+# an empty value.
+ARG BLEH_CARGO_JOBS=
 
 RUN --mount=type=cache,id=bleh-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=bleh-cargo-git,target=/usr/local/cargo/git,sharing=locked \
     --mount=type=cache,id=bleh-target,target=/src/target,sharing=locked \
     set -eux; \
-    cargo build --locked --release --workspace --bins ${CARGO_BUILD_JOBS:+--jobs "$CARGO_BUILD_JOBS"}; \
+    cargo build --locked --release --workspace --bins ${BLEH_CARGO_JOBS:+--jobs "$BLEH_CARGO_JOBS"}; \
     mkdir -p /out; \
     for b in ${BINS}; do install -m 0755 "target/release/${b}" "/out/${b}"; done; \
     (cd /out && sha256sum * > SHA256SUMS); \
