@@ -56,8 +56,12 @@ impl KuboClient {
 
 const BOUNDARY: &str = "bleh-archive-boundary-7d3f1c";
 
+/// One `file` part named after the last segment of `name`. Kubo treats a
+/// filename with `/` as a path inside a directory and returns the
+/// directory's CID, not the file's, so only the base name is sent.
 fn multipart(name: &str, data: &[u8]) -> Bytes {
-    let safe: String = name
+    let base = name.rsplit('/').next().unwrap_or(name);
+    let safe: String = base
         .chars()
         .map(|c| if c == '"' || c.is_control() { '_' } else { c })
         .collect();
@@ -320,6 +324,16 @@ mod tests {
     use crate::partition::{PartitionOptions, write_partitions};
     use crate::testutil::{every_kind, key};
     use mesh_types::UnixNanos;
+
+    #[test]
+    fn kubo_part_names_the_file_not_its_path() {
+        // A path in the filename makes Kubo wrap the file in directories
+        // and return the root directory's CID.
+        let body = multipart("kind=trade/date=2026-01-01/part-00000.parquet", b"x");
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("filename=\"part-00000.parquet\""), "{text}");
+        assert!(!text.contains("kind=trade"));
+    }
 
     fn signed_day(root: &Path) -> (Day, SignedManifest) {
         write_partitions(root, every_kind(), &PartitionOptions::default()).unwrap();
