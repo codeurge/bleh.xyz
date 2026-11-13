@@ -153,6 +153,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- The New York Fed notice for SOFR, BGCR and the SOFR averages and index
+  now includes the Terms of Use's DTCC Solutions LLC disclaimer verbatim,
+  instead of referring to it.
 - Compose `web-snapshot` takes its own store settings
   (`WEB_SNAPSHOT_ENDPOINT`, `_REGION`, `_ALLOW_HTTP`, `_PATH_STYLE`),
   falling back to `S3_*`, so snapshots can go to R2 while other services

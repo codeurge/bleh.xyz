@@ -332,8 +332,9 @@ forbid access that interferes with the website.
 name] is subject to the Terms of Use posted at newyorkfed.org. The New York
 Fed is not responsible for publication of the [rate name] by bleh.xyz, does
 not sanction or endorse any particular republication, and has no liability
-for your use." SOFR and BGCR also carry the DTCC Solutions LLC sentence from
-the terms.
+for your use." SOFR, BGCR and the SOFR averages and index also carry the
+terms' two-sentence DTCC Solutions LLC disclaimer, verbatim
+(`NYFED_DTCC_DISCLAIMER` in `crates/reference-pollers/src/source.rs`).
 
 ## Federal Reserve Board H.15 and H.10
 

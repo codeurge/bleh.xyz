@@ -162,9 +162,10 @@ manifest:
   § 2.3). When the archive lane partitions `records/` into an archive,
   copy `_notices.json` to that archive's root.
 
-The New York Fed notice names the DTCC Solutions LLC disclaimer by
-reference; its exact sentence must be copied from the Terms of Use by a
-maintainer before the first public release.
+The New York Fed notice for SOFR, BGCR and the SOFR averages and index
+includes the DTCC Solutions LLC disclaimer, copied verbatim from the Terms
+of Use (2026-11-13). If the terms change it, update
+`NYFED_DTCC_DISCLAIMER` and record the date here.
 
 ## Backfill
 

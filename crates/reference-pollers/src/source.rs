@@ -204,9 +204,17 @@ impl FromStr for SourceId {
 /// The rates named in the New York Fed notice for this archive.
 pub const NYFED_RATES_PHRASE: &str = "The Secured Overnight Financing Rate (SOFR), the Broad General Collateral Rate (BGCR), the Tri-Party General Collateral Rate (TGCR), the SOFR Averages and SOFR Index, the Effective Federal Funds Rate (EFFR) and the Overnight Bank Funding Rate (OBFR)";
 
+/// The SOFR and BGCR disclaimer, verbatim from the New York Fed's Terms of
+/// Use (newyorkfed.org/privacy/termsofuse, reference rates section),
+/// required with SOFR and BGCR data and anything computed from SOFR
+/// (ADM-0007).
+pub const NYFED_DTCC_DISCLAIMER: &str = "The Secured Overnight Financing Rate (SOFR) Data and Broad General Collateral Rate (BGCR) Data are calculated using data provided under a license granted to the New York Fed by DTCC Solutions LLC (\u{201c}Solutions\u{201d}), an affiliate of The Depository Trust & Clearing Corporation. Solutions, its affiliates, and third parties from which they obtained data have no liability for the content of this material.";
+
 /// The New York Fed reference-rates notice (ADM-0007, from the Terms of
 /// Use, completed with the rate names and the publisher), for `rates` (a
 /// phrase naming one or more rates, used as the grammatical subject).
+/// Rates that are or derive from SOFR or BGCR also carry
+/// [`NYFED_DTCC_DISCLAIMER`].
 #[must_use]
 pub fn nyfed_notice(rates: &str) -> String {
     let plural = rates.contains(" and ");
@@ -215,8 +223,13 @@ pub fn nyfed_notice(rates: &str) -> String {
     } else {
         ("is", "this rate")
     };
+    let dtcc = if rates.contains("SOFR") || rates.contains("BGCR") {
+        format!(" {NYFED_DTCC_DISCLAIMER}")
+    } else {
+        String::new()
+    };
     format!(
-        "{rates} {verb} subject to the Terms of Use posted at newyorkfed.org. The New York Fed is not responsible for publication of {them} by bleh.xyz, does not sanction or endorse any particular republication, and has no liability for your use. For SOFR and BGCR, the DTCC Solutions LLC disclaimer in those Terms of Use also applies. bleh.xyz is not affiliated with the New York Fed, and the New York Fed does not sanction, endorse, or recommend any products or services offered by bleh.xyz."
+        "{rates} {verb} subject to the Terms of Use posted at newyorkfed.org. The New York Fed is not responsible for publication of {them} by bleh.xyz, does not sanction or endorse any particular republication, and has no liability for your use.{dtcc} bleh.xyz is not affiliated with the New York Fed, and the New York Fed does not sanction, endorse, or recommend any products or services offered by bleh.xyz."
     )
 }
 
@@ -271,5 +284,10 @@ mod tests {
         assert!(ny.contains("subject to the Terms of Use posted at newyorkfed.org"));
         assert!(ny.contains("by bleh.xyz"));
         assert!(SourceId::FrbH15.notices()[0].notice.contains("EFFR"));
+        // The DTCC disclaimer goes with SOFR and BGCR (and SOFR-derived
+        // rates), not with EFFR on its own.
+        assert!(ny.contains(NYFED_DTCC_DISCLAIMER));
+        assert!(nyfed_notice("The SOFR Averages and SOFR Index").contains(NYFED_DTCC_DISCLAIMER));
+        assert!(!nyfed_notice("The Effective Federal Funds Rate (EFFR)").contains("DTCC"));
     }
 }
