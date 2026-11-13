@@ -472,6 +472,32 @@ services:
       - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized
       - partition-state:/var/lib/bleh/partition-state
 
+  # Web snapshots (archive snapshot; docs/operations/web-snapshots.md,
+  # ADR 0016): small JSON files for the static site, built from the
+  # pollers' record files. Written to the web-snapshot volume, and uploaded
+  # to WEB_SNAPSHOT_URL (the public bucket's web/v0/ prefix) when set.
+  web-snapshot:
+    <<: *bleh-service
+    profiles: [home-archive]
+    image: ${BLEH_REGISTRY:-bleh}/archive:${BLEH_TAG:-local}
+    command: ["snapshot", "--follow", "--log-format", "json"]
+    environment:
+      RUST_LOG: ${RUST_LOG:-info}
+      BLEH_SNAPSHOT_RECORDS: /var/lib/bleh/swap/records,/var/lib/bleh/reference/records
+      BLEH_SNAPSHOT_OUT: /var/lib/bleh/web-snapshot
+      BLEH_SNAPSHOT_INTERVAL_SECS: ${WEB_SNAPSHOT_INTERVAL_SECS:-300}
+      BLEH_ARCHIVE_WEB_URL: ${WEB_SNAPSHOT_URL:-}
+      BLEH_ARCHIVE_WEB_ENDPOINT: ${S3_ENDPOINT:-}
+      BLEH_ARCHIVE_WEB_REGION: ${S3_REGION:-auto}
+      BLEH_ARCHIVE_WEB_ACCESS_KEY_ID: ${WEB_SNAPSHOT_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID:-}}
+      BLEH_ARCHIVE_WEB_SECRET_ACCESS_KEY: ${WEB_SNAPSHOT_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY:-}}
+      BLEH_ARCHIVE_WEB_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
+      BLEH_ARCHIVE_WEB_PATH_STYLE: ${S3_PATH_STYLE:-true}
+    volumes:
+      - swap-data:/var/lib/bleh/swap:ro
+      - reference-data:/var/lib/bleh/reference:ro
+      - web-snapshot:/var/lib/bleh/web-snapshot
+
   # ==================================================================
   # History API: staging on home-archive, public on relays
   # ==================================================================
@@ -804,6 +830,7 @@ volumes:
   normalized:
   partition-state:
   reference-data:
+  web-snapshot:
   reader-state:
   archive-work:
   archive-mirror:

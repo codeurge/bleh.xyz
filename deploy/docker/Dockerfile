@@ -92,7 +92,7 @@ RUN --mount=type=cache,id=bleh-cargo-registry,target=/usr/local/cargo/registry,s
     for b in ${BINS}; do install -m 0755 "target/release/${b}" "/out/${b}"; done; \
     (cd /out && sha256sum * > SHA256SUMS); \
     cat /out/SHA256SUMS; \
-    mkdir -p /state/raw /state/archive /state/backfill /state/reader /state/swap
+    mkdir -p /state/raw /state/archive /state/backfill /state/reader /state/swap /state/reference /state/web-snapshot
 
 # ---------------------------------------------------------------------------
 # Runtime base: distroless glibc + libgcc + libstdc++, user 65532 (nonroot).

@@ -131,7 +131,8 @@ resource "cloudflare_ruleset" "rate_limit" {
 }
 
 # Archive files are write-once, so they are cached for a year; pointer files
-# that change (latest manifest, Iceberg version hint) for a minute.
+# that change (latest manifest, Iceberg version hint) and web snapshots
+# (web/, ADR 0016) for a minute.
 resource "cloudflare_ruleset" "cache" {
   zone_id     = var.zone_id
   name        = "bleh archive cache"
@@ -142,8 +143,8 @@ resource "cloudflare_ruleset" "cache" {
   rules = [
     {
       ref         = "bleh_archive_pointers"
-      description = "Short TTL for files that are rewritten"
-      expression  = "(http.host eq \"${local.data_host}\" and (ends_with(http.request.uri.path, \"/latest.json\") or ends_with(http.request.uri.path, \"/version-hint.text\")))"
+      description = "Short TTL for files that are rewritten and web snapshots"
+      expression  = "(http.host eq \"${local.data_host}\" and (ends_with(http.request.uri.path, \"/latest.json\") or ends_with(http.request.uri.path, \"/version-hint.text\") or starts_with(http.request.uri.path, \"/web/\")))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {
@@ -161,7 +162,7 @@ resource "cloudflare_ruleset" "cache" {
     {
       ref         = "bleh_archive_immutable"
       description = "Long TTL for immutable archive files"
-      expression  = "(http.host eq \"${local.data_host}\" and not ends_with(http.request.uri.path, \"/latest.json\") and not ends_with(http.request.uri.path, \"/version-hint.text\"))"
+      expression  = "(http.host eq \"${local.data_host}\" and not ends_with(http.request.uri.path, \"/latest.json\") and not ends_with(http.request.uri.path, \"/version-hint.text\") and not starts_with(http.request.uri.path, \"/web/\"))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {

@@ -31,7 +31,10 @@ use object_store::aws::AmazonS3Builder;
 use object_store::local::LocalFileSystem;
 use object_store::memory::InMemory;
 use object_store::path::Path;
-use object_store::{ObjectStore, ObjectStoreExt, PutMode, PutOptions, PutPayload, WriteMultipart};
+use object_store::{
+    Attribute, Attributes, ObjectStore, ObjectStoreExt, PutMode, PutOptions, PutPayload,
+    WriteMultipart,
+};
 use sha2::{Digest, Sha256};
 
 use mesh_types::Sha256Digest;
@@ -324,6 +327,42 @@ impl Store {
             .put(&self.key(rel)?, PutPayload::from(bytes))
             .await?;
         Ok(())
+    }
+
+    /// Writes a mutable object with a `Content-Type` and `Cache-Control`.
+    /// Stores that cannot keep attributes (local directories) get the bytes
+    /// alone.
+    ///
+    /// # Errors
+    ///
+    /// Fails on storage errors.
+    pub async fn put_mutable_with(
+        &self,
+        rel: &str,
+        bytes: Bytes,
+        content_type: &str,
+        cache_control: &str,
+    ) -> Result<()> {
+        let key = self.key(rel)?;
+        let mut attributes = Attributes::new();
+        attributes.insert(Attribute::ContentType, content_type.to_owned().into());
+        attributes.insert(Attribute::CacheControl, cache_control.to_owned().into());
+        let opts = PutOptions {
+            attributes,
+            ..PutOptions::default()
+        };
+        match self
+            .inner
+            .put_opts(&key, PutPayload::from(bytes.clone()), opts)
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(object_store::Error::NotImplemented { .. }) => {
+                self.inner.put(&key, PutPayload::from(bytes)).await?;
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 }
 

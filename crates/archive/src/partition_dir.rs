@@ -125,8 +125,9 @@ pub async fn follow(opts: &PartitionDir, interval: Duration) -> Result<()> {
     }
 }
 
+/// Resolves on SIGTERM.
 #[cfg(unix)]
-async fn sigterm() {
+pub(crate) async fn sigterm() {
     use tokio::signal::unix::{SignalKind, signal};
     match signal(SignalKind::terminate()) {
         Ok(mut s) => {
@@ -136,8 +137,9 @@ async fn sigterm() {
     }
 }
 
+/// Never resolves (no SIGTERM here).
 #[cfg(not(unix))]
-async fn sigterm() {
+pub(crate) async fn sigterm() {
     std::future::pending::<()>().await
 }
 

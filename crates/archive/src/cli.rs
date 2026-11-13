@@ -80,6 +80,10 @@ enum Command {
     /// Partition a directory of daily record files (`date=YYYY-MM-DD/<file>`)
     /// once per settled day, optionally following it.
     PartitionDir(PartitionDirArgs),
+    /// Build web snapshots (small JSON files for static sites) from daily
+    /// record files, optionally following them and uploading to
+    /// `BLEH_ARCHIVE_WEB_*` storage.
+    Snapshot(SnapshotArgs),
     /// Rebuild a day's partitions from filtered raw.
     Replay(ReplayArgs),
     /// Rebuild the static Iceberg metadata of a normalized archive.
@@ -223,6 +227,38 @@ struct PartitionDirArgs {
     follow: bool,
     /// With --follow: seconds between scans.
     #[arg(long, env = "BLEH_PARTITION_DIR_INTERVAL_SECS", default_value_t = 900)]
+    interval_secs: u64,
+}
+
+#[derive(Debug, Args)]
+struct SnapshotArgs {
+    /// Directory of daily record files (`date=YYYY-MM-DD/*.jsonl`, optional
+    /// `_notices.json`); repeatable (the variable takes a comma-separated
+    /// list).
+    #[arg(
+        long = "records",
+        env = "BLEH_SNAPSHOT_RECORDS",
+        value_delimiter = ',',
+        required = true
+    )]
+    records_dirs: Vec<PathBuf>,
+    /// Local directory the snapshot files are written to.
+    #[arg(long, env = "BLEH_SNAPSHOT_OUT")]
+    out: PathBuf,
+    /// Daily history points kept per reference series.
+    #[arg(long, env = "BLEH_SNAPSHOT_POINTS", default_value_t = 260)]
+    points: usize,
+    /// Recent swap prints kept per source and asset class.
+    #[arg(long, env = "BLEH_SNAPSHOT_RECENT_SWAPS", default_value_t = 50)]
+    recent_swaps: usize,
+    /// Days of swap print counts kept per source.
+    #[arg(long, env = "BLEH_SNAPSHOT_SWAP_DAYS", default_value_t = 14)]
+    swap_days: usize,
+    /// Keep running and rebuild every --interval-secs.
+    #[arg(long, env = "BLEH_SNAPSHOT_FOLLOW")]
+    follow: bool,
+    /// With --follow: seconds between passes.
+    #[arg(long, env = "BLEH_SNAPSHOT_INTERVAL_SECS", default_value_t = 300)]
     interval_secs: u64,
 }
 
@@ -666,6 +702,7 @@ async fn dispatch(cmd: Command, hooks: &Hooks) -> Result<ExitCode> {
         Command::Capture(c) => capture_cmd(c, hooks).await,
         Command::Partition(a) => partition_cmd(&a),
         Command::PartitionDir(a) => partition_dir_cmd(&a).await,
+        Command::Snapshot(a) => snapshot_cmd(&a).await,
         Command::Replay(a) => replay_cmd(&a, hooks),
         Command::Iceberg(a) => {
             let store = if a.upload {
@@ -836,6 +873,34 @@ async fn partition_dir_cmd(a: &PartitionDirArgs) -> Result<ExitCode> {
     } else {
         ExitCode::from(3)
     })
+}
+
+async fn snapshot_cmd(a: &SnapshotArgs) -> Result<ExitCode> {
+    let opts = crate::web_snapshot::SnapshotOptions {
+        records_dirs: a.records_dirs.clone(),
+        points: a.points,
+        recent_swaps: a.recent_swaps,
+        swap_days: a.swap_days,
+    };
+    let store = match crate::store::StoreConfig::from_env("WEB") {
+        Some(cfg) => {
+            tracing::info!(store = ?cfg, "uploading snapshots");
+            Some(cfg.open()?)
+        }
+        None => {
+            tracing::info!("BLEH_ARCHIVE_WEB_URL unset; writing snapshots locally only");
+            None
+        }
+    };
+    let mut runner = crate::web_snapshot::Runner::new(opts, a.out.clone(), store);
+    if a.follow {
+        crate::web_snapshot::follow(&mut runner, std::time::Duration::from_secs(a.interval_secs))
+            .await?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    let (records, written, uploaded) = runner.run_once().await?;
+    println!("{records} records read, {written} files written, {uploaded} uploaded");
+    Ok(ExitCode::SUCCESS)
 }
 
 fn replay_cmd(a: &ReplayArgs, hooks: &Hooks) -> Result<ExitCode> {

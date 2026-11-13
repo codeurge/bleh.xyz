@@ -20,6 +20,7 @@
 //! | [`anchor`] | OpenTimestamps and Ethereum L2 anchors |
 //! | [`publish`] | Uploads, IPFS pinning (Kubo), Iceberg publishing |
 //! | [`verify`] | Mirror verification: signature, chain, anchors, files |
+//! | [`web_snapshot`] | Small JSON snapshots of poller records for static sites |
 //! | [`cli`] | The `archive` command line and its [`cli::Hooks`] |
 //! | [`http`], [`metrics`], [`layout`] | HTTP abstraction (mockable), counters, paths |
 //!
@@ -59,6 +60,7 @@ pub mod replay;
 pub mod store;
 pub mod torrent;
 pub mod verify;
+pub mod web_snapshot;
 
 #[cfg(test)]
 mod testutil;

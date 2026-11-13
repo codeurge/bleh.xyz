@@ -9,6 +9,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Web snapshots (ADR 0016, `bleh-web-snapshot/v0`): `archive snapshot`
+  turns the pollers' record files into small JSON files (latest values and
+  daily history per reference series, latest and previous positioning
+  reports, swap print counts and recent prints, with every source's
+  notice) and uploads changed files to the public bucket under `web/v0/`.
+  Compose runs it as `web-snapshot`. The site shows a reference data panel
+  from it, hidden when the snapshot is unreachable.
 - `deploy/docker/build.sh --jobs N` (build argument `CARGO_BUILD_JOBS`)
   caps parallel compile jobs on builders that are short of memory.
 - `archive partition-dir`: partitions daily record files
@@ -143,6 +150,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- Federal Reserve H.15 and H.10 readers treat SDMX observations with a
+  status other than `A` (published as -9999) as no data. They had been
+  emitted as values; the synthetic fixtures now use the published form.
 - The image workflow frees runner disk before building. Every Rust image
   job had been running out of space while linking DuckDB, so no image was
   published.

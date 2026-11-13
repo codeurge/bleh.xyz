@@ -39,6 +39,7 @@ futures data, live and historical:
 | Admissions | ADM-0005 to ADM-0019; ADR 0012 if the admission policy needs an amendment |
 | Synthetic contract months | ADR 0013; method spec `docs/specs/method-synthetic-months-v1.md`; crate `crates/synthetic` |
 | Bring your own feed | ADR 0014 |
+| Web snapshots | ADR 0016; spec `docs/specs/web-snapshot-v0.md` |
 
 ## Tasks
 
@@ -94,3 +95,19 @@ futures data, live and historical:
      runbook (DTCC sentence of the NY Fed notice, volumes and tenorless
      rates, the `reference-normalized` daily archive in
      `archive-pipeline.sh`); then a first real backfill
+
+5. **web-snapshots**
+   - Status: In progress
+   - Owner: owner session
+   - Dependencies: task 4 (record files to read)
+   - PR: Not opened (owner pushes to main)
+   - Done: ADR 0016 (Accepted) and spec `web-snapshot-v0`; `archive
+     snapshot` (incremental, bounded, uploads changed files to
+     `BLEH_ARCHIVE_WEB_*`, `latest.json` last); compose `web-snapshot`
+     service; edge cache rule for `/web/`; the site's reference data
+     panel with source notices; runbook `docs/operations/web-snapshots.md`.
+     Found while building it: the Federal Reserve readers emitted the
+     SDMX no-data placeholder (-9999) as values; fixed.
+   - Next action: the `data.bleh.xyz` R2 custom domain (needs the
+     `bleh.xyz` zone active in Cloudflare) and a write token for the
+     public bucket, then set `WEB_SNAPSHOT_URL` on the home-archive server
