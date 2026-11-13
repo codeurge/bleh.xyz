@@ -63,6 +63,21 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked
 
+  # The committed Solidity bytecode (crates/contracts/src/bytecode.rs) must
+  # match a fresh build with the pinned compiler (package-lock.json). Node.js
+  # is preinstalled on the runner; npm runs no install scripts.
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Solidity bytecode matches source
+        working-directory: crates/contracts
+        run: |
+          node --version
+          npm ci --ignore-scripts --no-audit --no-fund
+          node compile.mjs --check
+
   deny:
     runs-on: ubuntu-latest
     steps:

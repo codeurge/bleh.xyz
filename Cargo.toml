@@ -14,6 +14,7 @@ members = [
     "crates/swap-pollers",
     "crates/synthetic",
     "crates/reference-pollers",
+    "crates/contracts",
     "tools/hl-synth",
     "tools/mesh-client",
     "tools/hl-backfill",

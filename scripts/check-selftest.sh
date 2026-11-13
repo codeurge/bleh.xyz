@@ -113,6 +113,13 @@ expect_fail "JSON outside allowed directories" "JSON is allowed only"
 put docs/specs/example.json "{}"
 expect_pass "JSON under docs/ is allowed"
 
+put crates/contracts/package-lock.json "{}"
+put crates/contracts/sol/Verifier.sol "contract V {}"
+expect_pass "the Solidity source and its pinned npm manifest are allowed"
+
+put crates/x/package.json "{}"
+expect_fail "npm manifest outside crates/contracts" "JSON is allowed only"
+
 head -c 1100000 /dev/zero | tr '\0' 'a' >"$repo/docs/big.md"
 expect_fail "oversize file outside fixtures" "exceeds the 1 MiB cap"
 

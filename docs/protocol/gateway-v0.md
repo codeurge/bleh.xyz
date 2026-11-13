@@ -267,6 +267,9 @@ instruments (observation-v0 § 7), so:
   covered by commitments; checkpoints (`book_snapshot` records) are.
 - Verification is optional and off the hot path; the reference client
   verifies signatures always and proofs on a sample.
+- **On chain:** commitments and proofs verify in a smart contract with
+  `ecrecover`; `crates/contracts` has a Solidity verifier that accepts
+  exactly what the origin signs ([bus runbook](../operations/bus.md#on-chain-verification)).
 
 Each gateway keeps proofs for the newest blocks of each stream (default
 100 000 blocks per stream, an operator setting); older records are proven

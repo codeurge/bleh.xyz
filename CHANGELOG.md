@@ -28,6 +28,13 @@ versions (see [AGENTS.md](AGENTS.md)).
   kinds) and § 12 (synthetic examples with a canonical encoding), and the
   remaining differences from architecture.md § 1 (`ts_node`, `ts_ingest`,
   signed scope, `trade_id`, `heartbeat`, `gap`, `analytics`).
+- Solidity verifier for block commitments (`crates/contracts`):
+  `BlehCommitments` and the stateless `BlehBlockVerifier` check a
+  commitment's signature with `ecrecover` and a record's RFC 9162
+  inclusion proof, accepting exactly what the origin signs. Tests run the
+  committed bytecode in an in-process EVM (`revm`) against the bus signer
+  with test keys; CI recompiles with the pinned `solc` 0.8.38 and fails if
+  the bytecode differs. Not deployed anywhere.
 - Records archives (ADR 0017): `reference-normalized` and
   `swaps-normalized`, each with its own manifest chain, partitioned in
   place under the normalized directory. `archive-pipeline.sh records` and

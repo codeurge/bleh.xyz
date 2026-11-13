@@ -1,0 +1,14 @@
+{
+  "name": "bleh-contracts",
+  "private": true,
+  "description": "Pinned Solidity compiler for crates/contracts (see README.md)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "node compile.mjs",
+    "check": "node compile.mjs --check"
+  },
+  "devDependencies": {
+    "solc": "0.8.38"
+  }
+}

@@ -70,6 +70,51 @@ block numbers per stream (default 100,000 in the gateway binary, about
 least 24 hours of proofs (gateway-v0 § 8): size the retention for the
 block rate and memory available, and serve older proofs from the archive.
 
+## On-chain verification
+
+[`crates/contracts`](../../crates/contracts/README.md) holds a Solidity
+verifier for the commitments and proofs this crate produces:
+`BlehCommitments` (an internal library) and `BlehBlockVerifier` (a
+stateless test contract exposing it), in
+[`sol/BlehBlockVerifier.sol`](../../crates/contracts/sol/BlehBlockVerifier.sol).
+It accepts exactly what the signer stage signs:
+
+| Function | Checks |
+|---|---|
+| `verifyCommitment(c)` | `ecrecover` of `c.signature` over the EIP-191 hash of the commitment hash (domain `bleh-block-commitment-v0`, length-prefixed venue and kind, `uint64` block, `uint32` leaf count, root) equals `c.signer`; low `s` and `v` in {27, 28} required, as in Rust |
+| `verifyInclusion(leaf, proof, root)` | RFC 9162 § 2.1.3.2 audit path with `keccak256(0x01 ‖ l ‖ r)` nodes |
+| `verifyRecord(c, record, proof)` | `proof.leafCount == c.leafCount`, `keccak256(0x00 ‖ record)` is included under `c.merkleRoot`, and `verifyCommitment(c)` |
+
+`c` and `proof` have the fields of the gateway's `commitment` and `proof`
+messages (`BlockCommitment`, `MerkleProof`); `record` is the record's
+canonical encoding (`mesh_types::hash::canonical_record`). Every function
+returns false on invalid input and never reverts (`commitmentHash` alone
+reverts on a venue or kind over 255 bytes).
+
+**Trust is the caller's.** A valid commitment proves only that `c.signer`
+signed it. The consumer contract must check `c.signer` against the
+published, unrevoked signer addresses (the registry), as the reference
+client does with its allowlist. `verifyRecord` does not decode the record:
+a consumer that reads the record's venue, kind or block must check them
+against `c`, as `BlockCommitment::verify_inclusion` does in Rust.
+
+**Tests** (`cargo test -p contracts`) deploy the committed bytecode in an
+in-process EVM (`revm`) and drive it with commitments and proofs from
+`StreamBlock`, `BlockSigner` and `ProofStore` signed by test keys: every
+record of blocks of 1 to 1,024 records verifies, key rotation verifies
+under each key, and every tampering the Rust verifier rejects (record
+bytes, proof index, count or path, commitment fields, signer, malformed or
+high-`s` signatures) the contract rejects too. Gas for `verifyRecord`, as a
+whole transaction with a record of about 290 bytes: about 39,000 for a one-record
+block and 48,000 for a 1,024-record block (one `ecrecover` plus one hash
+per tree level).
+
+**Rebuilding** the bytecode after a source change needs the pinned
+compiler (`solc` 0.8.38 from npm, `package-lock.json`):
+`cd crates/contracts && npm ci --ignore-scripts && node compile.mjs`. CI
+runs `node compile.mjs --check` so the committed bytecode always matches
+the source. No deployment happens from this repository.
+
 ## JetStream side tap
 
 `bus::jetstream::JetStreamTap` (feature `jetstream`, on by default).

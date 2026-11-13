@@ -1,0 +1,23 @@
+[package]
+name = "contracts"
+description = "Solidity verifier for bleh.xyz block commitments, tested against the Rust signer in an in-process EVM"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+bus = { workspace = true, default-features = false }
+mesh-types.workspace = true
+# In-process EVM for the tests. Default features pull C libraries (libsecp256k1,
+# c-kzg, blst) that the tests do not need; with `std` only, `ecrecover` runs
+# on the pure-Rust k256 backend.
+revm = { version = "43.0.3", default-features = false, features = ["std"] }
+sha2.workspace = true
+
+[lints]
+workspace = true

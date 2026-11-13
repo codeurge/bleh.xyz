@@ -46,6 +46,7 @@ record.
 | `crates/origin` | library and binaries `origin`, `archive` | integrator | The origin service composing reader, book, bus, gateway and live capture; the archive's injected filters and parser; the wired `archive` binary |
 | `crates/history-api` | library and binary | historical API | HTTP range queries over partitions |
 | `tools/hl-synth` | library and binary | integrator | Synthetic node-format fixture generator |
+| `crates/contracts` | library (tests only) | integrator | Solidity verifier for block commitments and its in-process EVM tests (amendment 2026-11-13) |
 | `crates/swap-pollers` | library and binary | swap pollers | CFTC Part 43 and SEC SBSR public dissemination to `SwapPrint` records |
 | `tools/hl-backfill` | library and binary | backfill | Hyperliquid public archive buckets to private raw, filtered raw and partitions |
 | `deploy/` | not a crate | infrastructure | Containers, infrastructure as code |
@@ -98,6 +99,25 @@ provides:
 
 Lanes keep owning their crates; changes to `crates/origin` go through the
 integrator like `mesh-types`.
+
+### Amendment (2026-11-13): the contracts crate
+
+The block commitments are designed to verify in an Ethereum contract with
+`ecrecover` (observation-v0 § 7). The Solidity verifier and its tests need
+a home that keeps the EVM test dependencies out of every other crate:
+
+- `crates/contracts` (integrator, with `crates/mesh-types`): the Solidity
+  source in `sol/`, the committed bytecode in a generated `src/bytecode.rs`,
+  and tests that run the bytecode in an in-process EVM (`revm`, a
+  dev-dependency only) against the bus signer. Nothing that ships depends
+  on it, and the release images build only binaries, so `revm` never
+  reaches them.
+- The compiler is solc-js, pinned exactly in `crates/contracts/package.json`
+  and `package-lock.json` (the only npm manifest in the repository; the
+  data-file guard allows these two JSON files). `cargo test` uses the
+  committed bytecode and needs no Node.js; CI recompiles and fails if the
+  bytecode differs from the source.
+- Solidity sources (`.sol`) are allowed by the data-file guard.
 
 ## Consequences
 

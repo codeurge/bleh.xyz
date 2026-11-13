@@ -346,15 +346,18 @@ staging soak; none is ticked yet.
 ### Lane: archive (Phase 1 part)
 
 26. **block-signing**
-    - Status: In progress
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: Phase 0 data-model-schema, signing-keys (test keys
       first)
     - PR: Not opened
-    - Next action: Per-block per-stream Merkle roots and secp256k1 signatures
-      (crates/bus), signed by the origin and verified by the reference
-      client end to end. Remaining: the Solidity test contract that verifies
-      with `ecrecover`.
+    - Next action: None. Per-block per-stream Merkle roots and secp256k1
+      signatures (crates/bus), signed by the origin and verified by the
+      reference client end to end. The Solidity verifier
+      (crates/contracts) checks commitments with `ecrecover` and RFC 9162
+      inclusion proofs; its tests run the committed bytecode in an
+      in-process EVM against the bus signer with test keys. Production
+      signing keys belong to signing-keys.
 
 ### Lane: Part 43 and SBSR pollers (parallel)
 

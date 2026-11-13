@@ -8,7 +8,17 @@ all-features = true
 # Known vulnerabilities and unmaintained crates fail the build; yanked
 # versions too. Add an ignore only with a dated reason.
 yanked = "deny"
-ignore = []
+ignore = [
+    # 2026-11-13: both reach the tree only through revm, a dev-dependency of
+    # crates/contracts (the in-process EVM for the Solidity verifier tests).
+    # Nothing that ships links them.
+    # crypto-bigint 0.5.5 (via k256 0.13 in alloy-eip7702) has no fixed 0.5
+    # release; revm's k256 recovers public keys from public test data only,
+    # and the shipped k256 0.14 uses crypto-bigint 0.7 (fixed).
+    { id = "RUSTSEC-2026-0387", reason = "test-only via revm; no secret operands (2026-11-13)" },
+    # paste (via alloy-primitives) is unmaintained; compile-time macros only.
+    { id = "RUSTSEC-2024-0436", reason = "test-only via revm; unmaintained, no vulnerability (2026-11-13)" },
+]
 
 [licenses]
 # Permissive licenses only, compatible with Apache-2.0 distribution and
