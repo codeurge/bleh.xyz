@@ -150,6 +150,14 @@ cover the New York Fed's revision window) on the home-archive server.
   repository's end-of-day file).
 - Each written day file leaves a marker, `<state>/<file>/<day>.sha256`,
   holding its SHA-256; unchanged files are skipped on later scans.
+- Memory does not grow with the day file. One pass checks every record
+  (validity, allowlist, duplicate `seq`) and spills each line to a bucket
+  file under `<state>/<file>/<day>.spill/`, grouped by partition; the
+  buckets are then written one at a time (about 64 MiB of records each,
+  or one whole partition if larger) and the spill directory is removed.
+  The state directory needs free space about the size of the largest day
+  file. The partitions are the same files, byte for byte, as partitioning
+  the whole day in memory.
 - Partitions are write-once. A file that changes after its day was
   partitioned is logged and counted
   (`archive_partition_dir_changed_total`) and left alone; correct it

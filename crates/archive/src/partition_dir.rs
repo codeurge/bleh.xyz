@@ -8,17 +8,33 @@
 //! ([`Existing::RequireIdentical`]): a day whose file changes after it was
 //! partitioned is reported (log and `archive_partition_dir_changed_total`)
 //! and left alone, because fixing it is a deliberate correction.
+//!
+//! Day files can be gigabytes (a day of public swap prints), so a day is
+//! partitioned with bounded memory ([`partition_file`]): one pass parses and
+//! checks every record and spills each line to a bucket file chosen by its
+//! partition key, then each bucket (every record of the partitions it holds)
+//! is read and written in turn. The files written are the same as
+//! [`partition::write_partitions`] writes for the whole day at once.
 
-use std::io::{BufRead, BufReader, Read};
+use std::collections::BTreeMap;
+use std::hash::{Hash, Hasher};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use mesh_types::Record;
+use mesh_types::{Record, Seq};
 use sha2::{Digest, Sha256};
 
 use crate::error::{Error, IoContext, Result};
-use crate::layout::Day;
+use crate::layout::{Day, PartitionKey};
 use crate::partition::{self, Existing, PartitionOptions};
+
+/// Day-file bytes per spill bucket. A bucket's records are held in memory
+/// while its partitions are written, so this (or the largest single
+/// partition, if larger) sets peak memory.
+pub const BUCKET_BYTES: u64 = 64 << 20;
+/// Upper bound on spill buckets (open files) per day file.
+const MAX_BUCKETS: u64 = 1024;
 
 /// Options for [`scan`].
 #[derive(Debug, Clone)]
@@ -85,15 +101,10 @@ pub fn scan(opts: &PartitionDir, today: Day) -> Result<ScanReport> {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => return Err(e).at(&marker),
         }
-        let records = read_records(&path)?;
-        let n = records.len();
-        let po = PartitionOptions {
-            existing: Existing::RequireIdentical,
-            ..PartitionOptions::default()
-        };
-        let files = partition::write_partitions(&opts.out, records, &po)?;
+        let spill = opts.state_dir.join(&file).join(format!("{day}.spill"));
+        let (n, files) = partition_file(&path, &opts.out, &spill, BUCKET_BYTES)?;
         write_marker(&marker, &digest)?;
-        tracing::info!(day = %day, records = n, files = files.len(), "partitioned");
+        tracing::info!(day = %day, records = n, files, "partitioned");
         crate::metrics::inc("archive_partition_dir_days_total", &[], 1);
         crate::metrics::inc("archive_partition_dir_records_total", &[], n as u64);
         report.written.push((day, file));
@@ -181,19 +192,161 @@ fn list_days(dir: &Path, file: &str) -> Result<Vec<(Day, PathBuf)>> {
     Ok(out)
 }
 
-fn read_records(path: &Path) -> Result<Vec<Record>> {
-    let reader = BufReader::new(std::fs::File::open(path).at(path)?);
-    let mut records = Vec::new();
-    for (i, line) in reader.lines().enumerate() {
-        let line = line.at(path)?;
+/// Writes every partition of the JSON-lines record file `path` under the
+/// archive root `out` (write-once), holding at most one spill bucket's
+/// records in memory. `spill` is a scratch directory, removed afterwards;
+/// it needs free space about the size of the file. Returns the number of
+/// records and of partition files.
+///
+/// The result matches [`partition::write_partitions`] over the whole file
+/// with [`Existing::RequireIdentical`]: the same files with the same bytes.
+/// Every record is validated and every partition checked for duplicate
+/// `seq` before anything is written, with the same errors.
+///
+/// # Errors
+///
+/// Fails on unreadable or invalid lines, invalid or duplicate records, I/O
+/// errors and write-once conflicts.
+pub fn partition_file(
+    path: &Path,
+    out: &Path,
+    spill: &Path,
+    bucket_bytes: u64,
+) -> Result<(usize, usize)> {
+    let len = std::fs::metadata(path).at(path)?.len();
+    let buckets = (len / bucket_bytes.max(1) + 1).min(MAX_BUCKETS);
+    let spill = SpillDir::create(spill)?;
+
+    // Pass 1: parse, validate and spill each line to its partition's
+    // bucket; collect each partition's seqs for the duplicate check.
+    let mut writers: Vec<Option<BufWriter<std::fs::File>>> = (0..buckets).map(|_| None).collect();
+    let mut seqs: BTreeMap<PartitionKey, Vec<Seq>> = BTreeMap::new();
+    let mut records = 0usize;
+    for_each_record(path, |r, line| {
+        partition::validate_record(&r)?;
+        let key = partition::partition_key(&r);
+        let b = bucket_of(&key, buckets);
+        let w = match &mut writers[b] {
+            Some(w) => w,
+            slot => {
+                let p = spill.bucket(b);
+                let f = std::fs::File::create(&p).at(&p)?;
+                slot.insert(BufWriter::with_capacity(1 << 16, f))
+            }
+        };
+        w.write_all(line.as_bytes()).at(spill.bucket(b))?;
+        w.write_all(b"\n").at(spill.bucket(b))?;
+        let seq = r.prov().seq;
+        match seqs.get_mut(&key) {
+            Some(v) => v.push(seq),
+            None => {
+                seqs.insert(key, vec![seq]);
+            }
+        }
+        records += 1;
+        Ok(())
+    })?;
+    let mut present = Vec::new();
+    for (b, w) in writers.into_iter().enumerate() {
+        if let Some(w) = w {
+            w.into_inner()
+                .map_err(std::io::IntoInnerError::into_error)
+                .at(spill.bucket(b))?;
+            present.push(b);
+        }
+    }
+    // Duplicate seqs, in partition order, as `partition::plan` reports them.
+    for (key, v) in &mut seqs {
+        v.sort_unstable();
+        if let Some(w) = v.windows(2).find(|w| w[0] == w[1]) {
+            return Err(partition::duplicate_seq(key, w[0]));
+        }
+    }
+    drop(seqs);
+
+    // Pass 2: one bucket at a time. Partitions never span buckets, and each
+    // partition's files depend only on its own records.
+    let po = PartitionOptions {
+        validate: false, // done in pass 1
+        verify_readback: true,
+        existing: Existing::RequireIdentical,
+    };
+    let mut files = 0usize;
+    for b in present {
+        let p = spill.bucket(b);
+        let mut recs = Vec::new();
+        for_each_record(&p, |r, _| {
+            recs.push(r);
+            Ok(())
+        })?;
+        files += partition::write_partitions(out, recs, &po)?.len();
+        std::fs::remove_file(&p).at(&p)?;
+    }
+    Ok((records, files))
+}
+
+/// Calls `f` with each record of a JSON-lines file and its line (without
+/// the line ending). Blank lines are skipped; lines end in `\n` or `\r\n`.
+fn for_each_record(path: &Path, mut f: impl FnMut(Record, &str) -> Result<()>) -> Result<()> {
+    let mut reader = BufReader::with_capacity(1 << 16, std::fs::File::open(path).at(path)?);
+    let mut buf = Vec::new();
+    let mut line_no = 0u64;
+    loop {
+        buf.clear();
+        if reader.read_until(b'\n', &mut buf).at(path)? == 0 {
+            return Ok(());
+        }
+        line_no += 1;
+        let bad = |e: &dyn std::fmt::Display| {
+            Error::invalid(format!("{}: line {line_no}: {e}", path.display()))
+        };
+        let mut bytes = buf.as_slice();
+        if let Some(b) = bytes.strip_suffix(b"\n") {
+            bytes = b.strip_suffix(b"\r").unwrap_or(b);
+        }
+        let line = std::str::from_utf8(bytes).map_err(|e| bad(&e))?;
         if line.trim().is_empty() {
             continue;
         }
-        let r: Record = serde_json::from_str(&line)
-            .map_err(|e| Error::invalid(format!("{}: line {}: {e}", path.display(), i + 1)))?;
-        records.push(r);
+        let r: Record = serde_json::from_str(line).map_err(|e| bad(&e))?;
+        f(r, line)?;
     }
-    Ok(records)
+}
+
+/// The spill bucket of a partition. Any fixed function of the key works:
+/// buckets only bound memory and never change what is written.
+fn bucket_of(key: &PartitionKey, buckets: u64) -> usize {
+    let mut h = std::hash::DefaultHasher::new();
+    key.hash(&mut h);
+    usize::try_from(h.finish() % buckets).unwrap_or(0)
+}
+
+/// A scratch directory for spill buckets, emptied on creation (a crashed
+/// run may have left one) and removed on drop.
+struct SpillDir(PathBuf);
+
+impl SpillDir {
+    fn create(dir: &Path) -> Result<Self> {
+        match std::fs::remove_dir_all(dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e).at(dir),
+        }
+        std::fs::create_dir_all(dir).at(dir)?;
+        Ok(Self(dir.to_path_buf()))
+    }
+
+    fn bucket(&self, b: usize) -> PathBuf {
+        self.0.join(format!("bucket-{b:04}.jsonl"))
+    }
+}
+
+impl Drop for SpillDir {
+    fn drop(&mut self) {
+        if let Err(e) = std::fs::remove_dir_all(&self.0) {
+            tracing::warn!(dir = %self.0.display(), error = %e, "could not remove spill directory");
+        }
+    }
 }
 
 fn file_sha256(path: &Path) -> Result<String> {
@@ -277,6 +430,136 @@ mod tests {
         // The next day settles.
         let later = scan(&o, "2026-01-05".parse().expect("day")).expect("later");
         assert_eq!(later.written, vec![(d3, f())]);
+    }
+
+    /// The in-memory path `scan` used before streaming: the whole file as
+    /// one `Vec<Record>`.
+    fn read_records(path: &Path) -> Vec<Record> {
+        std::fs::read_to_string(path)
+            .expect("read")
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| serde_json::from_str(l).expect("json"))
+            .collect()
+    }
+
+    /// A synthetic day file with many partitions (every kind, several
+    /// instruments, records on the next day too), lines in no particular
+    /// order, blank lines and a CRLF line ending.
+    fn multi_key_day_file(path: &Path) {
+        let mut recs = testutil::every_kind();
+        for (n, inst) in ["SYN", "AAA", "BBB", "CCC", "DDD"].iter().enumerate() {
+            let inst = format!("hyperliquid:perp:{inst}:X");
+            for i in 0..40u32 {
+                // Interleave blocks so seq order differs from file order,
+                // and put a few records on the next day.
+                let block = 100 + u64::from((i * 7) % 5);
+                let ts = testutil::DAY_MS + i64::from(i) * 60_000 + n as i64;
+                let ts = if i % 13 == 0 { ts + 86_400_000 } else { ts };
+                recs.push(testutil::trade(&inst, block, i, ts));
+            }
+        }
+        // Deterministic shuffle.
+        let len = recs.len();
+        let order: Vec<usize> = (0..len).map(|i| (i * 37 + 11) % len).collect();
+        let mut text = String::new();
+        for (j, i) in order.into_iter().enumerate() {
+            text.push_str(&serde_json::to_string(&recs[i]).expect("json"));
+            text.push_str(match j % 17 {
+                3 => "\r\n",
+                5 => "\n\n",
+                9 => "\n  \n",
+                _ => "\n",
+            });
+        }
+        std::fs::write(path, text).expect("write");
+    }
+
+    fn tree(root: &Path) -> Vec<(String, Vec<u8>)> {
+        crate::layout::list_files(root)
+            .expect("list")
+            .into_iter()
+            .map(|p| {
+                let bytes = std::fs::read(root.join(&p)).expect("read");
+                (p, bytes)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn streamed_partitions_match_in_memory() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let day_file = tmp.path().join("swap_print.jsonl");
+        multi_key_day_file(&day_file);
+
+        let records = read_records(&day_file);
+        let n = records.len();
+        let mem_out = tmp.path().join("in-memory");
+        let po = PartitionOptions {
+            existing: Existing::RequireIdentical,
+            ..PartitionOptions::default()
+        };
+        let mem_files = partition::write_partitions(&mem_out, records, &po).expect("in memory");
+        let expected = tree(&mem_out);
+        assert!(expected.len() > 10, "{} files", expected.len());
+
+        // Many small buckets, and a single bucket.
+        for (name, bucket_bytes) in [("tiny", 256), ("one", u64::MAX)] {
+            let out = tmp.path().join(name);
+            let spill = tmp.path().join(format!("{name}.spill"));
+            let (records, files) =
+                partition_file(&day_file, &out, &spill, bucket_bytes).expect("streamed");
+            assert_eq!((records, files), (n, mem_files.len()), "{name}");
+            assert_eq!(tree(&out), expected, "{name}");
+            assert!(!spill.exists(), "{name}: spill directory left behind");
+        }
+
+        // Write-once: a second streamed run over an existing archive is
+        // accepted and changes nothing.
+        let spill = tmp.path().join("again.spill");
+        partition_file(&day_file, &mem_out, &spill, 256).expect("identical rerun");
+        assert_eq!(tree(&mem_out), expected);
+    }
+
+    #[test]
+    fn streamed_errors_match_in_memory_and_write_nothing() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let ms = testutil::DAY_MS;
+        let mut bad = testutil::trade("hyperliquid:perp:BBB:X", 1, 0, ms);
+        if let Record::Trade(t) = &mut bad {
+            t.size = testutil::sz("0");
+        }
+        let cases = [
+            // Duplicate seq in the second partition (in key order).
+            vec![
+                testutil::trade("hyperliquid:perp:BBB:X", 1, 0, ms),
+                testutil::trade("hyperliquid:perp:AAA:X", 1, 0, ms),
+                testutil::trade("hyperliquid:perp:BBB:X", 1, 0, ms + 1),
+                testutil::trade("hyperliquid:perp:AAA:X", 1, 1, ms),
+            ],
+            // An invalid record after valid ones.
+            vec![testutil::trade("hyperliquid:perp:AAA:X", 1, 0, ms), bad],
+        ];
+        for (i, recs) in cases.into_iter().enumerate() {
+            let day_file = tmp.path().join(format!("case-{i}.jsonl"));
+            let lines: Vec<String> = recs
+                .iter()
+                .map(|r| serde_json::to_string(r).expect("json"))
+                .collect();
+            std::fs::write(&day_file, lines.join("\n")).expect("write");
+            let mem_err = partition::write_partitions(
+                &tmp.path().join("mem"),
+                recs,
+                &PartitionOptions::default(),
+            )
+            .expect_err("in memory");
+            let out = tmp.path().join(format!("out-{i}"));
+            let spill = tmp.path().join(format!("spill-{i}"));
+            let err = partition_file(&day_file, &out, &spill, 1).expect_err("streamed");
+            assert_eq!(err.to_string(), mem_err.to_string(), "case {i}");
+            assert!(tree(&out).is_empty(), "case {i}: wrote files");
+            assert!(!spill.exists(), "case {i}: spill directory left behind");
+        }
     }
 
     #[test]

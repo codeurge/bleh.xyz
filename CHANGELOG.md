@@ -162,6 +162,14 @@ versions (see [AGENTS.md](AGENTS.md)).
 - The New York Fed notice for SOFR, BGCR and the SOFR averages and index
   now includes the Terms of Use's DTCC Solutions LLC disclaimer verbatim,
   instead of referring to it.
+- `archive partition-dir` partitions a day file with bounded memory: it
+  checks every record and spills lines into per-partition buckets in the
+  state directory, then writes one bucket at a time. Peak memory no longer
+  grows with the day file (multi-gigabyte swap print days had held
+  compose `swap-partition` at its 1 GiB limit without finishing). The
+  partition files are byte-identical to before; the state directory needs
+  free space about the size of the largest day file while a day is
+  written.
 - Compose `web-snapshot` takes its own store settings
   (`WEB_SNAPSHOT_ENDPOINT`, `_REGION`, `_ALLOW_HTTP`, `_PATH_STYLE`),
   falling back to `S3_*`, so snapshots can go to R2 while other services

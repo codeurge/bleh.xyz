@@ -34,7 +34,7 @@ use parquet::schema::types::ColumnPath;
 
 use mesh_types::arrow::{META_KIND, META_SCHEMA};
 use mesh_types::{
-    ContentHash, ContentHasher, OBSERVATION_SCHEMA, Record, RecordKind, Sha256Digest,
+    ContentHash, ContentHasher, OBSERVATION_SCHEMA, Record, RecordKind, Seq, Sha256Digest,
 };
 
 use crate::error::{Error, IoContext, Result};
@@ -100,14 +100,29 @@ pub fn plan(records: Vec<Record>) -> Result<BTreeMap<PartitionKey, Vec<Record>>>
     for (key, recs) in &mut groups {
         recs.sort_by_key(|r| r.prov().seq);
         if let Some(w) = recs.windows(2).find(|w| w[0].prov().seq == w[1].prov().seq) {
-            return Err(Error::invalid(format!(
-                "{}: duplicate seq {}",
-                key.dir(),
-                w[0].prov().seq
-            )));
+            return Err(duplicate_seq(key, w[0].prov().seq));
         }
     }
     Ok(groups)
+}
+
+/// The error [`plan`] returns for two records of `key` sharing `seq`.
+pub(crate) fn duplicate_seq(key: &PartitionKey, seq: Seq) -> Error {
+    Error::invalid(format!("{}: duplicate seq {seq}", key.dir()))
+}
+
+/// The checks [`write_partitions`] runs on every record when
+/// [`PartitionOptions::validate`] is set: `Record::validate` and the field
+/// allowlist.
+///
+/// # Errors
+///
+/// Fails on an invalid record or a field outside the allowlist.
+pub fn validate_record(r: &Record) -> Result<()> {
+    r.validate()
+        .map_err(|e| Error::invalid(format!("record at {}: {e}", r.prov().seq)))?;
+    mesh_types::allowlist::check_record(r)
+        .map_err(|e| Error::invalid(format!("allowlist at {}: {e}", r.prov().seq)))
 }
 
 /// The pinned writer properties for a file of `kind`.
@@ -394,10 +409,7 @@ pub fn write_partitions(
 ) -> Result<Vec<WrittenFile>> {
     if opts.validate {
         for r in &records {
-            r.validate()
-                .map_err(|e| Error::invalid(format!("record at {}: {e}", r.prov().seq)))?;
-            mesh_types::allowlist::check_record(r)
-                .map_err(|e| Error::invalid(format!("allowlist at {}: {e}", r.prov().seq)))?;
+            validate_record(r)?;
         }
     }
     let mut out = Vec::new();
