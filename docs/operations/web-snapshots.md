@@ -81,6 +81,12 @@ Keep it that way:
 - Keep `WEB_SNAPSHOT_INTERVAL_SECS` at 60 or more.
 - Keep the cache rule for `data.bleh.xyz`. Without it Cloudflare does not
   cache `.json`, and every page view becomes a Class B read.
+- Every file the publisher rewrites in place (`latest.json`,
+  `_manifests/index.json`, `_manifests/magnets.txt`, `manifest.anchors.json`,
+  `manifest.json.ots`, `version-hint.text`) must match the short-TTL rule
+  (`deploy/terraform/modules/cloudflare-edge`). Cached under the one-year
+  rule, a stale index makes `archive verify` fail with "previous manifest
+  not found". After changing the rule, purge the `_manifests/` prefix.
 - Do not point the site at `r2.dev`, which bypasses the cache.
 - Uploading settled archive days to the same bucket (`archive publish`)
   uses storage that grows every day and will leave the free tier; decide

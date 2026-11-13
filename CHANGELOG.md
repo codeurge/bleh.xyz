@@ -245,6 +245,14 @@ versions (see [AGENTS.md](AGENTS.md)).
   the filtered-raw format and the spot exclusion; the gateway protocol
   document matches the implementation.
 
+### Fixed
+
+- The `data.<domain>` cache rules gave the manifest index, magnets list,
+  anchors and OpenTimestamps proofs the one-year TTL meant for write-once
+  files, so the CDN served a stale index and `archive verify` failed
+  the chain walk. Every file `archive publish` rewrites now gets the
+  one-minute TTL.
+
 ## 0.0.0 — 2026-11-11
 
 ### Added

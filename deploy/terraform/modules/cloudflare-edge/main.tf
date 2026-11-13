@@ -22,6 +22,15 @@ locals {
   data_host = "data.${var.domain}"
   live_host = "live.${var.domain}"
   api_host  = "api.${var.domain}"
+
+  # Objects the publisher rewrites in place (archive::publish put_mutable,
+  # the Iceberg version hint) and web snapshots: cached for a minute. All
+  # other archive objects are write-once.
+  rewritten_paths = join(" or ", concat(
+    [for f in ["/latest.json", "/version-hint.text", "/_manifests/index.json", "/_manifests/magnets.txt", "/manifest.anchors.json", "/manifest.json.ots"] :
+    "ends_with(http.request.uri.path, \"${f}\")"],
+    ["starts_with(http.request.uri.path, \"/web/\")"],
+  ))
 }
 
 # ------------------------------------------------------------------ R2
@@ -130,9 +139,10 @@ resource "cloudflare_ruleset" "rate_limit" {
   }]
 }
 
-# Archive files are write-once, so they are cached for a year; pointer files
-# that change (latest manifest, Iceberg version hint) and web snapshots
-# (web/, ADR 0016) for a minute.
+# Archive files are write-once, so they are cached for a year; files the
+# publisher rewrites (manifest index, latest pointer, magnets, anchors, OTS
+# proofs, Iceberg version hint) and web snapshots (web/, ADR 0016) for a
+# minute. A rewritten file cached for a year breaks chain verification.
 resource "cloudflare_ruleset" "cache" {
   zone_id     = var.zone_id
   name        = "bleh archive cache"
@@ -144,7 +154,7 @@ resource "cloudflare_ruleset" "cache" {
     {
       ref         = "bleh_archive_pointers"
       description = "Short TTL for files that are rewritten and web snapshots"
-      expression  = "(http.host eq \"${local.data_host}\" and (ends_with(http.request.uri.path, \"/latest.json\") or ends_with(http.request.uri.path, \"/version-hint.text\") or starts_with(http.request.uri.path, \"/web/\")))"
+      expression  = "(http.host eq \"${local.data_host}\" and (${local.rewritten_paths}))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {
@@ -162,7 +172,7 @@ resource "cloudflare_ruleset" "cache" {
     {
       ref         = "bleh_archive_immutable"
       description = "Long TTL for immutable archive files"
-      expression  = "(http.host eq \"${local.data_host}\" and not ends_with(http.request.uri.path, \"/latest.json\") and not ends_with(http.request.uri.path, \"/version-hint.text\") and not starts_with(http.request.uri.path, \"/web/\"))"
+      expression  = "(http.host eq \"${local.data_host}\" and not (${local.rewritten_paths}))"
       action      = "set_cache_settings"
       enabled     = true
       action_parameters = {
