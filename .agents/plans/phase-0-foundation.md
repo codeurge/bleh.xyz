@@ -101,14 +101,15 @@ Phase 3.
      registration.
 
 7. **wire-format-decision**
-   - Status: Ready
-   - Owner: Unassigned
+   - Status: Done
+   - Owner: Maintainers
    - Dependencies: None
-   - PR: Not opened
-   - Next action: Update ADR 0004 to "planned, Phase 2": DBN as a
+   - PR: Not applicable (pushed to `main`)
+   - Next action: None. ADR 0004 reads "planned, Phase 2": DBN as a
      compatibility layer behind a Databento-shaped API, with provenance and
-     signatures carried alongside. Phases 1–2 core encodings stay JSON and
-     Arrow.
+     signatures carried alongside; Phases 1–2 core encodings stay JSON and
+     Arrow. The historical `/databento/v0/...` endpoints are built; live
+     DBN is tracked by `dbn-compat-api` in the Phase 2 plan.
 
 8. **project-name**
    - Status: Done

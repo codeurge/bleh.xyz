@@ -181,6 +181,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 - `archive publish` sends Kubo the file name instead of its archive path.
   With the path, Kubo returned a directory's CID and every publish failed
   its CID check.
+- ADR 0004 revised: status "planned, Phase 2". DBN is a compatibility
+  layer behind a Databento-shaped API, derived from the core records, with
+  provenance and signatures carried alongside (native `/v0` endpoints,
+  manifests, commitments, `X-Bleh-*` headers) rather than in an extension
+  record. Phases 1 and 2 keep JSON and Arrow as core encodings. It notes
+  that the historical `/databento/v0/...` endpoints are built and live DBN
+  is not.
 - The New York Fed notice for SOFR, BGCR and the SOFR averages and index
   now includes the Terms of Use's DTCC Solutions LLC disclaimer verbatim,
   instead of referring to it.

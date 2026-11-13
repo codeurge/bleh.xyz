@@ -11,7 +11,7 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0001](0001-record-decisions.md) | Record decisions as ADRs | Accepted |
 | [0002](0002-licensing.md) | Apache-2.0 for code, CC0 1.0 for data and methods | Accepted |
 | [0003](0003-field-level-admission.md) | Admit sources per field, with recorded decisions | Accepted |
-| [0004](0004-wire-format.md) | DBN-compatible format with provenance sidecar | Accepted (Phase 2 compatibility layer) |
+| [0004](0004-wire-format.md) | DBN compatibility layer with provenance carried alongside | Accepted; planned, Phase 2 (historical endpoints built) |
 | [0005](0005-working-name.md) | "bleh.xyz" is a working name only | Superseded by 0008 |
 | [0006](0006-phase-1-2-service-architecture.md) | Service architecture for live and historical data | Accepted |
 | [0007](0007-code-layout.md) | Code layout and lane ownership | Accepted |
