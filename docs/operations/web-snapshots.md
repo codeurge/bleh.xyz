@@ -40,23 +40,55 @@ archive snapshot --records /srv/swap/records,/srv/reference/records --out /tmp/w
 Uploading is off until `WEB_SNAPSHOT_URL` is set in `.env`:
 
 1. In Cloudflare, create an R2 API token with **Object Read & Write** on
-   the public bucket only.
-2. Set in `.env`:
+   the public bucket only. Its S3 access key ID is the token ID; the secret
+   is the SHA-256 (hex) of the token value.
+2. Set in `.env`. The `WEB_SNAPSHOT_*` store settings override `S3_*`, so
+   other services can keep a local MinIO in `S3_*`:
 
    ```bash
    WEB_SNAPSHOT_URL=s3://bleh-archive/web/v0
-   S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-   WEB_SNAPSHOT_ACCESS_KEY_ID=<token access key>
-   WEB_SNAPSHOT_SECRET_ACCESS_KEY=<token secret>
+   WEB_SNAPSHOT_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+   WEB_SNAPSHOT_REGION=auto
+   WEB_SNAPSHOT_ALLOW_HTTP=false
+   WEB_SNAPSHOT_PATH_STYLE=true
+   WEB_SNAPSHOT_ACCESS_KEY_ID=<token ID>
+   WEB_SNAPSHOT_SECRET_ACCESS_KEY=<sha256 of the token value>
    ```
 
 3. `docker compose --profile home-archive up -d web-snapshot`, then check
    `https://data.bleh.xyz/web/v0/latest.json`.
 
-The edge module (`deploy/terraform/modules/cloudflare-edge`) already allows
+The edge module (`deploy/terraform/modules/cloudflare-edge`) allows
 cross-origin `GET` on the public bucket and caches `/web/` for 60 seconds.
 Until `data.bleh.xyz` exists, the bucket's `r2.dev` URL works if public
-access is turned on; point the site's `bleh-data` meta tag at it.
+access is turned on; point the site's `bleh-data` meta tag at it. `r2.dev`
+is rate limited and not cached, so use it only for testing.
+
+## Staying in the free tier
+
+R2's free tier is 10 GB-month of Standard storage, 1 million Class A
+(write and list) and 10 million Class B (read) operations a month; egress
+is free. Infrequent Access storage has no free tier. Snapshots fit easily:
+
+| Meter | Snapshot use | Bound |
+|---|---|---|
+| Storage | Under 10 MB | Fixed number of bounded files |
+| Class A | Changed files plus `latest.json` each pass | About 130,000 a month at 300 s even if every file changed every pass |
+| Class B | Edge cache refills only | The cache rule caches `/web/` for 60 s, and tiered caching sends refills through upper tiers, so reads scale with files and minutes, not visitors |
+
+Keep it that way:
+
+- Keep `WEB_SNAPSHOT_INTERVAL_SECS` at 60 or more.
+- Keep the cache rule for `data.bleh.xyz`. Without it Cloudflare does not
+  cache `.json`, and every page view becomes a Class B read.
+- Do not point the site at `r2.dev`, which bypasses the cache.
+- Uploading settled archive days to the same bucket (`archive publish`)
+  uses storage that grows every day and will leave the free tier; decide
+  that separately.
+
+Check month-to-date usage with `scripts/r2-usage.sh` (needs a token with
+Account Analytics Read). It exits 1 at 80 percent of any allowance. A
+Cloudflare budget alert at $1 of usage-based spend is the backstop.
 
 ## The site
 

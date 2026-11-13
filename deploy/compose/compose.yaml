@@ -487,12 +487,14 @@ services:
       BLEH_SNAPSHOT_OUT: /var/lib/bleh/web-snapshot
       BLEH_SNAPSHOT_INTERVAL_SECS: ${WEB_SNAPSHOT_INTERVAL_SECS:-300}
       BLEH_ARCHIVE_WEB_URL: ${WEB_SNAPSHOT_URL:-}
-      BLEH_ARCHIVE_WEB_ENDPOINT: ${S3_ENDPOINT:-}
-      BLEH_ARCHIVE_WEB_REGION: ${S3_REGION:-auto}
+      # WEB_SNAPSHOT_* override S3_*, so the snapshot can go to the public
+      # bucket while other services use a local store.
+      BLEH_ARCHIVE_WEB_ENDPOINT: ${WEB_SNAPSHOT_ENDPOINT:-${S3_ENDPOINT:-}}
+      BLEH_ARCHIVE_WEB_REGION: ${WEB_SNAPSHOT_REGION:-${S3_REGION:-auto}}
       BLEH_ARCHIVE_WEB_ACCESS_KEY_ID: ${WEB_SNAPSHOT_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID:-}}
       BLEH_ARCHIVE_WEB_SECRET_ACCESS_KEY: ${WEB_SNAPSHOT_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY:-}}
-      BLEH_ARCHIVE_WEB_ALLOW_HTTP: ${S3_ALLOW_HTTP:-false}
-      BLEH_ARCHIVE_WEB_PATH_STYLE: ${S3_PATH_STYLE:-true}
+      BLEH_ARCHIVE_WEB_ALLOW_HTTP: ${WEB_SNAPSHOT_ALLOW_HTTP:-${S3_ALLOW_HTTP:-false}}
+      BLEH_ARCHIVE_WEB_PATH_STYLE: ${WEB_SNAPSHOT_PATH_STYLE:-${S3_PATH_STYLE:-true}}
     volumes:
       - swap-data:/var/lib/bleh/swap:ro
       - reference-data:/var/lib/bleh/reference:ro

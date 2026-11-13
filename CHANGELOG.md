@@ -16,6 +16,8 @@ versions (see [AGENTS.md](AGENTS.md)).
   notice) and uploads changed files to the public bucket under `web/v0/`.
   Compose runs it as `web-snapshot`. The site shows a reference data panel
   from it, hidden when the snapshot is unreachable.
+- `scripts/r2-usage.sh`: month-to-date R2 storage and operations against
+  the free tier, exiting 1 at 80 percent.
 - `deploy/docker/build.sh --jobs N` (build argument `CARGO_BUILD_JOBS`)
   caps parallel compile jobs on builders that are short of memory.
 - `archive partition-dir`: partitions daily record files
@@ -150,6 +152,10 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- Compose `web-snapshot` takes its own store settings
+  (`WEB_SNAPSHOT_ENDPOINT`, `_REGION`, `_ALLOW_HTTP`, `_PATH_STYLE`),
+  falling back to `S3_*`, so snapshots can go to R2 while other services
+  use a local MinIO.
 - Federal Reserve H.15 and H.10 readers treat SDMX observations with a
   status other than `A` (published as -9999) as no data. They had been
   emitted as values; the synthetic fixtures now use the published form.

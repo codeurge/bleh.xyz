@@ -108,6 +108,8 @@ futures data, live and historical:
      panel with source notices; runbook `docs/operations/web-snapshots.md`.
      Found while building it: the Federal Reserve readers emitted the
      SDMX no-data placeholder (-9999) as values; fixed.
-   - Next action: the `data.bleh.xyz` R2 custom domain (needs the
-     `bleh.xyz` zone active in Cloudflare) and a write token for the
-     public bucket, then set `WEB_SNAPSHOT_URL` on the home-archive server
+   - Next action: attach the `data.bleh.xyz` custom domain to the public
+     bucket once the `bleh.xyz` zone is active, then check the site panel
+     against the live snapshot. Bucket, cache rule, write token and the
+     home-archive upload settings are in place; free-tier guidance and
+     `scripts/r2-usage.sh` are in the runbook.
