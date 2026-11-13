@@ -193,7 +193,8 @@ def sdmx(series):
         s.append('<frb:Annotations><common:Annotation xmlns:common="x"><common:AnnotationType>Short Description</common:AnnotationType>'
                  '<common:AnnotationText>Synthetic</common:AnnotationText></common:Annotation></frb:Annotations>')
         for p, v in obs:
-            s.append(f'<frb:Obs OBS_STATUS="{"ND" if v == "ND" else "A"}" OBS_VALUE="{v}" TIME_PERIOD="{p}" />')
+            # As published: no data is OBS_STATUS="ND" with the placeholder -9999.
+            s.append(f'<frb:Obs OBS_STATUS="{"ND" if v == "ND" else "A"}" OBS_VALUE="{"-9999" if v == "ND" else v}" TIME_PERIOD="{p}" />')
         s.append('</kf:Series>')
     s.append('</frb:DataSet></message:MessageGroup>')
     return "\n".join(s) + "\n"

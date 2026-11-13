@@ -2,7 +2,8 @@
 //! whole-release SDMX-ML zip linked on each release page.
 //!
 //! Each `Series` element carries `SERIES_NAME`; its `Obs` children carry
-//! `TIME_PERIOD` and `OBS_VALUE` (`ND` is no data). Series are admitted by
+//! `TIME_PERIOD`, `OBS_VALUE` and `OBS_STATUS`; a status other than `A`
+//! (`ND`, `NA`, `NC`, published with the value -9999) is no data. Series are admitted by
 //! stem, from an explicit allowlist; every other series is dropped
 //! (counted as `excluded` when the admission names it, as unknown
 //! otherwise, so a new series is reviewed before it is emitted). Only
@@ -276,6 +277,14 @@ pub fn sdmx_series(
             } if name.is_some() => {
                 if let (Some(p), Some(v)) = (xml::attr(a, "TIME_PERIOD"), xml::attr(a, "OBS_VALUE"))
                 {
+                    // A status other than `A` (available) marks the value
+                    // as a placeholder: `ND` no data, `NA` not available,
+                    // `NC` not calculated, all published as -9999. Pass
+                    // the status on so it reads as missing.
+                    let v = match xml::attr(a, "OBS_STATUS") {
+                        Some(status) if status != "A" => status,
+                        _ => v,
+                    };
                     obs.push((p.to_owned(), v.to_owned()));
                 }
             }
