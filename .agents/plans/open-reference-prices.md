@@ -91,10 +91,11 @@ futures data, live and historical:
      synthetic engine's reference-poller curve preset; compose, systemd,
      alerts and runbook `docs/operations/reference-pollers.md`; tests on
      synthetic fixtures only
-   - Next action: the open points in the
-     runbook (DTCC sentence of the NY Fed notice, volumes and tenorless
-     rates, the `reference-normalized` daily archive in
-     `archive-pipeline.sh`); then a first real backfill
+   - Next action: volumes and tenorless rates (runbook open point); then a
+     first real backfill into `reference-backfill`. Done since: the DTCC
+     sentence of the NY Fed notice (2026-11-13), and the
+     `reference-normalized` archive (ADR 0017), signed and published at
+     `https://data.bleh.xyz/reference-normalized` from 2026-11-13
 
 5. **web-snapshots**
    - Status: Done

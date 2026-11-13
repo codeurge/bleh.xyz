@@ -193,20 +193,25 @@ Nothing runs on real data yet, so no criterion is ticked.
       (archive-layout-v0 § 6, `--correction`).
 
 12. **torrent-and-ipfs-publishing**
-    - Status: In progress
-    - Owner: Unassigned
+    - Status: Done
+    - Owner: Repository owner
     - Dependencies: normalized-partitions, manifest-chain
     - PR: Not opened
-    - Next action: Built: BitTorrent v2 torrents with web seeds, IPFS CIDs and
-      Kubo pinning in `archive publish`. Run on the first recorded day.
+    - Next action: None. First run 2026-11-13: the `reference-normalized` archive
+      (ADR 0017), 12 days signed, OpenTimestamps-stamped, published to
+      `https://data.bleh.xyz/reference-normalized` with BitTorrent v2 torrents
+      (`_manifests/magnets.txt`) and pinned on the home-archive IPFS node;
+      every day passes `archive verify` over HTTPS.
 
 13. **seedbox-and-pinning**
-    - Status: Ready
+    - Status: In progress
     - Owner: Repository owner
     - Dependencies: torrent-and-ipfs-publishing
     - PR: Not opened
-    - Next action: The home-archive profile runs the seeder and IPFS node. Bring
-      it up and document mirroring.
+    - Next action: The home-archive IPFS node runs and pins every published
+      day. Next: bring up the seeder (qBittorrent) for the torrents, schedule
+      `archive-pipeline.sh records` and `records-anchors`, and document
+      mirroring.
 
 14. **arweave-and-public-mirrors**
     - Status: Ready
@@ -227,12 +232,14 @@ Nothing runs on real data yet, so no criterion is ticked.
 ### Lane: static history, small API and compatibility layers
 
 16. **static-catalog**
-    - Status: In progress
+    - Status: Done
     - Owner: Unassigned
     - Dependencies: normalized-partitions, Phase 1 tls-cdn-front
     - PR: Not opened
-    - Next action: Built: Hive paths, static Iceberg metadata, query examples
-      (archive-layout-v0 § 4). Serve from R2 behind the CDN.
+    - Next action: None. Hive paths and static Iceberg metadata
+      (archive-layout-v0 § 4) are served from R2 behind the CDN at
+      `https://data.bleh.xyz/<archive>/`, first for `reference-normalized`;
+      the edge cache rules give every rewritten file a one-minute TTL.
 
 17. **small-api**
     - Status: Done

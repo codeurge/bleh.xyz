@@ -9,6 +9,11 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- The `reference-normalized` archive is public at
+  `https://data.bleh.xyz/reference-normalized`: signed daily manifests
+  (ADR 0017) with OpenTimestamps proofs, BitTorrent v2 magnets in
+  `_manifests/magnets.txt`, IPFS CIDs and static Iceberg metadata, checkable
+  with `archive verify --url`.
 - Terms of use and disclaimer (`docs/terms.md`, on the site as
   `terms.html`, linked from the footer and the reference data panel): CC0
   data and Apache-2.0 code, source notices that must stay with their
