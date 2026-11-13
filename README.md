@@ -68,6 +68,7 @@ execution-grade marks for positions held at an exchange. See
 | [docs/requirements.md](docs/requirements.md) | What consumers need, and the targets this project sets |
 | [docs/sources.md](docs/sources.md) | The source register: tiers, terms, and what still needs checking |
 | [docs/admission-policy.md](docs/admission-policy.md) | Rules a source must meet to join |
+| [docs/terms.md](docs/terms.md) | Terms of use and disclaimer for bleh.xyz and its data |
 | [docs/architecture.md](docs/architecture.md) | Data model, nodes, composites, settlement, transport, archive |
 | [docs/coverage.md](docs/coverage.md) | Expected coverage by asset class |
 | [docs/roadmap.md](docs/roadmap.md) | Phases, exit criteria, open questions |
@@ -94,3 +95,5 @@ as described in [SECURITY.md](SECURITY.md).
 Code is licensed under [Apache-2.0](LICENSE). Data, registry entries and
 method documents are dedicated to the public domain under
 [CC0 1.0](LICENSE-DATA). See [ADR 0002](docs/decisions/0002-licensing.md).
+Records from some admitted sources carry a notice that must stay with the
+values; see the [terms of use](docs/terms.md).

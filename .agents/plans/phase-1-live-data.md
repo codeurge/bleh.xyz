@@ -1,7 +1,7 @@
 # Phase 1: live data — Plan
 
 Status: Active
-Last updated: 2026-11-12
+Last updated: 2026-11-13
 
 ## Goal
 
@@ -195,13 +195,18 @@ staging soak; none is ticked yet.
      page.
 
 10. **public-endpoint-terms**
-    - Status: Ready
+    - Status: Done
     - Owner: Repository owner
     - Dependencies: None
-    - PR: Not opened
-    - Next action: Publish terms of use and a disclaimer: data is CC0,
-      provided as is, not investment advice, with the published
-      availability target.
+    - PR: Not opened (pushed to `main`)
+    - Next action: None. `docs/terms.md` (version 1, 2026-11-13) is the
+      canonical text, mirrored at `brand/site/terms.html` and linked from
+      the site footer and the reference data panel. It covers CC0 data and
+      Apache-2.0 code, source notices passing through (ADR 0012 decision
+      5), no warranty and no advice, the published 99.9% target for the
+      production gateway (none for today's preview snapshot), and
+      reporting through GitHub until Phase 0 `reporting-address` sets an
+      address; update the terms when it does.
 
 ### Lane: node-reader (all markets, inotify)
 

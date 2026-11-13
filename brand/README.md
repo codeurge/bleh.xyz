@@ -22,7 +22,7 @@ palette, type scale, icons, motion, voice, and an index of every asset.
 
 | Folder | Contents |
 |---|---|
-| [site/](site/) | Marketing site (`index.html`, `manifesto.html`), static HTML and CSS |
+| [site/](site/) | Marketing site (`index.html`, `manifesto.html`, `terms.html`), static HTML and CSS |
 | [video/](video/) | 30 second brand film, logo sting and loop, with seekable source and render script |
 | [social/](social/) | Link previews, banners, avatar, favicon set, announcement cards, sticker sheet, launch copy |
 

@@ -316,6 +316,7 @@ status. A shrug, not a rant.
 |---|---|
 | Home page | [site/index.html](site/index.html) |
 | Manifesto | [site/manifesto.html](site/manifesto.html) |
+| Terms of use (mirrors `docs/terms.md`) | [site/terms.html](site/terms.html) |
 | Styles (design tokens at the top) | [site/assets/site.css](site/assets/site.css) |
 | Script (theme, tabs, illustrative book) | [site/assets/site.js](site/assets/site.js) |
 | Link preview images | [site/assets/og.png](site/assets/og.png), [site/assets/og-manifesto.png](site/assets/og-manifesto.png) |

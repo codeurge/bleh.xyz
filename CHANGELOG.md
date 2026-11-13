@@ -9,6 +9,11 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Terms of use and disclaimer (`docs/terms.md`, on the site as
+  `terms.html`, linked from the footer and the reference data panel): CC0
+  data and Apache-2.0 code, source notices that must stay with their
+  values, no warranty, not investment advice, the published availability
+  target, and how to report problems.
 - Records archives (ADR 0017): `reference-normalized` and
   `swaps-normalized`, each with its own manifest chain, partitioned in
   place under the normalized directory. `archive-pipeline.sh records` and

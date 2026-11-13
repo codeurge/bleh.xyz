@@ -303,3 +303,20 @@ footer .fine{flex-basis:100%;font-size:13px;max-width:80ch}
 .notices ul{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:12px}
 .notices p{color:var(--mute);font-size:12.5px;margin-top:4px;max-width:90ch}
 
+.notices .notices-terms{margin-top:14px}
+
+/* terms of use */
+.terms{max-width:820px;padding-top:clamp(40px,7vw,90px)}
+.terms h1{font-size:clamp(2.6rem,8vw,5rem)}
+.terms .short{margin-top:clamp(32px,5vw,48px);padding:clamp(22px,4vw,34px);background:var(--surface);border:1px solid var(--line);border-radius:18px}
+.terms .short h2{font-size:1.15rem;letter-spacing:-.015em}
+.terms section{padding:clamp(28px,4vw,40px) 0 0;margin-top:clamp(28px,4vw,40px);border-top:1px solid var(--line)}
+.terms section h2{font-size:clamp(1.5rem,3.6vw,2.1rem);display:flex;gap:14px;align-items:baseline}
+.terms section h2 span{font:500 13px/1 var(--mono);color:var(--accent);letter-spacing:.1em;flex:none}
+.terms p,.terms li{color:var(--mute);max-width:68ch}
+.terms p{margin-top:14px}
+.terms b{color:var(--fg)}
+.terms ul{margin:14px 0 0;padding-left:1.2em;display:grid;gap:10px}
+.terms li::marker{color:var(--tongue)}
+.terms code{font:400 .86em var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 5px;overflow-wrap:anywhere}
+.terms .note{margin-top:20px}
