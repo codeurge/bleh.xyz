@@ -1,4 +1,5 @@
-/* bleh.xyz site script. No network requests. Everything here is progressive enhancement. */
+/* bleh.xyz site script. Progressive enhancement only. The one network request
+   reads the public web snapshot (docs/specs/web-snapshot-v0.md) for the data panel. */
 (function () {
   var root = document.documentElement;
   var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -46,6 +47,90 @@
       });
     });
   });
+
+  // ---- reference data panel: public web snapshot, shown only if it loads ----
+  (function () {
+    var sec = document.getElementById('data'), tiles = document.getElementById('tiles');
+    var meta = document.querySelector('meta[name="bleh-data"]');
+    if (!sec || !tiles || !meta || !window.fetch) return;
+    var base = meta.content.replace(/\/?$/, '/');
+    // label, source, instrument, unit, decimals
+    var PICK = [
+      ['SOFR', 'nyfed', 'nyfed:ref:SOFR', '%', 2],
+      ['Effective fed funds', 'nyfed', 'nyfed:ref:EFFR', '%', 2],
+      ['Overnight bank funding', 'nyfed', 'nyfed:ref:OBFR', '%', 2],
+      ['Treasury 3-month', 'frb-h15', 'frb-h15:ref:RIFLGFCM03_N.B', '%', 2],
+      ['Treasury 2-year', 'frb-h15', 'frb-h15:ref:RIFLGFCY02_N.B', '%', 2],
+      ['Treasury 10-year', 'frb-h15', 'frb-h15:ref:RIFLGFCY10_N.B', '%', 2],
+      ['Treasury 30-year', 'frb-h15', 'frb-h15:ref:RIFLGFCY30_N.B', '%', 2],
+      ['US dollars per euro', 'frb-h10', 'frb-h10:ref:RXI@US_N.B.EU', '', 4],
+      ['Yen per US dollar', 'frb-h10', 'frb-h10:ref:RXI_N.B.JA', '', 2],
+      ['Class III milk', 'usda-dairy', 'usda-dairy:ref:FMMO.class_3_Price', '$/cwt', 2]
+    ];
+    var NAMES = { 'nyfed': 'Federal Reserve Bank of New York', 'frb-h15': 'Federal Reserve H.15', 'frb-h10': 'Federal Reserve H.10',
+      'us-treasury': 'U.S. Treasury', 'usda-dairy': 'USDA dairy', 'usda-lmr': 'USDA livestock', 'cftc-cot': 'CFTC Commitments of Traders', 'ercot': 'ERCOT' };
+    function get(path) {
+      return fetch(base + path, { mode: 'cors', credentials: 'omit' }).then(function (r) {
+        if (!r.ok) throw new Error(path + ' ' + r.status); return r.json();
+      });
+    }
+    function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function num(v, dp) { var n = parseFloat(v); return isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp }) : String(v); }
+    function spark(points) {
+      var vals = points.map(function (p) { return parseFloat(p[1]); }).filter(isFinite);
+      if (vals.length < 2) return null;
+      vals = vals.slice(-90);
+      var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals), w = 120, h = 32, span = hi - lo || 1;
+      var d = vals.map(function (v, i) { return (i * w / (vals.length - 1)).toFixed(1) + ',' + (h - 2 - (v - lo) / span * (h - 4)).toFixed(1); }).join(' ');
+      var ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg'), pl = document.createElementNS(ns, 'polyline');
+      svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h); svg.setAttribute('class', 'spark'); svg.setAttribute('aria-hidden', 'true');
+      pl.setAttribute('points', d); svg.appendChild(pl); return svg;
+    }
+    var raw = document.getElementById('data-raw'); if (raw) raw.href = base + 'latest.json';
+    get('latest.json').then(function (latest) {
+      var bySource = {}; (latest.sources || []).forEach(function (s) { bySource[s.source] = s; });
+      var need = {}; PICK.forEach(function (p) { if (bySource[p[1]]) need[p[1]] = true; });
+      var names = Object.keys(need);
+      return Promise.all(names.map(function (n) { return get('reference/' + n + '.json').catch(function () { return null; }); }))
+        .then(function (files) { return { latest: latest, bySource: bySource, files: files, names: names }; });
+    }).then(function (d) {
+      var series = {};
+      d.files.forEach(function (f) { if (f) (f.series || []).forEach(function (s) { series[s.instrument] = s; }); });
+      var shown = {};
+      PICK.forEach(function (p) {
+        var s = series[p[2]]; if (!s || !s.latest) return;
+        var t = el('div', 'tile');
+        t.appendChild(el('span', 'tl', p[0]));
+        var v = el('span', 'tv', num(s.latest.value, p[4]));
+        if (p[3]) v.appendChild(el('small', null, ' ' + p[3]));
+        t.appendChild(v);
+        var pts = s.points || [];
+        if (pts.length > 1) {
+          var ch = parseFloat(pts[pts.length - 1][1]) - parseFloat(pts[pts.length - 2][1]);
+          if (isFinite(ch)) t.appendChild(el('span', 'tc ' + (ch > 0 ? 'up' : ch < 0 ? 'dn' : ''), (ch > 0 ? '+' : ch < 0 ? '−' : '±') + num(Math.abs(ch), p[4])));
+        }
+        var sp = spark(pts); if (sp) t.appendChild(sp);
+        t.appendChild(el('span', 'ts', (NAMES[p[1]] || p[1]) + ' · ' + s.latest.as_of_date));
+        tiles.appendChild(t); shown[p[1]] = true;
+      });
+      if (!tiles.children.length) return;
+      var srcs = d.latest.sources || [];
+      var m = document.getElementById('data-meta');
+      if (m) m.textContent = srcs.length + ' open sources, ' + srcs.reduce(function (a, s) { return a + (s.records || 0); }, 0).toLocaleString('en-US') +
+        ' records read. Snapshot built ' + new Date(d.latest.generated_ms).toUTCString().replace(' GMT', ' UTC') + '.';
+      var ul = document.getElementById('notices');
+      srcs.forEach(function (s) {
+        var li = el('li'); li.appendChild(el('b', null, (NAMES[s.source] || s.source) + ' ')); li.appendChild(el('span', 'mono', s.admission + (s.latest_as_of ? ' · through ' + s.latest_as_of : '')));
+        if (s.notice) li.appendChild(el('p', null, s.notice));
+        ul.appendChild(li);
+      });
+      // Notices of the sources shown above stay visible next to the values.
+      Object.keys(shown).forEach(function (n) {
+        var s = d.bySource[n]; if (s && s.notice) tiles.parentNode.insertBefore(el('p', 'notice', s.notice), m);
+      });
+      sec.hidden = false;
+    }).catch(function () { /* no snapshot reachable: the panel stays hidden */ });
+  })();
 
   // ---- illustrative order book and tape: seeded random walk, drawn locally ----
   var book = document.getElementById('book'), tape = document.getElementById('tape');

@@ -7,6 +7,7 @@
 <meta name="description" content="An open-source, freely redistributable market-data network. Futures-grade trades, order-level books, bars and order-flow analytics, built only from open price discovery. Signed per block, mirrored everywhere, CC0. Early preview, in development.">
 <meta name="theme-color" content="#fff6e9" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16141c" media="(prefers-color-scheme: dark)">
+<meta name="bleh-data" content="https://data.bleh.xyz/web/v0/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="bleh.xyz">
 <meta property="og:title" content="bleh.xyz — open market data, no permission slip">
@@ -208,6 +209,19 @@
       </tbody>
     </table>
     <p class="note reveal"><b>Known gaps.</b> Listed options on indices and commodities, tick-level rates, and depth in agriculture. One venue carries most of the first release, which more venues are meant to dilute. We would rather tell you now.</p>
+  </div>
+</section>
+
+<section id="data" aria-labelledby="r-h" style="padding-top:0" hidden>
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">From the open sources</span>
+      <h2 id="r-h">Reference data, already flowing.</h2>
+      <p class="lede">Read from public bodies and published as they release it, refreshed every few minutes. This panel loads a public snapshot; <a id="data-raw" href="#">read the JSON yourself</a>.</p>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <p class="note" id="data-meta"></p>
+    <details class="notices"><summary>Sources and notices</summary><ul id="notices"></ul></details>
   </div>
 </section>
 
