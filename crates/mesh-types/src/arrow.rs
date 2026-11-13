@@ -480,6 +480,67 @@ pub fn schema(kind: RecordKind) -> Schema {
     Schema::new_with_metadata(fields, metadata)
 }
 
+/// A machine-readable description of an Arrow schema, in the form of
+/// `docs/specs/observation-v0.arrow-schema.json`: `metadata` (sorted) and
+/// `fields`, each `{name, type, nullable}` plus `metadata` when the field
+/// has any. Types are `utf8`, `boolean`, `int64`, `uint8`, `uint32`,
+/// `uint64`, `date32`, `fixed_size_binary[N]`, `timestamp[ms|ns, TZ]`,
+/// `{list: field}` and `{struct: [field, ...]}`; any other type is its
+/// Arrow display name.
+#[must_use]
+pub fn describe(schema: &Schema) -> serde_json::Value {
+    serde_json::json!({
+        "metadata": sorted(schema.metadata()),
+        "fields": schema.fields().iter().map(|f| describe_field(f)).collect::<Vec<_>>(),
+    })
+}
+
+fn sorted(m: &arrow_schema::Metadata) -> serde_json::Map<String, serde_json::Value> {
+    // `Metadata` is ordered by key.
+    m.iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::from(v.clone())))
+        .collect()
+}
+
+fn describe_field(f: &Field) -> serde_json::Value {
+    let mut out = serde_json::Map::new();
+    out.insert("name".into(), f.name().clone().into());
+    out.insert("type".into(), describe_type(f.data_type()));
+    out.insert("nullable".into(), f.is_nullable().into());
+    if !f.metadata().is_empty() {
+        out.insert("metadata".into(), sorted(f.metadata()).into());
+    }
+    out.into()
+}
+
+fn describe_type(dt: &DataType) -> serde_json::Value {
+    let unit = |u: &TimeUnit| match u {
+        TimeUnit::Second => "s",
+        TimeUnit::Millisecond => "ms",
+        TimeUnit::Microsecond => "us",
+        TimeUnit::Nanosecond => "ns",
+    };
+    match dt {
+        DataType::Utf8 => "utf8".into(),
+        DataType::Boolean => "boolean".into(),
+        DataType::Int64 => "int64".into(),
+        DataType::UInt8 => "uint8".into(),
+        DataType::UInt32 => "uint32".into(),
+        DataType::UInt64 => "uint64".into(),
+        DataType::Date32 => "date32".into(),
+        DataType::FixedSizeBinary(n) => format!("fixed_size_binary[{n}]").into(),
+        DataType::Timestamp(u, tz) => match tz {
+            Some(tz) => format!("timestamp[{}, {tz}]", unit(u)).into(),
+            None => format!("timestamp[{}]", unit(u)).into(),
+        },
+        DataType::List(item) => serde_json::json!({ "list": describe_field(item) }),
+        DataType::Struct(fields) => serde_json::json!({
+            "struct": fields.iter().map(|f| describe_field(f)).collect::<Vec<_>>()
+        }),
+        other => other.to_string().into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

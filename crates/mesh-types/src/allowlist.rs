@@ -747,6 +747,88 @@ mod tests {
         assert_eq!(derived, want);
     }
 
+    /// The published JSON Schema, compiled.
+    fn json_schema() -> (boon::Schemas, boon::SchemaIndex) {
+        let url = "https://bleh.xyz/specs/observation-v0.schema.json";
+        let schema: Value = serde_json::from_str(include_str!(
+            "../../../docs/specs/observation-v0.schema.json"
+        ))
+        .unwrap();
+        let mut schemas = boon::Schemas::new();
+        let mut compiler = boon::Compiler::new();
+        compiler.add_resource(url, schema).unwrap();
+        let index = compiler.compile(url, &mut schemas).unwrap();
+        (schemas, index)
+    }
+
+    /// Serialized records of every kind validate against the JSON Schema,
+    /// and the schema rejects what the types reject.
+    #[test]
+    fn json_schema_validates_serialized_records() {
+        let (schemas, index) = json_schema();
+        let records = all_records();
+        for kind in RecordKind::ALL {
+            assert!(
+                records.iter().any(|r| r.kind() == kind),
+                "{kind}: no sample"
+            );
+        }
+        for r in &records {
+            let v = serde_json::to_value(r).unwrap();
+            if let Err(e) = schemas.validate(&v, index) {
+                panic!("{}: {e:#}\n{v}", r.kind());
+            }
+        }
+
+        let base = serde_json::to_value(Record::from(trade(1, 0))).unwrap();
+        let rejected = |edit: &dyn Fn(&mut Value)| {
+            let mut v = base.clone();
+            edit(&mut v);
+            schemas.validate(&v, index).is_err()
+        };
+        assert!(rejected(&|v| v["comment"] = Value::from("x")));
+        assert!(rejected(&|v| v["price"] = Value::from("1e3")));
+        assert!(rejected(&|v| v["price"] = Value::from(100.25)));
+        assert!(rejected(&|v| v["prov"]["ts_ingest_ns"] = Value::from(1)));
+        assert!(rejected(
+            &|v| v["prov"]["seq"]["event_index"] = Value::from(1_u64 << 32)
+        ));
+        assert!(rejected(
+            &|v| v["prov"]["flags"] = serde_json::json!(["unknown"])
+        ));
+        assert!(rejected(&|v| v["kind"] = Value::from("quote")));
+    }
+
+    /// The examples in observation-v0.md § 12 are records: they parse,
+    /// serialize back unchanged and validate, and the trade's canonical
+    /// encoding is the one printed there.
+    #[test]
+    fn spec_examples_are_valid_records() {
+        let spec = include_str!("../../../docs/specs/observation-v0.md");
+        let section = &spec[spec.find("\n## 12. Examples").unwrap()..];
+        let (schemas, index) = json_schema();
+        let mut examples = Vec::new();
+        for block in section.split("```json\n").skip(1) {
+            let text = &block[..block.find("```").unwrap()];
+            let v: Value = serde_json::from_str(text).unwrap();
+            let r: Record = serde_json::from_value(v.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&r).unwrap(), v, "{text}");
+            if let Err(e) = schemas.validate(&v, index) {
+                panic!("{e:#}\n{text}");
+            }
+            r.validate().unwrap();
+            check_record(&r).unwrap();
+            examples.push(r);
+        }
+        assert_eq!(examples.len(), 3);
+        let canonical =
+            String::from_utf8(crate::hash::canonical_record(&examples[0]).unwrap()).unwrap();
+        assert!(
+            section.contains(&format!("```text\n{canonical}\n```")),
+            "canonical encoding in the spec should be:\n{canonical}"
+        );
+    }
+
     #[test]
     fn allowlist_and_denylist_do_not_overlap() {
         for kind in RecordKind::ALL {

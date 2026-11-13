@@ -3,6 +3,9 @@
 - Status: Draft, implemented by `crates/mesh-types`
 - Version tag: `observation-v0`
 - JSON Schema: [observation-v0.schema.json](observation-v0.schema.json)
+  (JSON Schema 2020-12, one record per document)
+- Arrow schema: [observation-v0.arrow-schema.json](observation-v0.arrow-schema.json)
+  (the archive's Parquet columns per kind, § 9)
 
 This is the data model every mesh component speaks, as implemented. Where
 it refines [architecture.md](../architecture.md) § 1, this document and the
@@ -446,6 +449,29 @@ Blocks with no records for an instrument publish nothing. A consumer that
 last saw block `b` detects a gap when a batch's `prev_block_number` is not
 `b`. Snapshots, bars and other derived records travel as single records.
 
+### 5.1 Heartbeats and gaps
+
+Neither is a record kind. They are signals of the transport and of the
+data, so they never enter the archive's record partitions or a Merkle
+tree.
+
+- **Heartbeat.** The publisher closes every block of a venue with a block
+  end after that block's commitments, also when the block had no records
+  (`bus::publisher::end_block`). The gateway sends it as the `block`
+  message (`venue`, `block_number`, `block_time_ms`, `ts_publish_ns`,
+  `last`), see [gateway-v0](../protocol/gateway-v0.md) § 5.3. The history
+  API's replay sends one only for blocks with records in a subscribed
+  channel, because the archive does not record empty blocks.
+- **Gap**, at three levels:
+  - in a record: flag `gap_before` (§ 2.9), set when the source skipped
+    data immediately before it (for Hyperliquid, a missing or rejected
+    block line);
+  - in a stream: `prev_block_number` of a block batch (above), or a
+    heartbeat's `last` moving past the consumer's last applied block;
+  - per venue and interval: `coverage` records (§ 2.11), which count
+    missing and flagged blocks and tell a quiet market from an
+    unrecorded one.
+
 ## 6. Canonical encoding and hashes
 
 ### 6.1 Canonical encoding of a record
@@ -570,6 +596,37 @@ normalized partitions:
   `option_style` and `first_exercise_date` (all nullable).
 - Schema metadata: `bleh.schema = observation-v0`, `bleh.kind = <kind>`.
 
+### 9.1 Machine-readable Arrow schema
+
+[observation-v0.arrow-schema.json](observation-v0.arrow-schema.json) lists,
+for every kind in canonical order, the schema the archive writes to
+Parquet (`archive::partition::convert::writer_schema`): `mesh_types::arrow`
+plus a `PARQUET:field_id` on every field and list element, numbered depth
+first from 1, so Iceberg readers resolve columns by ID. Each kind has
+`kind`, `metadata` and `fields`; each field has `name`, `type`, `nullable`
+and `metadata` (`PARQUET:field_id`, and `bleh.encoding` where § 9 says).
+Types are `utf8`, `boolean`, `int64`, `uint8`, `uint32`, `uint64`,
+`date32`, `fixed_size_binary[32]`, `timestamp[ms, UTC]`,
+`timestamp[ns, UTC]`, `{"list": field}` and `{"struct": [field, ...]}`.
+
+The file is generated, not edited: `cargo test -p archive` fails when it
+differs from the writer and when a Parquet file the writer produces,
+read back from Parquet alone, has other column names, types, nullability
+or field IDs. Regenerate it with:
+
+```bash
+BLEH_UPDATE_SPECS=1 cargo test -p archive arrow_schema_doc
+```
+
+Parquet files keep the field IDs and the `bleh.*` file metadata but not
+`bleh.encoding` (the writer omits the embedded Arrow schema), and a
+reader may report the UTC zone as `+00:00`.
+
+The JSON Schema is checked the same way: `cargo test -p mesh-types`
+validates a record of every kind and the examples in § 12 against it,
+and `cargo test -p origin` validates everything the origin derives from
+the synthetic fixture day (`fixtures/synthetic/hl/base`).
+
 ## 10. Versioning
 
 `observation-v0` is a draft and may change until the first public release.
@@ -588,3 +645,62 @@ every hash and signature.
 | `quote`, `rate`, `reference` kinds | `reference_value` (§ 2.12) covers published rates and reference prices; `quote` is not yet defined | Reference values feed the synthetic-month method (ADR 0013) |
 | `source_ref` | `seq` (block and index) | Points back to the raw record |
 | Kinds `book_add`, `book_modify`, `book_cancel` | `book_event` with `action` | One kind per stream; fills distinguished from cancels |
+| `ts_node`: when the node wrote the block (`local_time`) | No `ts_node` field; `prov.ts_ingest_ns` holds the node's `local_time` | It is the only mesh-side time in the raw files, so the archive replay reproduces it (§ 2.1) |
+| `ts_ingest`: when the reader received the data | Not recorded | A reader's clock differs between live and replay and between replicas |
+| Signed scope excludes `ts_ingest` and `ts_publish` | Only `prov.ts_publish_ns` is outside the canonical encoding and the signature (§§ 6.1, 7) | `ts_ingest_ns` comes from the raw files, so live and archived records hash and verify alike |
+| `trade_id = (block_time, coin, tid)` | `trade_id` is the venue `tid`; the unique key is `(prov.ts_source_ms, prov.instrument, trade_id)` (§ 2.2) | `ts_source_ms` is the fill's own `time` field; `prov.seq.block_number` names the block, so `(block_number, instrument, trade_id)` is unique as well |
+| `heartbeat` and `gap` kinds | Not records: block ends and the gateway `block` message; `gap_before`, `prev_block_number` and `coverage` (§ 5.1) | They describe the stream, not the market, and must not change any partition, hash or Merkle tree |
+| `analytics` kind | Eight kinds, each with its own method (§ 2.10) | Each analytic has its own shape and method version |
+
+## 12. Examples
+
+Synthetic records in the style of the fixture day
+(`fixtures/synthetic/hl`; invented market `SYN`, price scale 3, size
+scale 3). `cargo test -p mesh-types` parses every JSON block in this
+section as a record, checks that it serializes back to the same JSON and
+validates it against the JSON Schema.
+
+A trade, the first of its instrument in block 1000000:
+
+```json
+{"kind": "trade",
+ "prov": {"instrument": "hyperliquid:perp:SYN", "venue": "hyperliquid",
+          "ts_source_ms": 1767225600100, "ts_ingest_ns": "1767225600120000000",
+          "seq": {"block_number": 1000000, "event_index": 0},
+          "admission": "ADM-0001", "flags": []},
+ "price": "100.250", "size": "0.500", "aggressor": "buy", "trade_id": 4242}
+```
+
+Its canonical encoding (§ 6.1), which is what the content hash and the
+block commitment's Merkle leaf (§ 7) take as `c`:
+
+```text
+{"aggressor":"buy","kind":"trade","price":"100.250","prov":{"admission":"ADM-0001","flags":[],"instrument":"hyperliquid:perp:SYN","seq":{"block_number":1000000,"event_index":0},"ts_ingest_ns":"1767225600120000000","ts_source_ms":1767225600100,"venue":"hyperliquid"},"size":"0.500","trade_id":4242}
+```
+
+A book event in the same block: the fill against the resting order on the
+other side of that trade.
+
+```json
+{"kind": "book_event",
+ "prov": {"instrument": "hyperliquid:perp:SYN", "venue": "hyperliquid",
+          "ts_source_ms": 1767225600100, "ts_ingest_ns": "1767225600120000000",
+          "seq": {"block_number": 1000000, "event_index": 0},
+          "admission": "ADM-0001", "flags": []},
+ "order_id": 100042, "side": "ask", "price": "100.250",
+ "action": {"type": "fill", "orig_size": "1.000", "new_size": "0.500"}}
+```
+
+A coverage record for the first minute, published in the first block of
+the next minute, after a gap of one block:
+
+```json
+{"kind": "coverage",
+ "prov": {"instrument": "hyperliquid:venue:all", "venue": "hyperliquid",
+          "ts_source_ms": 1767225659900, "ts_ingest_ns": "1767225659900000000",
+          "seq": {"block_number": 1000600, "event_index": 0},
+          "admission": "ADM-0001", "flags": []},
+ "interval": "1m", "start_ms": 1767225600000,
+ "first_block": 1000000, "last_block": 1000599, "blocks": 599,
+ "missing_blocks": 1, "gap_blocks": 1}
+```

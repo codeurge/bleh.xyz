@@ -1,7 +1,7 @@
 # Phase 0: foundation — Plan
 
 Status: Active
-Last updated: 2026-11-11
+Last updated: 2026-11-13
 
 ## Goal
 
@@ -17,7 +17,7 @@ in parallel.
 - [x] ADM-0001 (Hyperliquid node, every market) and ADM-0003 (Hyperliquid
       public archive) admitted (owner decision, 2026-11-11)
 - [ ] Code layout decided (ADR 0007)
-- [ ] Data model specified as a machine-readable schema in `docs/specs/`
+- [x] Data model specified as a machine-readable schema in `docs/specs/`
 - [ ] Registry schema, with automatic registration of Hyperliquid markets
       from node metadata, neutral names and a liquidity-grade field
 - [x] Project name: bleh.xyz (ADR 0008)
@@ -66,12 +66,23 @@ Phase 3.
      `market_data` files.
 
 5. **data-model-schema**
-   - Status: Ready
-   - Owner: Unassigned
-   - Dependencies: code-layout-decision
-   - PR: Not opened
-   - Next action: Turn the observation model in `docs/architecture.md` §1
-     into a versioned JSON Schema and Arrow schema under `docs/specs/`:
+   - Status: Done
+   - Owner: Maintainers
+   - Dependencies: code-layout-decision (the layout is implemented and
+     ADR 0007 reads Accepted; closing task 3 is the owner's call)
+   - PR: Not applicable (pushed to `main`)
+   - Next action: None. `docs/specs/observation-v0.schema.json` (JSON
+     Schema) and `docs/specs/observation-v0.arrow-schema.json` (Arrow,
+     generated from the archive writer) describe what the code emits;
+     tests validate the origin's output on the synthetic fixture day
+     against the JSON Schema and written Parquet files against the Arrow
+     schema. observation-v0 § 5.1 covers heartbeats and gaps, § 7 the
+     signed scope and Merkle leaves, § 12 synthetic examples. Where the
+     original task text (below) differs from the code (`ts_node` and
+     `ts_ingest`, the signed scope, `trade_id`, `heartbeat` and `gap`
+     kinds), § 11 records it.
+   - Original task: turn the observation model in `docs/architecture.md`
+     § 1 into a versioned JSON Schema and Arrow schema under `docs/specs/`:
      `seq = (block_number, event_index)` and the event order within a
      per-instrument block batch, `trade_id = (block_time, coin, tid)`,
      `ts_source`/`ts_node`/`ts_ingest`/`ts_publish`, `gap`, `heartbeat`,

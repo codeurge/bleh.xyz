@@ -39,6 +39,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
+boon.workspace = true
 history-api.workspace = true
 hl-synth.workspace = true
 mesh-client.workspace = true

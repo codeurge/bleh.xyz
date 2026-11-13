@@ -72,6 +72,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 # Lifted from the lanes (used by two or more crates, or pinned centrally).
 arrow-buffer = "60"
+# JSON Schema validator for tests against docs/specs/*.schema.json.
+boon = "0.6.1"
 ciborium = "0.2.2"
 criterion = { version = "0.8", default-features = false }
 dbn = { version = "0.73", default-features = false }

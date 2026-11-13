@@ -14,6 +14,20 @@ versions (see [AGENTS.md](AGENTS.md)).
   data and Apache-2.0 code, source notices that must stay with their
   values, no warranty, not investment advice, the published availability
   target, and how to report problems.
+- Machine-readable Arrow schema for every record kind,
+  `docs/specs/observation-v0.arrow-schema.json` (columns, types,
+  nullability, Parquet field IDs and `bleh.encoding`), generated from the
+  archive writer; `cargo test -p archive` fails when it is stale or when
+  written Parquet files differ from it. `mesh_types::arrow::describe`
+  produces the same description for any Arrow schema.
+- JSON Schema validation in tests (`boon`, a test-only dependency): a
+  record of every kind, the origin's output on the synthetic fixture day
+  and the new examples in observation-v0 § 12 are validated against
+  `observation-v0.schema.json`.
+- observation-v0 § 5.1 (heartbeats and gaps are signals, not record
+  kinds) and § 12 (synthetic examples with a canonical encoding), and the
+  remaining differences from architecture.md § 1 (`ts_node`, `ts_ingest`,
+  signed scope, `trade_id`, `heartbeat`, `gap`, `analytics`).
 - Records archives (ADR 0017): `reference-normalized` and
   `swaps-normalized`, each with its own manifest chain, partitioned in
   place under the normalized directory. `archive-pipeline.sh records` and
