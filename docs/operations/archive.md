@@ -178,10 +178,12 @@ The partitioners write two archives in place
 `deploy/scripts/archive-pipeline.sh records ARCHIVE` signs every day after
 the archive's last manifest that is at least `RECORDS_LAG_DAYS` (14) days
 old, oldest first: manifest (signed), OpenTimestamps, publish (upload,
-Iceberg metadata, IPFS when `ARCHIVE_KUBO` is set) and, with
+Iceberg metadata, IPFS pinning through the `ipfs` service) and, with
 `ARCHIVE_TRUSTED_SIGNER`, verification over HTTPS. Run it daily, and
 `records-anchors ARCHIVE` a few times a day until the Bitcoin attestations
-arrive. `RECORDS_NOTICES` names the pollers' `_notices.json`, copied to the
+arrive. A day signed but not published (a failed run) is published first
+on the next run; published days are marked under
+`$STATE_DIR/published/<archive>/`. `RECORDS_NOTICES` names the pollers' `_notices.json`, copied to the
 archive root before signing so the notices are signed into every manifest.
 
 On a host without `deploy/up.sh`, `ARCHIVE_RUN` gives the command that runs

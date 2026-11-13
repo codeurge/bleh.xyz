@@ -31,7 +31,8 @@
 #   TEXTFILE_DIR         [/var/lib/node_exporter/textfile]
 #   ARCHIVE_RUN          command that runs the archive CLI in the archive-job
 #                        container [$up --no-build $ARCHIVE_PROFILE archive]
-#   ARCHIVE_KUBO         Kubo RPC API for publish; empty skips IPFS [http://ipfs:5001]
+#   ARCHIVE_KUBO         Kubo RPC API passed to publish [http://ipfs:5001]; the
+#                        archive-job container also sets BLEH_ARCHIVE_KUBO_API
 #
 # Records archives (records mode; partition-dir writes them, ADR 0017):
 #   LOCAL_NORMALIZED_DIR host directory holding <archive>/ roots, mounted in
@@ -195,6 +196,25 @@ case "$mode" in
     cutoff=$(date -u -d "${RECORDS_LAG_DAYS:-14} days ago" +%F)
     mapfile -t days < <(find "$host_root" -path "$host_root/_*" -prune -o -type d -name 'date=*' -print \
       | sed 's#.*/date=##' | sort -u)
+    # publish_day DAY: upload, verify and mark a signed day. A day signed
+    # but not yet published (an earlier run failed) is retried first.
+    published_dir="$state_dir/published/$a"
+    mkdir -p "$published_dir"
+    publish_day() {
+      step publish "$a" archive publish --root "$root" --archive "$a" --date "$1" --upload \
+        "${kubo_args[@]+"${kubo_args[@]}"}" --iceberg-location "s3://${BLEH_PUBLIC_BUCKET:-bleh-archive}/$a" || return 1
+      if [[ -n "${ARCHIVE_TRUSTED_SIGNER:-}" ]]; then
+        step verify "$a" archive verify --url "$data_url/$a" --archive "$a" --date "$1" \
+          --trusted "$ARCHIVE_TRUSTED_SIGNER" --bitcoin-api "$btc_api" || return 1
+      fi
+      : > "$published_dir/$1"
+    }
+    while read -r day; do
+      [[ -z "$day" || -e "$published_dir/$day" ]] && continue
+      log "$a day $day: signed earlier, publishing"
+      publish_day "$day" || { write_metrics "bleh_archive_records_${a//-/_}.prom"; exit 1; }
+    done < <(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
+      | sed 's#.*/##' | sort)
     signed=0
     for day in "${days[@]}"; do
       [[ -n "$last" && ! "$day" > "$last" ]] && continue
@@ -204,12 +224,7 @@ case "$mode" in
         --web-seed "$web_seed" --sign || break
       remember "bleh_archive_manifest_last_success_timestamp_seconds{archive=\"$a\"}" "$now"
       step ots-stamp "$a" archive anchor ots-stamp --root "$root" --date "$day"
-      step publish "$a" archive publish --root "$root" --archive "$a" --date "$day" --upload \
-        "${kubo_args[@]+"${kubo_args[@]}"}" --iceberg-location "s3://${BLEH_PUBLIC_BUCKET:-bleh-archive}/$a" || break
-      if [[ -n "${ARCHIVE_TRUSTED_SIGNER:-}" ]]; then
-        step verify "$a" archive verify --url "$data_url/$a" --archive "$a" --date "$day" \
-          --trusted "$ARCHIVE_TRUSTED_SIGNER" --bitcoin-api "$btc_api"
-      fi
+      publish_day "$day" || break
       signed=$((signed + 1))
     done
     log "$a: $signed day(s) signed and published"
