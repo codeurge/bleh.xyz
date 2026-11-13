@@ -158,6 +158,28 @@ cover the New York Fed's revision window) on the home-archive server.
   `LOCAL_NORMALIZED_DIR` to a host directory and `HISTORY_API_ARCHIVE` to
   `/srv/normalized` to serve the result locally.
 
+### Records archives
+
+The partitioners write two archives in place
+([ADR 0017](../decisions/0017-records-archives.md)):
+`$LOCAL_NORMALIZED_DIR/reference-normalized` and
+`$LOCAL_NORMALIZED_DIR/swaps-normalized`. Serve them with
+`HISTORY_API_ARCHIVE=/srv/normalized` and
+`HISTORY_API_ARCHIVE_NAMES=reference-normalized,swaps-normalized`.
+
+`deploy/scripts/archive-pipeline.sh records ARCHIVE` signs every day after
+the archive's last manifest that is at least `RECORDS_LAG_DAYS` (14) days
+old, oldest first: manifest (signed), OpenTimestamps, publish (upload,
+Iceberg metadata, IPFS when `ARCHIVE_KUBO` is set) and, with
+`ARCHIVE_TRUSTED_SIGNER`, verification over HTTPS. Run it daily, and
+`records-anchors ARCHIVE` a few times a day until the Bitcoin attestations
+arrive. `RECORDS_NOTICES` names the pollers' `_notices.json`, copied to the
+archive root before signing so the notices are signed into every manifest.
+
+On a host without `deploy/up.sh`, `ARCHIVE_RUN` gives the command that runs
+the archive CLI in the archive-job container, for example
+`./bleh.sh --profile archive-jobs run --rm -T archive-job`.
+
 ### Live capture
 
 `archive::follow` (used by the origin, and by `archive capture run

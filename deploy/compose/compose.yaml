@@ -307,6 +307,9 @@ services:
     volumes:
       - ${ARCHIVE_SCRATCH_DIR:-archive-work}:/work
       - ${ARCHIVE_MIRROR_DIR:-archive-mirror}:/srv/archive:ro
+      # Records archives (reference-normalized, swaps-normalized), signed
+      # in place by archive-pipeline.sh records (ADR 0017).
+      - ${LOCAL_NORMALIZED_DIR:-normalized}:/srv/normalized
       - ../../fixtures/synthetic:/fixtures:ro
     secrets: [manifest_key, anchor_key]
     tmpfs: ["/tmp:size=8g"]
@@ -408,10 +411,10 @@ services:
     volumes:
       - swap-data:/var/lib/bleh/swap
 
-  # Partitions each settled day of swap records into the normalized
-  # archive (archive partition-dir; docs/operations/archive.md). On a
-  # self-hosted server without object storage, LOCAL_NORMALIZED_DIR is a
-  # host directory the history API can serve directly.
+  # Partitions each settled day of swap records into the swaps-normalized
+  # archive (archive partition-dir; docs/operations/archive.md, ADR 0017).
+  # On a self-hosted server without object storage, LOCAL_NORMALIZED_DIR is
+  # a host directory the history API can serve directly.
   swap-partition:
     <<: *bleh-service
     profiles: [home-archive]
@@ -421,7 +424,7 @@ services:
       RUST_LOG: ${RUST_LOG:-info}
       BLEH_PARTITION_DIR_RECORDS: /var/lib/bleh/swap/records
       BLEH_PARTITION_DIR_FILE: swap_print.jsonl
-      BLEH_PARTITION_DIR_OUT: /srv/normalized
+      BLEH_PARTITION_DIR_OUT: /srv/normalized/swaps-normalized
       BLEH_PARTITION_DIR_STATE: /var/lib/bleh/partition-state/swap
       BLEH_PARTITION_DIR_SETTLE_DAYS: ${SWAP_PARTITION_SETTLE_DAYS:-2}
     volumes:
@@ -464,7 +467,7 @@ services:
       RUST_LOG: ${RUST_LOG:-info}
       BLEH_PARTITION_DIR_RECORDS: /var/lib/bleh/reference/records
       BLEH_PARTITION_DIR_FILE: reference_value.jsonl,positioning.jsonl
-      BLEH_PARTITION_DIR_OUT: /srv/normalized
+      BLEH_PARTITION_DIR_OUT: /srv/normalized/reference-normalized
       BLEH_PARTITION_DIR_STATE: /var/lib/bleh/partition-state/reference
       BLEH_PARTITION_DIR_SETTLE_DAYS: ${REFERENCE_PARTITION_SETTLE_DAYS:-12}
     volumes:
@@ -514,6 +517,7 @@ services:
       HISTORY_API_LOG_FORMAT: json
       # Synthetic: the MinIO bucket; production: https://data.bleh.xyz.
       HISTORY_API_ARCHIVE: ${HISTORY_API_ARCHIVE:-https://data.bleh.xyz}
+      HISTORY_API_ARCHIVE_NAMES: ${HISTORY_API_ARCHIVE_NAMES:-hyperliquid-normalized}
       HISTORY_API_BIND: 0.0.0.0:8081
       HISTORY_API_TRUST_FORWARDED_FOR: "true"
       HISTORY_API_MCP_ALLOWED_HOSTS: ${HISTORY_API_MCP_ALLOWED_HOSTS:-localhost,api.localhost}

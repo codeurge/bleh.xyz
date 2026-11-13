@@ -24,4 +24,5 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0014](0014-user-supplied-data-stays-local.md) | User-supplied data stays on the user's machine (bring your own feed) | Accepted |
 | [0015](0015-v0-amendments-for-reference-pollers.md) | Data model amendments for the reference pollers: `exchange_referenced` bit, `positioning` kind, reference-value periods, manifest notices | Accepted |
 | [0016](0016-web-snapshots.md) | Web snapshots for static sites (`bleh-web-snapshot/v0`) | Accepted |
+| [0017](0017-records-archives.md) | Archives for poller records (`reference-normalized`, `swaps-normalized`) | Accepted |
 

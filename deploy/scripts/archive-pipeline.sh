@@ -5,6 +5,9 @@
 #
 #   archive-pipeline.sh daily   [YYYY-MM-DD]   (default: yesterday, UTC)
 #   archive-pipeline.sh anchors [DAYS]         (upgrade anchors for the last DAYS days, default 3)
+#   archive-pipeline.sh records ARCHIVE        (sign and publish settled days of a
+#                                               records archive, ADR 0017)
+#   archive-pipeline.sh records-anchors ARCHIVE [DAYS]  (upgrade its anchors, default 3)
 #
 # Timers: bleh-archive-daily.timer (01:15 UTC, after hour 00 of the next day
 # is sealed) and bleh-archive-anchors.timer (hourly). Results go to the
@@ -26,6 +29,17 @@
 # from the mirror, $ARCHIVE_MIRROR_DIR/_registry/hyperliquid/registry.json,
 # which registry-sync on the node box keeps in the public bucket.
 #   TEXTFILE_DIR         [/var/lib/node_exporter/textfile]
+#   ARCHIVE_RUN          command that runs the archive CLI in the archive-job
+#                        container [$up --no-build $ARCHIVE_PROFILE archive]
+#   ARCHIVE_KUBO         Kubo RPC API for publish; empty skips IPFS [http://ipfs:5001]
+#
+# Records archives (records mode; partition-dir writes them, ADR 0017):
+#   LOCAL_NORMALIZED_DIR host directory holding <archive>/ roots, mounted in
+#                        archive-job at /srv/normalized [/srv/normalized]
+#   RECORDS_LAG_DAYS     a day is signed once it is this many days old, so every
+#                        record file that can hold it is partitioned [14]
+#   RECORDS_NOTICES      host path of the pollers' _notices.json, copied to the
+#                        archive root before signing (empty: none) []
 set -uo pipefail
 
 mode=${1:?usage: archive-pipeline.sh daily [DATE] | anchors [DAYS]}
@@ -40,11 +54,22 @@ profile=${ARCHIVE_PROFILE:-home-archive}
 textfile_dir=${TEXTFILE_DIR:-/var/lib/node_exporter/textfile}
 state_dir=${STATE_DIR:-/var/lib/bleh/archive-pipeline}
 up=/opt/bleh/src/deploy/up.sh
+normalized_dir=${LOCAL_NORMALIZED_DIR:-/srv/normalized}
+kubo=${ARCHIVE_KUBO-http://ipfs:5001}
 archives=(hyperliquid-raw hyperliquid-normalized)
 
 log() { printf 'archive-pipeline: %s\n' "$*" >&2; }
 # Run the archive CLI in a one-off container (service archive-job).
-archive() { "$up" --no-build "$profile" archive "$@" --log-format json; }
+archive() {
+  if [[ -n "${ARCHIVE_RUN:-}" ]]; then
+    # shellcheck disable=SC2086 # ARCHIVE_RUN is a command line.
+    $ARCHIVE_RUN "$@" --log-format json
+  else
+    "$up" --no-build "$profile" archive "$@" --log-format json
+  fi
+}
+kubo_args=()
+[[ -n "$kubo" ]] && kubo_args=(--kubo "$kubo")
 
 metrics=()
 ok_all=1
@@ -122,7 +147,7 @@ case "$mode" in
       extra=()
       [[ "$a" == hyperliquid-normalized ]] && extra=(--iceberg-location "$iceberg")
       step publish "$a" archive publish --root "/work/$a" --archive "$a" --date "$day" \
-        --upload --kubo http://ipfs:5001 "${extra[@]+"${extra[@]}"}"
+        --upload "${kubo_args[@]+"${kubo_args[@]}"}" "${extra[@]+"${extra[@]}"}"
       if [[ -n "${ARCHIVE_TRUSTED_SIGNER:-}" ]]; then
         step verify "$a" archive verify --url "$data_url/$a" --archive "$a" --date "$day" \
           --trusted "$ARCHIVE_TRUSTED_SIGNER" --bitcoin-api "$btc_api"
@@ -147,12 +172,69 @@ case "$mode" in
           remember "bleh_archive_anchor_last_success_timestamp_seconds{archive=\"$a\",anchor=\"l2\"}" "$now"
         fi
         # Re-publish so upgraded proofs reach every channel (idempotent).
-        step republish "$a" archive publish --root "/work/$a" --archive "$a" --date "$day" --upload --kubo http://ipfs:5001
+        step republish "$a" archive publish --root "/work/$a" --archive "$a" --date "$day" --upload "${kubo_args[@]+"${kubo_args[@]}"}"
       done
     done
     write_metrics bleh_archive_anchors.prom
     ;;
-  *) echo "usage: archive-pipeline.sh daily [DATE] | anchors [DAYS]" >&2; exit 64 ;;
+  records)
+    # A records archive is partitioned in place by partition-dir under
+    # $normalized_dir/<archive>; sign each settled day after the last
+    # manifest, oldest first (a chain's dates only increase).
+    a=${2:?usage: archive-pipeline.sh records ARCHIVE}
+    host_root="$normalized_dir/$a"
+    root="/srv/normalized/$a"
+    [[ -d "$host_root" ]] || { log "no archive at $host_root"; exit 1; }
+    if [[ -n "${RECORDS_NOTICES:-}" && -s "$RECORDS_NOTICES" ]] \
+        && ! cmp -s "$RECORDS_NOTICES" "$host_root/_notices.json"; then
+      cp "$RECORDS_NOTICES" "$host_root/_notices.json"
+      log "notices updated from $RECORDS_NOTICES"
+    fi
+    last=$(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
+      | sed 's#.*/##' | sort | tail -n 1)
+    cutoff=$(date -u -d "${RECORDS_LAG_DAYS:-14} days ago" +%F)
+    mapfile -t days < <(find "$host_root" -path "$host_root/_*" -prune -o -type d -name 'date=*' -print \
+      | sed 's#.*/date=##' | sort -u)
+    signed=0
+    for day in "${days[@]}"; do
+      [[ -n "$last" && ! "$day" > "$last" ]] && continue
+      [[ "$day" > "$cutoff" ]] && break
+      log "$a day $day"
+      step manifest "$a" archive manifest build --root "$root" --archive "$a" --date "$day" \
+        --web-seed "$web_seed" --sign || break
+      remember "bleh_archive_manifest_last_success_timestamp_seconds{archive=\"$a\"}" "$now"
+      step ots-stamp "$a" archive anchor ots-stamp --root "$root" --date "$day"
+      step publish "$a" archive publish --root "$root" --archive "$a" --date "$day" --upload \
+        "${kubo_args[@]+"${kubo_args[@]}"}" --iceberg-location "s3://${BLEH_PUBLIC_BUCKET:-bleh-archive}/$a" || break
+      if [[ -n "${ARCHIVE_TRUSTED_SIGNER:-}" ]]; then
+        step verify "$a" archive verify --url "$data_url/$a" --archive "$a" --date "$day" \
+          --trusted "$ARCHIVE_TRUSTED_SIGNER" --bitcoin-api "$btc_api"
+      fi
+      signed=$((signed + 1))
+    done
+    log "$a: $signed day(s) signed and published"
+    ((ok_all)) && remember "bleh_archive_records_last_success_timestamp_seconds{archive=\"$a\"}" "$now"
+    write_metrics "bleh_archive_records_${a//-/_}.prom"
+    ;;
+
+  records-anchors)
+    a=${2:?usage: archive-pipeline.sh records-anchors ARCHIVE [DAYS]}
+    days=${3:-3}
+    host_root="$normalized_dir/$a"
+    root="/srv/normalized/$a"
+    mapfile -t recent < <(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
+      | sed 's#.*/##' | sort | tail -n "$days")
+    for day in "${recent[@]}"; do
+      if step ots-upgrade "$a" archive anchor ots-upgrade --root "$root" --date "$day" --bitcoin-api "$btc_api"; then
+        remember "bleh_archive_anchor_last_success_timestamp_seconds{archive=\"$a\",anchor=\"ots\"}" "$now"
+      fi
+      step republish "$a" archive publish --root "$root" --archive "$a" --date "$day" --upload \
+        "${kubo_args[@]+"${kubo_args[@]}"}"
+    done
+    write_metrics "bleh_archive_records_anchors_${a//-/_}.prom"
+    ;;
+
+  *) echo "usage: archive-pipeline.sh daily [DATE] | anchors [DAYS] | records ARCHIVE | records-anchors ARCHIVE [DAYS]" >&2; exit 64 ;;
 esac
 
 ((ok_all)) || exit 1

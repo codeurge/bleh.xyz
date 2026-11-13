@@ -15,6 +15,8 @@ is a convenience on top, not a requirement.
 |---|---|---|
 | `hyperliquid-raw` | Node output with excluded fields and streams removed | JSON lines, zstd |
 | `hyperliquid-normalized` | Records ([observation-v0](observation-v0.md)), one table per kind | Parquet |
+| `reference-normalized` | Reference values and positioning from the reference pollers ([ADR 0017](../decisions/0017-records-archives.md)) | Parquet |
+| `swaps-normalized` | Swap prints from the swap pollers ([ADR 0017](../decisions/0017-records-archives.md)) | Parquet |
 
 Each archive has its own manifest chain. A backfill from another source is
 a separate archive with its own admission ID (for example
