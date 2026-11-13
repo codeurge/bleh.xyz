@@ -9,6 +9,12 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Records archives (ADR 0017): `reference-normalized` and
+  `swaps-normalized`, each with its own manifest chain, partitioned in
+  place under the normalized directory. `archive-pipeline.sh records` and
+  `records-anchors` sign settled days, stamp them with OpenTimestamps,
+  publish them and verify them over HTTPS. Compose adds `PUBLIC_S3_*`
+  (public bucket only) and `HISTORY_API_ARCHIVE_NAMES`.
 - Web snapshots (ADR 0016, `bleh-web-snapshot/v0`): `archive snapshot`
   turns the pollers' record files into small JSON files (latest values and
   daily history per reference series, latest and previous positioning
