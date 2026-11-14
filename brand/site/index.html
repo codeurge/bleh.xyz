@@ -176,7 +176,7 @@
       <li><span class="step">02 · Signed blocks</span><h3>Sign what was seen</h3><p>Each stream's records in a block become Merkle leaves. The root is signed, so any single record can be proven.</p>
         <svg class="merkle" viewBox="0 0 210 84" fill="none" stroke="currentColor" stroke-width="1.500" stroke-linecap="round" role="img" aria-label="A Merkle tree whose root is signed"><path d="M105 18L55 44M105 18l50 26M55 44L30 68M55 44l25 24M155 44l-25 24M155 44l25 24" opacity=".5"/><rect x="87" y="4" width="36" height="18" rx="6" fill="#ff4f8b" stroke="none"/><rect x="41" y="36" width="28" height="14" rx="5"/><rect x="141" y="36" width="28" height="14" rx="5"/><rect x="18" y="62" width="24" height="14" rx="5"/><rect x="68" y="62" width="24" height="14" rx="5"/><rect x="118" y="62" width="24" height="14" rx="5"/><rect x="168" y="62" width="24" height="14" rx="5"/><path d="M99 13l4 4 8-8" stroke="#16141c" stroke-width="2"/></svg></li>
       <li><span class="step">03 · Gateway + archive</span><h3>Stream it and keep it</h3><p>A websocket gateway for live data and replay. A static Parquet archive you can query in place with the tools you have.</p><ul class="chips" aria-label="Access"><li>websocket</li><li>replay</li><li>Parquet</li></ul></li>
-      <li><span class="step">04 · Mirrors</span><h3>Let anyone carry it</h3><p>The same content-addressed files over four independent networks. Every copy verifies against the signed manifest.</p><ul class="chips" aria-label="Mirrors"><li>CDN</li><li>BitTorrent</li><li>IPFS</li><li>Arweave</li></ul></li>
+      <li><span class="step">04 · Mirrors</span><h3>Let anyone carry it</h3><p>The same content-addressed files over three independent networks. Every copy verifies against the signed manifest.</p><ul class="chips" aria-label="Mirrors"><li>CDN</li><li>BitTorrent</li><li>IPFS</li></ul></li>
     </ol>
     <div class="anchor-row reveal"><span><b>Anchored on Bitcoin.</b> Each day's manifest is hash-chained, signed and timestamped, so anyone can prove a file is the one that was published, whoever served it.</span></div>
   </div>
@@ -321,11 +321,10 @@ websocat wss://live.bleh.xyz
       </ol>
     </div>
     <div class="reveal" style="--d:120ms">
-      <div class="mirrors" role="img" aria-label="Four mirrors. One is struck out; the other three still serve the same archive.">
+      <div class="mirrors" role="img" aria-label="Three mirrors. One is struck out; the other two still serve the same archive.">
         <div class="mirror down"><i></i><b>CDN</b><span>Say this one goes away.</span></div>
         <div class="mirror"><i></i><b>BitTorrent</b><span>Same files, same hashes.</span></div>
         <div class="mirror"><i></i><b>IPFS</b><span>Same files, same hashes.</span></div>
-        <div class="mirror"><i></i><b>Arweave</b><span>Manifests, stored for good.</span></div>
       </div>
       <p class="note" style="margin-top:22px">Illustration of the plan, not a status page. The archive and its mirrors are in development.</p>
     </div>

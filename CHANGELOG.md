@@ -261,6 +261,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- The site and social copy no longer list Arweave as a current mirror; it
+  is on the roadmap, not built. The mirrors are CDN, BitTorrent and IPFS.
+
 - The `data.<domain>` cache rules gave the manifest index, magnets list,
   anchors and OpenTimestamps proofs the one-year TTL meant for write-once
   files, so the CDN served a stale index and `archive verify` failed
