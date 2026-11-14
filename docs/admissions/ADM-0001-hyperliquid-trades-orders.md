@@ -4,6 +4,7 @@
 - Requested: 2026-11-11 by maintainers
 - Reviewers: Repository owner (engineering review of field lineage)
 - Decided: 2026-11-11 by the repository owner (owner decision, 2026-11-11)
+- Amended: 2026-11-14: `subBuilders` and `priorityGas` named in the excluded account and fee fields, after both (and `cloid`) were seen in archived node output (ADM-0003 sample, 2026-11-14). Exclusion only; nothing newly admitted.
 
 ## Source
 
@@ -32,7 +33,7 @@ not benchmarks.
 | Liquidation, settlement and halt fills | HIP-3 `haltTrading` cancels orders and settles positions at the current mark price | **Excluded.** Priced by mark, not matched |
 | HIP-4 settlement values | Validator- or deployer-supplied outcome settlement prices and the fills they produce | **Excluded.** Not matched in the book |
 | ADL fills | Auto-deleveraging fills | **Excluded** if not book-matched. To verify how they appear in node output |
-| `fee`, `feeToken`, `closedPnl`, `startPosition`, `dir`, `builder`, `builderFee`, `deployerFee`, `twapId`, `cloid` | Account and fee details | **Excluded.** Account-level, not market data |
+| `fee`, `feeToken`, `closedPnl`, `startPosition`, `dir`, `builder`, `builderFee`, `subBuilders`, `deployerFee`, `priorityGas`, `twapId`, `cloid` | Account, fee and order-plumbing details (`cloid` is the client order ID; `priorityGas` a per-order priority fee) | **Excluded.** Account-level, not market data |
 | Oracle, mark, external and funding prices | Deployer- or validator-supplied reference prices | **Excluded.** Echo outside prices |
 | Node output from `--write-hip3-oracle-updates` and `--write-misc-events` | Deployer oracle updates; funding, ledger and liquidation events | **Excluded.** These flags are never enabled |
 
