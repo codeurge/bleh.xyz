@@ -124,6 +124,10 @@ jobs:
         env:
           VCS_REF: ${{ github.sha }}
           SOURCE_DATE_EPOCH: ${{ steps.meta.outputs.epoch }}
+          # Keep provenance out of the bake metadata (it is still attached to
+          # every image as an attestation). With ten images the full records
+          # made the metadata too large to pass to the next step.
+          BUILDX_METADATA_PROVENANCE: disabled
         with:
           source: .
           files: deploy/docker/docker-bake.hcl
