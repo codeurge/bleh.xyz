@@ -82,11 +82,20 @@ pub enum FilterError {
 pub fn is_by_block<S: AsRef<str>>(dataset: Dataset, lines: &[S]) -> bool {
     match dataset {
         Dataset::NodeFillsByBlock => true,
+        // A block object has an `events` array. Checking for it (not just
+        // a leading `{`) also classifies filtered lines correctly: the
+        // local filter writes bare fills as `{"coin": ...}` objects.
         Dataset::NodeFills => lines
             .iter()
             .map(|l| l.as_ref().trim_start())
             .find(|l| !l.is_empty())
-            .is_some_and(|l| l.starts_with('{')),
+            .is_some_and(|l| {
+                l.starts_with('{')
+                    && serde_json::from_str::<Value>(l)
+                        .ok()
+                        .and_then(|v| v.get("events").map(Value::is_array))
+                        .unwrap_or(false)
+            }),
         _ => false,
     }
 }
@@ -674,8 +683,8 @@ pub(crate) mod tests {
         assert!(out.lines[0].starts_with("{\"raw\":{\"channel\":\"l2Book\""));
     }
 
-    /// A synthetic fill with the fields the node writes (no `cloid`, which
-    /// the node format does not have). Values are invented.
+    /// A synthetic fill without `cloid` (an optional field: the node writes
+    /// it only for orders that had one). Values are invented.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn node_fill(
         coin: &str,
@@ -703,6 +712,15 @@ pub(crate) mod tests {
         assert!(!is_by_block(Dataset::NodeFills, &[bare.as_str()]));
         assert!(!is_by_block(Dataset::NodeTrades, &[block.as_str()]));
         assert!(!is_by_block::<&str>(Dataset::NodeFills, &[]));
+        // Bare fills after the local filter are objects without `events`
+        // (seen on real 2025-06 node_fills): not by-block.
+        let other = node_fill("BTC", "1", "1", "A", false, 1, 2, 1).to_string();
+        let filtered = LocalFilter
+            .filter_lines(Dataset::NodeFills, &[bare.as_str(), other.as_str()])
+            .unwrap();
+        assert!(!filtered.lines.is_empty());
+        assert!(filtered.lines.iter().all(|l| l.starts_with('{')));
+        assert!(!is_by_block(Dataset::NodeFills, &filtered.lines));
     }
 
     #[test]
@@ -746,11 +764,11 @@ pub(crate) mod tests {
         );
 
         // A field outside the node format is schema drift: the object fails.
-        let drift = block_line(
-            12,
-            "2025-07-27T00:00:02.000",
-            vec![fill("BTC", "1", "1", "B", true, 9, 1, 1000)],
-        );
+        // (`cloid` and `priorityGas` are known and excluded since they were
+        // seen in archived node output, so the test uses an invented field.)
+        let mut drifted = fill("BTC", "1", "1", "B", true, 9, 1, 1000);
+        drifted[1]["inventedField"] = serde_json::json!(1);
+        let drift = block_line(12, "2025-07-27T00:00:02.000", vec![drifted]);
         assert!(
             NodeReaderFilter
                 .filter_lines(Dataset::NodeFillsByBlock, &[drift.as_str()])

@@ -129,6 +129,13 @@ pub struct Fill {
     deployer_fee: Excluded,
     #[serde(default, rename = "twapId", skip_serializing)]
     twap_id: Excluded,
+    /// Client order ID (excluded by ADM-0001; present in real node output
+    /// whenever the order had one).
+    #[serde(default, skip_serializing)]
+    cloid: Excluded,
+    /// Per-order priority fee (excluded by ADM-0001, as amended 2026-11-14).
+    #[serde(default, rename = "priorityGas", skip_serializing)]
+    priority_gas: Excluded,
 }
 
 impl Fill {
@@ -166,6 +173,8 @@ impl Fill {
             sub_builders: Excluded,
             deployer_fee: Excluded,
             twap_id: Excluded,
+            cloid: Excluded,
+            priority_gas: Excluded,
         }
     }
 
@@ -484,6 +493,20 @@ mod tests {
         let back: FillsLine = serde_json::from_str(&out).unwrap();
         assert_eq!(back.events[0].0, fill.admitted());
         assert_eq!(serde_json::to_string(&back).unwrap(), out);
+    }
+
+    #[test]
+    fn excluded_order_plumbing_fields_are_read_and_dropped() {
+        // Seen in archived node output (2026-11-14): client order IDs and
+        // per-order priority fees. Both are excluded (ADM-0001).
+        let raw = RAW_FILL.replace(
+            "\"twapId\"",
+            "\"cloid\":\"0x0000000000000000000000000000abcd\",\"priorityGas\":\"0.0165\",\"twapId\"",
+        );
+        let line: FillsLine = serde_json::from_str(&raw).unwrap();
+        let out = serde_json::to_string(&line).unwrap();
+        assert!(!out.contains("cloid") && !out.contains("priorityGas") && !out.contains("abcd"));
+        assert_eq!(line.events[0].0.coin, "SYN");
     }
 
     #[test]

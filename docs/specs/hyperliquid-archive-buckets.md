@@ -226,8 +226,12 @@ Secondary hints, for planning only (**unverified**):
 
 1. ~~Bucket regions.~~ Resolved 2026-11-14 (§ 1).
 2. Key patterns for every `hl-mainnet-node-data` prefix (§ 3).
-3. `node_fills` line format (batched or not).
-4. `node_trades` fields and the meaning of `trade_dir_override`.
+3. ~~`node_fills` line format (batched or not).~~ Resolved on a sample
+   (2025-06-01 hour 0, 2026-11-14): bare `[user, fill]` lines, not batched.
+4. `node_trades` fields: resolved on a sample (2025-03-22 hour 10,
+   2026-11-14) as `coin`, `side`, `time`, `px`, `sz`, `hash`,
+   `trade_dir_override` and `side_info` (with `cloid` inside). The meaning
+   of `trade_dir_override` is still to verify.
 5. `market_data` line wrapper, level order, levels per side and snapshot
    frequency.
 6. `replica_cmds` style (actions only, or with responses) and line wrapper.

@@ -66,14 +66,19 @@ pub const DEFAULT_RAW_BOOK_DIFFS_DIR: &str = "node_raw_book_diffs_by_block";
 //    events.
 // ---------------------------------------------------------------------------
 
-/// Parses `block_time` to milliseconds. Assumption 3: naive UTC, at most
-/// millisecond precision.
+/// Parses `block_time` to milliseconds, flooring any sub-millisecond
+/// digits. Assumption 3: naive UTC with up to nine fractional digits.
+/// Archived node output (2025-07-27 and 2026-11-13, sampled 2026-11-14)
+/// writes nine, so the earlier "at most millisecond precision" reading was
+/// wrong; `ts_source_ms` is the block time floored to the millisecond.
 ///
 /// # Errors
 ///
 /// Fails on any other format.
 pub fn parse_block_time(s: &str) -> Result<UnixMillis, String> {
-    UnixMillis::parse_rfc3339(s).map_err(|e| e.to_string())
+    UnixNanos::parse_rfc3339(s)
+        .map(UnixNanos::to_millis)
+        .map_err(|e| e.to_string())
 }
 
 /// Parses `local_time` to nanoseconds. Assumption 3: naive UTC with up to
@@ -301,7 +306,12 @@ mod tests {
             parse_block_time("2026-01-01T00:59:57.089").unwrap(),
             UnixMillis(1_767_229_197_089)
         );
-        assert!(parse_block_time("2026-01-01T00:59:57.0891").is_err());
+        // Nine digits, as archived node output writes them: floored.
+        assert_eq!(
+            parse_block_time("2026-01-01T00:59:57.089999999").unwrap(),
+            UnixMillis(1_767_229_197_089)
+        );
+        assert!(parse_block_time("2026-01-01 00:59:57").is_err());
         assert_eq!(
             parse_local_time("2026-01-01T00:59:57.008642787").unwrap(),
             UnixNanos(1_767_229_197_008_642_787)

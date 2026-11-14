@@ -91,9 +91,12 @@ With `--batch-by-block`, each line is one JSON object per block:
 | `block_number` | Block height | `seq.block_number` |
 | `events` | The block's events for this stream, in processing order | § 4-6 |
 
-**To verify:** `local_time` and `block_time` are naive UTC strings
-(`YYYY-MM-DDTHH:MM:SS.fff...`); the fixtures write `block_time` with 3 and
-`local_time` with 9 fractional digits. Also to verify: whether a line is
+`local_time` and `block_time` are naive UTC strings
+(`YYYY-MM-DDTHH:MM:SS.fff...`). Archived node output (2025-07-27 and
+2026-11-13, sampled 2026-11-14) writes **nine** fractional digits for both;
+the reader floors `block_time` to the millisecond for `ts_source_ms`. The
+fixtures write `block_time` with 3 and `local_time` with 9 digits.
+**To verify:** whether a line is
 written for blocks with no events in a stream (the fixtures write every
 block, with an empty `events` array). The reader must tolerate both.
 
@@ -119,6 +122,8 @@ is **excluded**.
 | `hash` | string | L1 transaction hash | **excluded** |
 | `fee`, `feeToken`, `builderFee`, `builder`, `subBuilders`, `deployerFee` | various | Fees and builders | **excluded** |
 | `twapId` | number or null | TWAP | **excluded** |
+| `cloid` | string, optional | Client order ID, present when the order had one (seen in every archived period sampled, 2025-03 to 2026-11) | **excluded** |
+| `priorityGas` | string (decimal), optional | Priority fee paid by the order (seen in archived output from 2026-11; absent on 2025-07-27) | **excluded** |
 | `liquidation` | object, optional | `{liquidatedUser?, markPx, method}`, `method` is `market` or `backstop` | **excluded** (`markPx` is a mark price) |
 
 ### 4.1 From fills to trades
@@ -342,7 +347,7 @@ update this spec, the generator and the reader together.
 1. `{date}` and `{hour}` path formats, and UTC hours.
 2. Directory names under `--batch-by-block` (`node_fills` or
    `node_fills_by_block`).
-3. `local_time` and `block_time` formats; lines for empty blocks.
+3. Lines for empty blocks (the `local_time` and `block_time` formats were verified on archived output, 2026-11-14).
 4. `side` values `B`/`A` meaning buy/sell in fills and order statuses.
 5. Order status `sz`: remaining or filled size.
 6. How modifies appear in raw book diffs.

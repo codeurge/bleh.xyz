@@ -73,6 +73,7 @@ pub const EXCLUDED_SOURCE_FIELDS: &[&str] = &[
     "builderFee",
     "deployerFee",
     "subBuilders",
+    "priorityGas",
     // Transaction plumbing.
     "hash",
     "cloid",
