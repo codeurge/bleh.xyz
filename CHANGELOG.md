@@ -9,6 +9,15 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Strategy review `docs/research/strategy-2026-11-futures-grade.md`: an
+  exposure map of open sources for gold, silver, crude, gas, the US index
+  exposures, rates, euro FX and crypto; a critique of
+  `synthetic-months@1` and a proposed @2 with uncertainty bands and a
+  reference-closed (weekend) mode; what can and cannot be validated
+  without exchange data; the role of the one rented server; risks,
+  ranked zero-cost actions and a 90-day plan. A research note, not a
+  decision.
+
 - First listing of Hyperliquid's requester-pays buckets: regions
   (`hl-mainnet-node-data` in ap-northeast-1, `hyperliquid-archive` in
   us-east-1) and coverage for the trade datasets, continuous from
