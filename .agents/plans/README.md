@@ -8,6 +8,7 @@ status in the same pull request as the work.
 | [Phase 0: foundation](phase-0-foundation.md) | Active | Accept ADR 0007 (code layout); data-model and registry schemas |
 | [Phase 1: live data](phase-1-live-data.md) | Active | Lanes integrated into the origin service; provision the node box and run the staging soak; Python and TypeScript SDKs; the `ecrecover` test contract |
 | [Phase 2: historical data](phase-2-historical-data.md) | Active | Archive, history API and backfill wired; run the bucket copy and backfill; capture L4 snapshots into raw; publish the first recorded day |
+| [Hyperliquid history to bleh.xyz](hyperliquid-history-to-site.md) | Active | Finish the trade-history copy; verify formats on samples; owner decisions on the registry source and the early period |
 | [Open reference prices](open-reference-prices.md) | Active | Settlement-anchor admissions, the synthetic contract-month method and engine, and the bring-your-own-feed adapter |
 
 Phases 3–6 get plans when Phases 1 and 2 near exit. See
