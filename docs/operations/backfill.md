@@ -34,18 +34,33 @@ mismatches (see the report), 2 the run could not start.
 
 ## 2. What the owner provides
 
-1. **An AWS account that pays for requester-pays access.** An IAM user or
-   role allowed `s3:ListBucket` on `arn:aws:s3:::hl-mainnet-node-data` and
-   `arn:aws:s3:::hyperliquid-archive`, and `s3:GetObject` on the admitted
-   prefixes only (`node_fills_by_block/*`, `node_fills/*`,
-   `node_trades/*`, `replica_cmds/*`, `explorer_blocks/*`,
-   `market_data/*`). Scoping the policy this way makes the ADM-0003
-   denylist hold at the AWS level too. Prefer an instance role on the copy
-   host; otherwise export `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and,
+1. **An AWS account that pays for requester-pays access.** A dedicated
+   account on AWS's Free plan works: requester-pays requests succeed and S3
+   answers `RequestCharged: requester`, with the charges drawn from the
+   plan's credits. Give the copier an IAM user or role with only this
+   policy, which makes the ADM-0003 denylist hold at the AWS level too (a
+   `GetObject` on `misc_events_by_block/` or `asset_ctxs/` is refused with
+   `AccessDenied`):
+
+   ```json
+   {"Version":"2012-10-17","Statement":[
+     {"Sid":"ListAdmittedBuckets","Effect":"Allow","Action":"s3:ListBucket",
+      "Resource":["arn:aws:s3:::hl-mainnet-node-data","arn:aws:s3:::hyperliquid-archive"]},
+     {"Sid":"GetAdmittedPrefixesADM0003","Effect":"Allow","Action":"s3:GetObject",
+      "Resource":["arn:aws:s3:::hl-mainnet-node-data/node_fills_by_block/*",
+                  "arn:aws:s3:::hl-mainnet-node-data/node_fills/*",
+                  "arn:aws:s3:::hl-mainnet-node-data/node_trades/*",
+                  "arn:aws:s3:::hl-mainnet-node-data/replica_cmds/*",
+                  "arn:aws:s3:::hl-mainnet-node-data/explorer_blocks/*",
+                  "arn:aws:s3:::hyperliquid-archive/market_data/*"]}]}
+   ```
+
+   Prefer an instance role on the copy host; otherwise export `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and,
    for temporary credentials, `AWS_SESSION_TOKEN`. For a named profile:
    `eval "$(aws configure export-credentials --profile NAME --format env)"`.
-2. **The buckets' regions** (`HL_NODE_DATA_REGION`, `HL_ARCHIVE_REGION`):
-   `curl -sI https://<bucket>.s3.amazonaws.com | grep -i x-amz-bucket-region`.
+2. **The buckets' regions:** `HL_NODE_DATA_REGION=ap-northeast-1` and
+   `HL_ARCHIVE_REGION=us-east-1` (checked 2026-11-14; recheck with
+   `curl -sI https://<bucket>.s3.amazonaws.com | grep -i x-amz-bucket-region`).
 3. **A private raw-tier bucket** on an S3-compatible store (Cloudflare R2
    suggested: no egress fees) and a second, public bucket or prefix for
    filtered raw. Credentials in `BLEH_RAW_ENDPOINT` (for R2,
@@ -55,13 +70,33 @@ mismatches (see the report), 2 the run could not start.
 4. **A copy host in the buckets' region** (a spot instance is enough):
    transfer from S3 to compute in the same region is free, so only request
    charges apply. Copying from anywhere else pays internet egress
-   (USD 0.09/GB at list price).
+   (USD 0.114/GB from Tokyo, 0.09/GB from us-east-1, at list price).
 5. **An instrument registry** (`{"instruments": [...]}`, the
    `mesh_types::Registry` format) covering every coin in the period,
    including delisted ones, built from venue metadata.
 
 Credentials are read from the environment only, are never accepted as
 arguments, and are never logged.
+
+### Cost controls
+
+Set these up in the AWS account before the first copy, so the most a month
+can cost is known in advance:
+
+- **A budget on gross usage, credits excluded** (for example USD 50 a
+  month), with email alerts at 50, 80 and 100 % of actual cost and at 100 %
+  of forecast cost. On a Free-plan account this measures how fast the
+  credits are being used.
+- **An automatic budget action at 100 %** that attaches a deny-all IAM
+  policy to the backfill user. AWS Budgets runs it through a role trusted
+  by `budgets.amazonaws.com`, scoped with `aws:SourceAccount`, that may
+  only attach and detach that one policy on that one user. Detach the
+  policy by hand to resume.
+- **A budget on net cost, credits included** (for example USD 1), alerting
+  on any charge above USD 0.01: the first cent that would reach a card.
+
+Billing data lags by several hours, so the cap stops a runaway copy but is
+not exact; size each `copy` run from the estimate below.
 
 ## 3. Coverage and cost
 
@@ -77,7 +112,14 @@ last day (or block height) present, and the estimated cost. These first
 and last days are the coverage record for the import (ADM-0003: coverage
 comes from listings). Record them in the coverage map and in
 [hyperliquid-archive-buckets.md](../specs/hyperliquid-archive-buckets.md)
-§ 5 when the first real listing runs.
+§ 5.
+
+Worked example, from the first listing (2026-11-14, spec § 5): the three
+trade-history datasets hold 14,460 objects and about 392 GB of LZ4
+(`node_trades` 15.1 GB, `node_fills` 31.8 GB, `node_fills_by_block`
+345.0 GB). Copied out of Tokyo at USD 0.114/GB that is about **USD 45 once**,
+plus well under a dollar of GET and LIST requests. `market_data`,
+`replica_cmds` and `explorer_blocks` were not sized yet.
 
 ## 4. Copy
 

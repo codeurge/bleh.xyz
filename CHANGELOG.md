@@ -9,6 +9,14 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- First listing of Hyperliquid's requester-pays buckets: regions
+  (`hl-mainnet-node-data` in ap-northeast-1, `hyperliquid-archive` in
+  us-east-1) and coverage for the trade datasets, continuous from
+  2025-03-22 and about 392 GB compressed (about $45 to copy out), in
+  `docs/specs/hyperliquid-archive-buckets.md` § 5. The backfill runbook
+  now gives the prefix-scoped IAM policy and the budget caps to set up
+  before copying.
+
 - bleh.xyz has an "Open archive" section: every published day of the
   public archive with its manifest and magnet, the hash chain re-checked in
   the visitor's browser, and SQL over a day's Parquet files with

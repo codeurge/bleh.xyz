@@ -2,7 +2,7 @@
 
 Status: Active (backfill and archive design now; live recording starts with
 the first node)
-Last updated: 2026-11-12
+Last updated: 2026-11-14
 
 ## Goal
 
@@ -100,8 +100,13 @@ Nothing runs on real data yet, so no criterion is ticked.
    - Dependencies: None
    - PR: Not opened
    - Next action: Built: `hl-backfill estimate` and `copy` with the ADM-0003
-     denylist, checkpoints and retries (tools/hl-backfill). Run the copy
-     with owner credentials.
+     denylist, checkpoints and retries (tools/hl-backfill). Done
+     2026-11-14: a dedicated Free-plan AWS account with a prefix-scoped IAM
+     user and budget caps; first listing recorded (regions, and coverage
+     and sizes for the trade datasets, about 392 GB, in
+     docs/specs/hyperliquid-archive-buckets.md § 5). Next: size
+     `market_data`, `replica_cmds` and `explorer_blocks`; copy the trade
+     history into the private raw tier, paid from the plan's credits.
 
 2. **backfill-fills**
    - Status: In progress

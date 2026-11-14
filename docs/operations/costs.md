@@ -34,7 +34,7 @@ month 1.
 | A1 | Public archive growth (filtered raw zstd 19 + normalized partitions + manifests) | 10 GB/day | Estimate; measure from the first week of capture |
 | A2 | Unfiltered raw (zstd long range, trained dictionaries) | 20 GB/day; kept on the home array, newest 30 days also in private R2 (Infrequent Access) | Estimate |
 | A3 | Node output on the node box before pruning | 100–300 GB/day, pruned 24 h after capture | Official figure is about 100 GB/day at default settings; the mesh's flags add more |
-| A4 | Backfill corpus copied from Hyperliquid's requester-pays buckets | 1–3 TB, one-off | Unverified; from bucket listings at backfill time |
+| A4 | Backfill corpus copied from Hyperliquid's requester-pays buckets | 1–3 TB, one-off; trade history measured at about 392 GB | Trade history from the 2026-11-14 listing (hyperliquid-archive-buckets.md § 5); `market_data`, `replica_cmds` and `explorer_blocks` not sized yet |
 | A5 | Relay egress to users | Within Oracle's 10 TB/month free allowance per account | Holds until roughly a few hundred continuous full-market subscribers |
 | A6 | Home server power draw | 150–350 W (home-archive); 250–450 W with the node | Measure at the wall |
 | A7 | Electricity | US $0.1816/kWh (EIA, August 2026); EU about €0.28/kWh (Eurostat via press, H1 2026) | Local tariffs vary widely |
@@ -58,7 +58,10 @@ month 1.
 
 One-off: backfill transfer from Hyperliquid's buckets. Requester-pays means
 we pay AWS internet egress, about $0.09–0.114/GB, so A4 is roughly
-**$90–350 once**. Running the copy on a spot instance in the bucket's own
+**$90–350 once**. Measured so far: the trade history (about 392 GB from
+`hl-mainnet-node-data` in Tokyo, $0.114/GB) is about **$45 once**, which fits
+inside a new AWS account's Free-plan credits; `market_data` (us-east-1,
+$0.09/GB) is pending. Running the copy on a spot instance in the bucket's own
 region avoids transfer between AWS and the instance but not the egress to
 R2. Under AWS Open Data sponsorship the archive could live in S3 in the same
 region and the copy would cost almost nothing.

@@ -36,7 +36,7 @@ words with placeholder values.
 | Both are AWS S3 **requester pays**: every request must carry `x-amz-request-payer: requester` (CLI: `--request-payer requester`) and the requester's account pays request and transfer charges (S1, S9) | Verified |
 | Uploads to `hyperliquid-archive` happen roughly monthly, with no guarantee of timeliness or completeness (S1) | Verified |
 | Objects are compressed with LZ4 and decompressed with `unlz4`/`lz4 -d`, that is, the LZ4 **frame** format (S1) | Verified (format name); frame format inferred from the CLI |
-| Bucket region | **Unverified.** Find it without credentials: `curl -sI https://<bucket>.s3.amazonaws.com \| grep -i x-amz-bucket-region`. `hl-backfill` takes the region as configuration because S3 signing needs it |
+| Bucket region: `hl-mainnet-node-data` is in **ap-northeast-1** (Tokyo), `hyperliquid-archive` in **us-east-1**. Checked without credentials with `curl -sI https://<bucket>.s3.amazonaws.com \| grep -i x-amz-bucket-region`. `hl-backfill` takes the region as configuration because S3 signing needs it | Verified 2026-11-14 |
 
 Requester-pays costs (S9, us-east-1 list prices on 2026-11-12, configurable
 in `hl-backfill estimate`): data transfer out to the internet USD 0.09/GB
@@ -187,6 +187,31 @@ and reports, per dataset, the object count, total bytes, and the first and
 last date (or height for `explorer_blocks`) present, which is the coverage
 record for that import.
 
+### Measured listing (2026-11-14)
+
+From `aws s3 ls --recursive --summarize --request-payer requester` on each
+prefix (a listing, so it counts as the coverage record under ADM-0003). Top-level
+prefixes present: `hl-mainnet-node-data`: `explorer_blocks/`,
+`misc_events_by_block/`, `node_fills/`, `node_fills_by_block/`,
+`node_trades/`, `replica_cmds/`; `hyperliquid-archive`: `Testnet/`,
+`asset_ctxs/`, `market_data/`.
+
+| Dataset | First key | Last key | Objects | Bytes (LZ4) |
+|---|---|---|---|---|
+| `node_trades` | `hourly/20250322/10.lz4` | `hourly/20250621/9.lz4` | 1,542 | 15,131,928,963 (15.1 GB) |
+| `node_fills` | `hourly/20250525/14.lz4` | `hourly/20250727/8.lz4` | 1,507 | 31,810,887,432 (31.8 GB) |
+| `node_fills_by_block` | `hourly/20250727/10.lz4` | `hourly/20261114/9.lz4` (still growing) | 11,411 | 344,997,007,211 (345.0 GB) |
+| `market_data` | pending | pending | pending | pending |
+| `replica_cmds` | pending | pending | pending | pending |
+| `explorer_blocks` | pending | pending | pending | pending |
+
+Trade history is continuous from 2025-03-22 10:00 UTC, about 392 GB
+compressed across the three trade datasets, with `node_trades` and
+`node_fills` overlapping from 2025-05-25 to 2025-06-21. Keys are
+`<prefix>/hourly/YYYYMMDD/H.lz4` with the hour not zero-padded; objects are
+LZ4 frames (v1.4+), and recent `node_fills_by_block` hours are about
+40–56 MB each.
+
 Secondary hints, for planning only (**unverified**):
 
 | Dataset | Hint |
@@ -199,7 +224,7 @@ Secondary hints, for planning only (**unverified**):
 
 ## 6. To verify (summary)
 
-1. Bucket regions.
+1. ~~Bucket regions.~~ Resolved 2026-11-14 (§ 1).
 2. Key patterns for every `hl-mainnet-node-data` prefix (§ 3).
 3. `node_fills` line format (batched or not).
 4. `node_trades` fields and the meaning of `trade_dir_override`.
@@ -207,4 +232,6 @@ Secondary hints, for planning only (**unverified**):
    frequency.
 6. `replica_cmds` style (actions only, or with responses) and line wrapper.
 7. `explorer_blocks` encoding (JSON or MessagePack) and file span.
-8. Coverage dates per prefix (from `hl-backfill estimate`).
+8. Coverage dates per prefix. Resolved for `node_trades`, `node_fills` and
+   `node_fills_by_block` on 2026-11-14 (§ 5); pending for `market_data`,
+   `replica_cmds` and `explorer_blocks`.
