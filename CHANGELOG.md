@@ -9,6 +9,12 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Three admission requests, status `Requested` and awaiting the owner's
+  decision: ADM-0020 (Ethereum mainnet Uniswap v3 and hookless v4 pools for
+  ETH, wrapped BTC and tokenized gold, read from an own node), ADM-0021 (EIA
+  energy statistics from EIA's own surveys, with vendor and exchange series
+  excluded) and ADM-0022 (BLS consumer price indexes).
+
 - Strategy review `docs/research/strategy-2026-11-futures-grade.md`: an
   exposure map of open sources for gold, silver, crude, gas, the US index
   exposures, rates, euro FX and crypto; a critique of
