@@ -9,6 +9,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- `hl-backfill registry`: derives the backfill's instrument registry from
+  the admitted fills in the raw tier (ADR 0019, method
+  `hl-backfill-registry/v1`): class from the symbol, size scale from the
+  most size decimals seen, every price checked against the derived price
+  scale, coins that fail reported and left out. ADR 0020 starts the
+  `hyperliquid-backfill` archive at 2025-07-27 and keeps the early period
+  for a separate archive.
 - Open sources survey (`docs/research/open-sources-survey-2026-11.md`):
   candidate venues and public sources ranked by accuracy value, cost and
   expected verdict; rejections with their deciding clauses (among them
@@ -302,6 +309,14 @@ versions (see [AGENTS.md](AGENTS.md)).
   document matches the implementation.
 
 ### Fixed
+
+- The node reader read real node output wrongly in three ways, found on
+  archived samples: fills with `cloid` or `priorityGas` were rejected as
+  schema drift (both are excluded fields, now named in ADM-0001 and the
+  allowlist); `block_time` with nine fractional digits was rejected as
+  sub-millisecond precision (it is now floored to the millisecond); and
+  `hl-backfill process` mistook filtered bare `node_fills` lines for block
+  lines.
 
 - `hl-backfill` accepts a plain `http://` raw-tier endpoint (a private store
   on the LAN or Tailscale). Before, every upload to such a store failed

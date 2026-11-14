@@ -169,6 +169,29 @@ hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
 
 ## 5. Process
 
+### 5.0 Registry
+
+`process` needs an instrument registry. Without a node, it is derived from
+the admitted fills themselves ([ADR 0019](../decisions/0019-backfill-registry-from-admitted-fills.md),
+method `hl-backfill-registry/v1`):
+
+```bash
+hl-backfill registry --raw s3://<raw-bucket>/hl-archive \
+  --datasets node_fills_by_block --from 2025-07-27 --to 2026-11-14 \
+  --out registry.json > registry-report.json
+```
+
+Objects pass through the same filter as `process`; each coin's class comes
+from its symbol, its size scale is the most size decimals seen, and every
+price must fit the derived price scale. The report lists every coin (class,
+scales, first and last day, trade count) and every coin left out with the
+reason; the exit status is 1 if any object failed or any coin was left out.
+First run on samples (2026-11-14): 378 perpetuals registered (159 HIP-3);
+all 289 outcome coins left out, because their prices have five decimals
+and the reader assumes four.
+
+### 5.1 Run
+
 ```bash
 hl-backfill process --raw s3://<raw-bucket>/hl-archive \
   --filtered s3://<public-bucket>/hyperliquid-backfill-raw \

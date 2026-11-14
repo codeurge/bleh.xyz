@@ -18,19 +18,20 @@ use hl_backfill::checkpoint::Checkpoint;
 use hl_backfill::clock::TableClock;
 use hl_backfill::copy::{Copier, CopyConfig};
 use hl_backfill::estimate::{Estimate, Prices};
-use hl_backfill::filter::DefaultFilter;
+use hl_backfill::filter::{DefaultFilter, RawLineFilter};
 use hl_backfill::listing::{Selection, SourceObject, list_dataset};
 use hl_backfill::parse::DefaultParser;
 use hl_backfill::partition::{BACKFILL_ARCHIVE, JsonlWriter};
 use hl_backfill::process::{Pipeline, ProcessConfig};
+use hl_backfill::registry::RegistryBuilder;
 use hl_backfill::replay::cmds::parse_blocks;
 use hl_backfill::replay::matcher::{AssetSpec, Matcher};
 use hl_backfill::replay::{L2Checkpoint, levels_of, replay};
 use hl_backfill::retry::RetryPolicy;
 use hl_backfill::store::{StoreUrl, project_store, source_store};
 use mesh_types::{InstrumentId, Record, Registry};
-use object_store::ObjectStore;
 use object_store::prefix::PrefixStore;
+use object_store::{ObjectStore, ObjectStoreExt};
 use serde::Deserialize;
 
 #[derive(Debug, Parser)]
@@ -116,6 +117,19 @@ enum Command {
         /// to resolve blocks for data without them.
         #[arg(long)]
         clock_lines: Option<PathBuf>,
+    },
+    /// Derive an instrument registry from the admitted fills in the raw
+    /// tier (ADR 0019, method hl-backfill-registry/v1). Writes the registry
+    /// document `process --registry` reads; the report goes to stdout.
+    Registry {
+        #[command(flatten)]
+        sel: SelectionArgs,
+        /// Raw tier written by `copy`: s3://bucket[/prefix] or file:///dir.
+        #[arg(long)]
+        raw: String,
+        /// Where to write the registry document (JSON).
+        #[arg(long)]
+        out: PathBuf,
     },
     /// Compare backfilled records with live-recorded records per hour.
     Compare {
@@ -247,6 +261,27 @@ impl RegionArgs {
     }
 }
 
+/// The raw tier, listed as if it were the buckets.
+fn raw_views(
+    raw_url: &StoreUrl,
+    raw_store: &Arc<dyn ObjectStore>,
+) -> BTreeMap<Bucket, Arc<dyn ObjectStore>> {
+    let mut views: BTreeMap<Bucket, Arc<dyn ObjectStore>> = BTreeMap::new();
+    for b in Bucket::ALL {
+        let prefix = [raw_url.prefix(), b.name()]
+            .iter()
+            .filter(|s| !s.is_empty())
+            .copied()
+            .collect::<Vec<_>>()
+            .join("/");
+        views.insert(
+            b,
+            Arc::new(PrefixStore::new(Arc::clone(raw_store), prefix.as_str())),
+        );
+    }
+    views
+}
+
 async fn list_selection(
     stores: &BTreeMap<Bucket, Arc<dyn ObjectStore>>,
     datasets: &[Dataset],
@@ -338,6 +373,54 @@ async fn run(cli: Cli) -> Result<bool> {
             print_json(&report)?;
             Ok(report.failed.is_empty())
         }
+        Command::Registry { sel, raw, out } => {
+            let datasets: Vec<Dataset> = sel
+                .datasets()?
+                .into_iter()
+                .filter(|d| {
+                    matches!(
+                        d,
+                        Dataset::NodeFillsByBlock | Dataset::NodeFills | Dataset::NodeTrades
+                    )
+                })
+                .collect();
+            if datasets.is_empty() {
+                bail!("registry reads node_fills_by_block, node_fills or node_trades");
+            }
+            let raw_url = StoreUrl::parse(&raw)?;
+            let raw_store = project_store(&raw_url)?;
+            let views = raw_views(&raw_url, &raw_store);
+            let objects = list_selection(&views, &datasets, &sel.selection()?, |_, _| {}).await?;
+            let filter = DefaultFilter::default();
+            let admission = mesh_types::AdmissionId::new(hl_backfill::ADMISSION)?;
+            let mut builder = RegistryBuilder::new(admission);
+            for obj in &objects {
+                let key = hl_backfill::copy::dest_key(raw_url.prefix(), &obj.bucket, &obj.key)?;
+                let lines = async {
+                    let bytes = raw_store.get(&key).await?.bytes().await?;
+                    let text = hl_backfill::codec::lz4_to_string(
+                        &bytes,
+                        hl_backfill::codec::DEFAULT_MAX_DECOMPRESSED,
+                    )?;
+                    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+                    Ok::<_, anyhow::Error>(filter.filter_lines(obj.dataset, &lines)?.lines)
+                }
+                .await;
+                match lines {
+                    Ok(lines) => builder.observe(obj.dataset, obj.info.day, &lines),
+                    Err(e) => {
+                        tracing::error!(key = %obj.key, error = %e, "registry: object failed");
+                        builder.failed(&obj.key, e.to_string());
+                    }
+                }
+            }
+            let (registry, report) = builder.build();
+            std::fs::write(&out, serde_json::to_vec_pretty(&registry)?)
+                .with_context(|| format!("writing {}", out.display()))?;
+            let clean = report.clean();
+            print_json(&report)?;
+            Ok(clean)
+        }
         Command::Process {
             sel,
             raw,
@@ -362,20 +445,7 @@ async fn run(cli: Cli) -> Result<bool> {
                 &std::fs::read(&registry)
                     .with_context(|| format!("reading {}", registry.display()))?,
             )?;
-            // List the raw tier as if it were the buckets.
-            let mut views: BTreeMap<Bucket, Arc<dyn ObjectStore>> = BTreeMap::new();
-            for b in Bucket::ALL {
-                let prefix = [raw_url.prefix(), b.name()]
-                    .iter()
-                    .filter(|s| !s.is_empty())
-                    .copied()
-                    .collect::<Vec<_>>()
-                    .join("/");
-                views.insert(
-                    b,
-                    Arc::new(PrefixStore::new(Arc::clone(&raw_store), prefix.as_str())),
-                );
-            }
+            let views = raw_views(&raw_url, &raw_store);
             let objects = list_selection(&views, &datasets, &sel.selection()?, |_, _| {}).await?;
             let external = match clock_lines {
                 Some(p) => {

@@ -37,6 +37,7 @@ pub mod listing;
 pub mod parse;
 pub mod partition;
 pub mod process;
+pub mod registry;
 pub mod replay;
 pub mod retry;
 pub mod store;
