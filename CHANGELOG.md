@@ -280,6 +280,18 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- `hl-backfill` accepts a plain `http://` raw-tier endpoint (a private store
+  on the LAN or Tailscale). Before, every upload to such a store failed
+  with "HTTP error: builder error"; HTTPS stays the default for every other
+  endpoint.
+- `hl-backfill copy` no longer pays twice for one object. A run first
+  writes and deletes a probe in the destination and stops before any
+  requester-pays read if it cannot write. Each object is then read once
+  (into memory, or a spool file above 64 MiB) and only the upload is
+  retried; before, a destination failure repeated the source download on
+  every attempt. Permanent errors (permissions, bad configuration, 4xx
+  other than 408 and 429) now fail after one attempt instead of six.
+
 - The site and social copy no longer list Arweave as a current mirror; it
   is on the roadmap, not built. The mirrors are CDN, BitTorrent and IPFS.
   The brand film's "How it stays up" scene now shows three mirrors

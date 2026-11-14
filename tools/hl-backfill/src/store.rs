@@ -13,7 +13,10 @@
 //!   Cloudflare R2): `s3://bucket[/prefix]` URLs, with
 //!   `BLEH_RAW_ENDPOINT`, `BLEH_RAW_ACCESS_KEY_ID`,
 //!   `BLEH_RAW_SECRET_ACCESS_KEY` and optional `BLEH_RAW_REGION` (default
-//!   `auto`, as R2 expects). `file:///dir` URLs use a local directory.
+//!   `auto`, as R2 expects). Requests are path-style. An `http://`
+//!   endpoint is accepted for a private store on the LAN or a Tailscale
+//!   address; any other endpoint must be HTTPS. `file:///dir` URLs use a
+//!   local directory.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -129,6 +132,16 @@ fn env(name: &'static str) -> Result<String, StoreError> {
     std::env::var(name).map_err(|_| StoreError::MissingEnv(name))
 }
 
+/// True when the raw-tier endpoint is plain HTTP. Only that scheme turns
+/// HTTP on (a private store reached over the LAN or Tailscale); an
+/// `https://` endpoint, or one without a scheme, stays HTTPS-only.
+fn allows_http(endpoint: &str) -> bool {
+    endpoint
+        .trim_start()
+        .get(..7)
+        .is_some_and(|s| s.eq_ignore_ascii_case("http://"))
+}
+
 /// Builds the project's own store (raw tier or filtered raw) for a URL.
 ///
 /// # Errors
@@ -137,9 +150,11 @@ fn env(name: &'static str) -> Result<String, StoreError> {
 pub fn project_store(url: &StoreUrl) -> Result<Arc<dyn ObjectStore>, StoreError> {
     match url {
         StoreUrl::S3 { bucket, .. } => {
+            let endpoint = env("BLEH_RAW_ENDPOINT")?;
             let store = AmazonS3Builder::new()
                 .with_bucket_name(bucket)
-                .with_endpoint(env("BLEH_RAW_ENDPOINT")?)
+                .with_allow_http(allows_http(&endpoint))
+                .with_endpoint(endpoint)
                 .with_access_key_id(env("BLEH_RAW_ACCESS_KEY_ID")?)
                 .with_secret_access_key(env("BLEH_RAW_SECRET_ACCESS_KEY")?)
                 .with_region(std::env::var("BLEH_RAW_REGION").unwrap_or_else(|_| "auto".into()))
@@ -177,6 +192,25 @@ mod tests {
         ));
         for bad in ["s3://", "file://", "gs://b", "/tmp/x"] {
             assert!(StoreUrl::parse(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn http_only_for_http_endpoints() {
+        for yes in [
+            "http://10.0.0.238:7070",
+            "HTTP://100.81.176.18:7070",
+            " http://raw",
+        ] {
+            assert!(allows_http(yes), "{yes}");
+        }
+        for no in [
+            "https://acct.r2.cloudflarestorage.com",
+            "raw.example",
+            "httpx://raw",
+            "",
+        ] {
+            assert!(!allows_http(no), "{no}");
         }
     }
 

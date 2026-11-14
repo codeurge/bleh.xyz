@@ -97,10 +97,11 @@ where
 }
 
 /// True for object-store errors worth retrying. Missing objects,
-/// permission errors and bad configuration are permanent.
+/// permission errors, bad configuration and requests that cannot succeed
+/// as sent (see [`permanent_cause`]) are permanent.
 #[must_use]
 pub fn object_store_transient(e: &object_store::Error) -> bool {
-    !matches!(
+    let permanent_kind = matches!(
         e,
         object_store::Error::NotFound { .. }
             | object_store::Error::PermissionDenied { .. }
@@ -110,7 +111,46 @@ pub fn object_store_transient(e: &object_store::Error) -> bool {
             | object_store::Error::NotImplemented { .. }
             | object_store::Error::UnknownConfigurationKey { .. }
             | object_store::Error::Precondition { .. }
-    )
+    );
+    !permanent_kind && !permanent_cause(e)
+}
+
+/// True if anything in the error's source chain will not change on a
+/// retry: a request the HTTP client could not build (for example a plain
+/// HTTP endpoint the store does not allow, reported as an unknown HTTP
+/// error), a redirect without a location (wrong region), or a 4xx status
+/// other than 408 and 429. Statuses the store maps to typed errors (401,
+/// 403, 404, 412) are handled by [`object_store_transient`] itself.
+fn permanent_cause(e: &(dyn std::error::Error + 'static)) -> bool {
+    use object_store::client::{HttpError, HttpErrorKind};
+    let mut cause = Some(e);
+    while let Some(err) = cause {
+        if err
+            .downcast_ref::<HttpError>()
+            .is_some_and(|h| h.kind() == HttpErrorKind::Unknown)
+        {
+            return true;
+        }
+        let msg = err.to_string();
+        if msg.contains("Received redirect without LOCATION") {
+            return true;
+        }
+        if let Some(code) = status_code(&msg)
+            && (400..500).contains(&code)
+            && code != 408
+            && code != 429
+        {
+            return true;
+        }
+        cause = err.source();
+    }
+    false
+}
+
+/// The HTTP status in an object-store "non-2xx status code: NNN" message.
+fn status_code(msg: &str) -> Option<u16> {
+    let (_, rest) = msg.split_once("status code: ")?;
+    rest.get(..3)?.parse().ok()
 }
 
 #[cfg(test)]
@@ -148,6 +188,41 @@ mod tests {
         .unwrap();
         assert_eq!(r.value, 3);
         assert_eq!(r.attempts, 3);
+    }
+
+    #[test]
+    fn classifies_store_errors() {
+        use object_store::client::{HttpError, HttpErrorKind};
+        let generic =
+            |source: Box<dyn std::error::Error + Send + Sync>| object_store::Error::Generic {
+                store: "S3",
+                source,
+            };
+        let io = |k| std::io::Error::new(k, "x");
+        // A request the client could not build: never retried.
+        let builder = HttpError::new(HttpErrorKind::Unknown, io(std::io::ErrorKind::Other));
+        assert!(!object_store_transient(&generic(Box::new(builder))));
+        // Connection trouble and timeouts: retried.
+        for kind in [HttpErrorKind::Connect, HttpErrorKind::Timeout] {
+            let e = HttpError::new(kind, io(std::io::ErrorKind::TimedOut));
+            assert!(object_store_transient(&generic(Box::new(e))), "{kind:?}");
+        }
+        // 4xx other than 408/429: permanent; 5xx, 408, 429: transient.
+        let status = |code: &str| {
+            generic(format!("Server returned non-2xx status code: {code}: body").into())
+        };
+        assert!(!object_store_transient(&status("400 Bad Request")));
+        assert!(!object_store_transient(&status("405 Method Not Allowed")));
+        assert!(object_store_transient(&status("408 Request Timeout")));
+        assert!(object_store_transient(&status("429 Too Many Requests")));
+        assert!(object_store_transient(&status("503 Service Unavailable")));
+        assert!(!object_store_transient(
+            &object_store::Error::PermissionDenied {
+                path: "p".into(),
+                source: "AccessDenied".into(),
+            }
+        ));
+        assert!(object_store_transient(&generic("connection reset".into())));
     }
 
     #[tokio::test]

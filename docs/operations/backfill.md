@@ -131,17 +131,32 @@ hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
   --concurrency 32
 ```
 
+- `BLEH_RAW_ENDPOINT` may be `https://` (R2 or any public store) or, for
+  a private store on the LAN or a Tailscale address, `http://`; plain HTTP
+  is turned on only for an `http://` endpoint. Requests are path-style.
+- **Write probe.** Before reading anything from the source, a run writes,
+  reads back and deletes `<raw prefix>/_bleh-write-probe`. If the
+  destination cannot be written the run stops with "destination is not
+  writable" and no requester-pays request is made.
 - Objects land at `<raw prefix>/<source bucket>/<source key>`, byte for
   byte. The destination size is checked after every write.
+- **One paid read per object.** Each object is read from the source once:
+  into memory up to 64 MiB, above that into a spool file under
+  `.copy-spool/` in the working directory (run it on a disk with room for
+  `--concurrency` large objects; each spool file is deleted when its object
+  is done). Only the upload and its size check are retried, so a
+  destination failure never repeats the source download.
 - The checkpoint is a JSON-lines log of every copied object (bucket, key,
   size, ETag, destination, SHA-256 of the bytes). Rerunning the same
   command skips objects already copied with the same size and ETag and
   recopies any whose size or ETag changed (reported as
   `recopied_changed`). Keep the checkpoint with the raw tier; it is the
   copy log.
-- Each object is retried with exponential backoff (`--max-attempts`,
-  default 6). Objects still failing are listed in the report and the exit
-  status is 1; rerun to pick them up.
+- Source reads and uploads are each retried with exponential backoff
+  (`--max-attempts`, default 6). Errors that cannot change on a retry
+  (permission denied, bad configuration, 4xx other than 408 and 429) fail
+  after one attempt. Objects still failing are listed in the report and
+  the exit status is 1; rerun to pick them up.
 - `--shard INDEX/COUNT` splits work across hosts by whole days (or
   100,000-block ranges for `explorer_blocks`); give each host its own
   checkpoint file.

@@ -49,13 +49,16 @@ pub(crate) async fn put(store: &dyn ObjectStore, key: &str, data: Vec<u8>) {
         .unwrap();
 }
 
-/// Wraps a store: records every path read, listed or written, and fails
-/// the first `n` reads of chosen paths with a transient error.
+/// Wraps a store: records every path read, listed or written, fails the
+/// first `n` reads or writes of chosen paths with a transient error, and
+/// can refuse writes to a path permanently.
 #[derive(Debug, Clone)]
 pub(crate) struct RecordingStore {
     inner: Arc<dyn ObjectStore>,
     log: Arc<Mutex<Vec<String>>>,
     fail_reads: Arc<Mutex<HashMap<String, u32>>>,
+    fail_writes: Arc<Mutex<HashMap<String, u32>>>,
+    deny_writes: Arc<Mutex<Vec<String>>>,
 }
 
 impl RecordingStore {
@@ -68,6 +71,8 @@ impl RecordingStore {
             inner,
             log: Arc::default(),
             fail_reads: Arc::default(),
+            fail_writes: Arc::default(),
+            deny_writes: Arc::default(),
         }
     }
 
@@ -82,6 +87,49 @@ impl RecordingStore {
 
     pub(crate) fn fail_next_reads(&self, key: &str, n: u32) {
         self.fail_reads.lock().unwrap().insert(key.to_owned(), n);
+    }
+
+    /// Fails the next `n` writes (put or multipart start) of `key` with a
+    /// transient error.
+    pub(crate) fn fail_next_writes(&self, key: &str, n: u32) {
+        self.fail_writes.lock().unwrap().insert(key.to_owned(), n);
+    }
+
+    /// Refuses every write of `key` with a permission error.
+    pub(crate) fn deny_writes(&self, key: &str) {
+        self.deny_writes.lock().unwrap().push(key.to_owned());
+    }
+
+    /// How many times `op` touched `key`.
+    pub(crate) fn count(&self, op: &str, key: &str) -> usize {
+        let want = format!("{op}:{key}");
+        self.log().iter().filter(|e| **e == want).count()
+    }
+
+    fn write_fault(&self, location: &Path) -> Option<object_store::Error> {
+        if self
+            .deny_writes
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|k| k == location.as_ref())
+        {
+            return Some(object_store::Error::PermissionDenied {
+                path: location.to_string(),
+                source: "injected permanent failure".into(),
+            });
+        }
+        let mut fails = self.fail_writes.lock().unwrap();
+        if let Some(n) = fails.get_mut(location.as_ref())
+            && *n > 0
+        {
+            *n -= 1;
+            return Some(object_store::Error::Generic {
+                store: "recording",
+                source: "injected transient failure".into(),
+            });
+        }
+        None
     }
 
     fn note(&self, op: &str, path: Option<&Path>) {
@@ -105,6 +153,9 @@ impl ObjectStore for RecordingStore {
         opts: PutOptions,
     ) -> object_store::Result<PutResult> {
         self.note("put", Some(location));
+        if let Some(e) = self.write_fault(location) {
+            return Err(e);
+        }
         self.inner.put_opts(location, payload, opts).await
     }
 
@@ -114,6 +165,9 @@ impl ObjectStore for RecordingStore {
         opts: PutMultipartOptions,
     ) -> object_store::Result<Box<dyn MultipartUpload>> {
         self.note("put_multipart", Some(location));
+        if let Some(e) = self.write_fault(location) {
+            return Err(e);
+        }
         self.inner.put_multipart_opts(location, opts).await
     }
 
