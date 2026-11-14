@@ -45,7 +45,7 @@ coverage-map](phase-2-historical-data.md).
 ## Gaps found (with evidence)
 
 1. **No instrument registry for the backfill.** `process` requires
-   `--registry` (`main.rs:118-120`) and skips, and counts, events whose coin
+   `--registry` (`main.rs:112-114`) and skips, and counts, events whose coin
    is not registered (`parse.rs:69`, `parse.rs:262`, `parse.rs:336`). A
    registry entry needs class, venue symbol, `szDecimals` (size scale) and,
    derived from it, the price scale (`6 - szDecimals` for perpetuals;
