@@ -124,7 +124,7 @@ svg{overflow:visible;display:block}
 .box .tick svg{width:2.8rem}
 .box.chip{border-style:dashed;background:none;font-size:2.3rem}
 .tall .box.chip{font-size:2.1rem;padding:0 1rem}
-.box .x{position:absolute;inset:0}
+.box .x{position:absolute;inset:0;width:100%;height:100%}
 .cap{position:absolute;left:0;right:0;text-align:center;font-size:7.2rem;font-weight:800;letter-spacing:-.045em;line-height:1}
 .tall .cap{font-size:9.6rem}
 #lines{position:absolute;left:0;top:0}
@@ -290,10 +290,10 @@ var items = document.querySelectorAll('.s4 .item');
 // ---------- scene 5 diagram ----------
 var WR = W / U, HR = H / U, TALL = FORMAT === 'tall';
 var G = TALL ? {
-  nodes: [[28, 46], [72, 46]], blk: [34, 76], chip: [78, 76], mir: [[14.5, 110], [38.2, 110], [61.8, 110], [85.5, 110]],
+  nodes: [[28, 46], [72, 46]], blk: [34, 76], chip: [78, 76], mir: [[20, 110], [50, 110], [80, 110]],
   nw: 38, nh: 14, bw: 44, bh: 17, mw: 21.5, mh: 15, cw: 32, ch: 12, cap: 136
 } : {
-  nodes: [[29, 33], [29, 55]], blk: [84, 44], chip: [84, 67], mir: [[144, 20], [144, 36], [144, 52], [144, 68]],
+  nodes: [[29, 33], [29, 55]], blk: [84, 44], chip: [84, 67], mir: [[144, 24], [144, 44], [144, 64]],
   nw: 40, nh: 14, bw: 44, bh: 17, mw: 38, mh: 12.5, cw: 44, ch: 9.5, cap: 80
 };
 var boxes = $('boxes'), lines = $('lines');
@@ -302,7 +302,7 @@ function box(cls, c, w, h, html) { var e = document.createElement('div'); e.clas
 var nodeEls = G.nodes.map(function (c, i) { return box('', c, G.nw, G.nh, 'node ' + 'AB'[i] + '<small>our own, every market</small>'); });
 var blkEl = box('blk', G.blk, G.bw, G.bh, 'signed block<small>Merkle root · secp256k1</small><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="#16141c" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></span>');
 var chipEl = box('chip', G.chip, G.cw, G.ch, 'timestamped on Bitcoin');
-var MN = ['CDN', 'BitTorrent', 'IPFS', 'Arweave'];
+var MN = ['CDN', 'BitTorrent', 'IPFS'];
 var mirEls = G.mir.map(function (c, i) { return box('', c, G.mw, G.mh, '<span class="dot"></span>' + MN[i] + (i === 0 ? '<svg class="x" viewBox="0 0 100 100" preserveAspectRatio="none" fill="none" stroke="#ff4f8b" stroke-width="5" stroke-linecap="round"><path pathLength="1" d="M8 12L92 88"/><path pathLength="1" d="M92 12L8 88"/></svg>' : '')); });
 var tickEl = blkEl.querySelector('.tick'), xEls = mirEls[0].querySelectorAll('.x path');
 function edge(a, b) { return TALL ? [a[0], a[1], b[0], b[1]] : [a[0], a[1], b[0], b[1]]; }
@@ -310,11 +310,11 @@ var E1 = G.nodes.map(function (n, i) { return TALL ? [n[0], n[1] + G.nh / 2, G.b
 var E2 = G.mir.map(function (m) { return TALL ? [G.blk[0], G.blk[1] + G.bh / 2, m[0], m[1] - G.mh / 2] : [G.blk[0] + G.bw / 2, G.blk[1], m[0] - G.mw / 2, m[1]]; });
 var E3 = TALL ? [G.blk[0] + G.bw / 2, G.blk[1], G.chip[0] - G.cw / 2, G.chip[1]] : [G.blk[0], G.blk[1] + G.bh / 2, G.chip[0], G.chip[1] - G.ch / 2];
 var lh = '';
-E1.concat(E2, [E3]).forEach(function (e, i) { lh += '<path pathLength="1" fill="none" stroke="#16141c" stroke-width=".3" stroke-linecap="round"' + (i === 6 ? ' stroke-dasharray=".04 .04"' : '') + ' d="M' + e[0] + ' ' + e[1] + 'L' + e[2] + ' ' + e[3] + '"/>'; });
+E1.concat(E2, [E3]).forEach(function (e, i) { lh += '<path pathLength="1" fill="none" stroke="#16141c" stroke-width=".3" stroke-linecap="round"' + (i === E1.length + E2.length ? ' stroke-dasharray=".04 .04"' : '') + ' d="M' + e[0] + ' ' + e[1] + 'L' + e[2] + ' ' + e[3] + '"/>'; });
 for (var pk = 0; pk < 12; pk++) lh += '<circle r=".9" fill="#ff4f8b"/>';
 lines.innerHTML = lh;
 var lineEls = lines.querySelectorAll('path'), pkEls = lines.querySelectorAll('circle');
-var CAPS = [[21.2, 'Signed per block.'], [22.8, 'Mirrored four ways.'], [24.0, 'Anchored. Public domain.'], [24.95, 'Take one down.'], [25.65, 'Nothing happens.']];
+var CAPS = [[21.2, 'Signed per block.'], [22.8, 'Mirrored three ways.'], [24.0, 'Anchored. Public domain.'], [24.95, 'Take one down.'], [25.65, 'Nothing happens.']];
 $('cap').style.top = G.cap + 'rem';
 function popBox(el, p) { el.style.opacity = clamp(p * 3); el.style.transform = 'scale(' + (p <= 0 ? .6 : .6 + .4 * back(p)) + ')'; }
 
@@ -390,12 +390,15 @@ function scene5(t) {
   xEls[0].setAttribute('stroke-dasharray', out(seg(dead, 0, .6)) + ' 2'); xEls[1].setAttribute('stroke-dasharray', out(seg(dead, .35, 1)) + ' 2');
   xEls[0].style.visibility = xEls[1].style.visibility = dead > 0 ? 'visible' : 'hidden'; xEls[1].style.visibility = dead > .35 ? 'visible' : 'hidden';
   var alive = t > 25.65 ? 1 + .07 * Math.sin((t - 25.65) * 12) * (1 - seg(t, 26.1, 26.5)) : 1;
-  for (var m = 1; m < 4; m++) if (t > 25.65) mirEls[m].style.transform = 'scale(' + alive + ')';
-  var prog = [seg(t, 21.5, 21.8), seg(t, 21.6, 21.9), seg(t, 22.5, 22.85), seg(t, 22.6, 22.95), seg(t, 22.7, 23.05), seg(t, 22.8, 23.15), seg(t, 23.9, 24.2)];
-  for (var i = 0; i < 7; i++) { var pr = out(prog[i]); if (i === 6) { lineEls[i].style.opacity = pr; } else dash(lineEls[i], pr); if (i === 2) lineEls[i].style.opacity = 1 - .8 * dead; }
+  for (var m = 1; m < mirEls.length; m++) if (t > 25.65) mirEls[m].style.transform = 'scale(' + alive + ')';
+  // node A, node B, one line per mirror (100 ms apart), then the Bitcoin chip's dashed line.
+  var prog = [seg(t, 21.5, 21.8), seg(t, 21.6, 21.9)];
+  for (var j = 0; j < mirEls.length; j++) prog.push(seg(t, 22.5 + j * .1, 22.85 + j * .1));
+  prog.push(seg(t, 23.9, 24.2));
+  for (var i = 0; i < prog.length; i++) { var pr = out(prog[i]); if (i === prog.length - 1) { lineEls[i].style.opacity = pr; } else dash(lineEls[i], pr); if (i === 2) lineEls[i].style.opacity = 1 - .8 * dead; }
   var ED = E1.concat(E2);
   for (var k = 0; k < 12; k++) {
-    var ei = k % 6, e = ED[ei], ph = ((t * .95 + k * .37) % 1 + 1) % 1, onp = prog[ei] >= 1 && !(ei === 2 && dead > 0);
+    var ei = k % ED.length, e = ED[ei], ph = ((t * .95 + k * .37) % 1 + 1) % 1, onp = prog[ei] >= 1 && !(ei === 2 && dead > 0);
     pkEls[k].style.visibility = onp ? 'visible' : 'hidden';
     pkEls[k].setAttribute('cx', e[0] + (e[2] - e[0]) * ph); pkEls[k].setAttribute('cy', e[1] + (e[3] - e[1]) * ph);
     pkEls[k].setAttribute('opacity', Math.sin(ph * Math.PI));

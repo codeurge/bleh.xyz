@@ -55,7 +55,7 @@
   { "time": 21.24, "sfx": "blip", "gain": -19, "pan": -0.45, "note": "node B pops: seg(t, 21.22, 21.62)" },
   { "time": 21.57, "sfx": "blip", "gain": -17, "pan": -0.05, "note": "signed block pops: seg(t, 21.55, 21.95)" },
   { "time": 22.08, "sfx": "signed", "gain": -7, "pan": -0.05, "note": "pink tick lands on the block: back(seg(t, 22.05, 22.4))" },
-  { "time": 22.85, "sfx": "sparkle", "gain": -9, "pan": 0.45, "note": "four mirrors pop 130 ms apart: 22.85 + i*.13 (the pings in the file use the same stagger)" },
+  { "time": 22.85, "sfx": "sparkle", "gain": -9, "pan": 0.45, "note": "three mirrors pop 130 ms apart: 22.85 + i*.13 (the pings in the file use the same stagger)" },
   { "time": 24.02, "sfx": "blip", "gain": -17, "pan": -0.05, "note": "\"timestamped on Bitcoin\" chip: seg(t, 24.0, 24.35)" },
   { "time": 24.95, "sfx": "powerdown", "gain": -9, "pan": 0.45, "note": "CDN crossed out, its packets stop: seg(t, 24.95, 25.3)" },
   { "time": 25.65, "sfx": "shrug", "gain": -8, "pan": 0.45, "note": "\"Nothing happens.\" The three live mirrors bounce: t > 25.65" },

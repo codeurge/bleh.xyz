@@ -9,6 +9,12 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- The 30-second brand film is on bleh.xyz, under the hero: a muted preview
+  plays while it is on screen (not with reduced motion or Data Saver),
+  "Play with sound" and the hero's "Watch the film" start it from the top
+  with sound and simple controls, phones held upright get the vertical
+  cut, and "Read the film" gives its text.
+
 - The `reference-normalized` archive is public at
   `https://data.bleh.xyz/reference-normalized`: signed daily manifests
   (ADR 0017) with OpenTimestamps proofs, BitTorrent v2 magnets in
@@ -263,6 +269,8 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 - The site and social copy no longer list Arweave as a current mirror; it
   is on the roadmap, not built. The mirrors are CDN, BitTorrent and IPFS.
+  The brand film's "How it stays up" scene now shows three mirrors
+  ("Mirrored three ways."), and the crossed-out mirror's X fits its box.
 
 - The `data.<domain>` cache rules gave the manifest index, magnets list,
   anchors and OpenTimestamps proofs the one-year TTL meant for write-once

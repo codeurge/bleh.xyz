@@ -68,6 +68,9 @@
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.2 6.1L12 16.7 6.500 19.700l1.200-6.100L3.200 9.400l6.100-.800z"/></svg>
           Star it on GitHub</a>
         <a class="btn" href="#dev">See the API sketch</a>
+        <a class="btn ghost" href="#film" data-film-play>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+          Watch the film <span class="mono dim">0:30</span></a>
       </div>
       <ul class="facts">
         <li>Code Apache-2.0</li><li>Data CC0</li><li>No API key</li><li>No token</li>
@@ -98,6 +101,57 @@
       </div>
       <figcaption class="panel-note">Illustrative. Numbers are generated in your browser to show the shape of the data. This is not a live feed.</figcaption>
     </figure>
+  </div>
+</section>
+
+<section class="film dark" id="film" aria-labelledby="f-h">
+  <div class="wrap">
+    <div class="film-head reveal">
+      <span class="eyebrow">The 30-second version</span>
+      <h2 id="f-h">What bleh.xyz is, with the sound on.</h2>
+    </div>
+    <figure class="film-frame reveal" style="--d:80ms">
+      <video id="film-video" playsinline preload="none" controls
+        poster="assets/film/bleh-film-poster-wide.webp"
+        data-wide="assets/film/bleh-30s-1920x1080-sound.mp4" data-wide-poster="assets/film/bleh-film-poster-wide.webp"
+        data-tall="assets/film/bleh-30s-1080x1920-sound.mp4" data-tall-poster="assets/film/bleh-film-poster-tall.webp"
+        aria-describedby="film-script">
+        <source src="assets/film/bleh-30s-1920x1080-sound.mp4" type="video/mp4">
+        <a href="assets/film/bleh-30s-1920x1080-sound.mp4">Download the 30-second film (MP4)</a>
+      </video>
+      <button class="film-play" type="button" hidden aria-label="Play the 30-second film with sound">
+        <span class="film-play-dot" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span>
+        <span class="film-play-label">Play with sound<small>0:30</small></span>
+      </button>
+      <div class="film-bar" hidden>
+        <button class="film-btn" type="button" data-act="toggle" aria-label="Pause">
+          <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/></svg>
+          <svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+        </button>
+        <input class="film-seek" type="range" min="0" max="30" step="0.1" value="0" aria-label="Seek">
+        <span class="film-time mono" aria-hidden="true">0:00</span>
+        <button class="film-btn" type="button" data-act="mute" aria-label="Mute">
+          <svg class="i-vol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18.3 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+          <svg class="i-mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+        </button>
+        <button class="film-btn" type="button" data-act="full" aria-label="Full screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        </button>
+      </div>
+    </figure>
+    <div class="film-foot reveal" style="--d:140ms">
+      <p class="note">Early preview. The film shows the planned design; figures in it are illustrative, and nothing in it is live yet.</p>
+      <details class="film-script" id="film-script">
+        <summary>Read the film</summary>
+        <ol>
+          <li><b>Prices are made in public.</b> Then somebody fences them off: delayed, per user, per device, do not redistribute, call sales.</li>
+          <li><b>Our considered response:</b> bleh. Open market data. No permission slip.</li>
+          <li><b>What we're building:</b> trades with aggressor side; order-level books with no embargo; bars and open order-flow analytics; history back to day one; Python, TypeScript, Rust and MCP clients.</li>
+          <li><b>How it stays up:</b> two of our own nodes feed a signed block. Signed per block. Mirrored three ways, over CDN, BitTorrent and IPFS. Anchored on Bitcoin, public domain. Take one mirror down, and nothing happens.</li>
+          <li><b>bleh.xyz</b> on GitHub. Early preview, in development. Code Apache-2.0, data CC0, no token.</li>
+        </ol>
+      </details>
+    </div>
   </div>
 </section>
 

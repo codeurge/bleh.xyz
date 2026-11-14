@@ -197,3 +197,82 @@
   if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { e[0].isIntersecting ? start() : stop(); }).observe(book);
   else start();
 })();
+
+// brand film: a muted preview loops while the film is on screen (not with reduced motion
+// or Data Saver); "Play with sound" restarts it from the top with sound and simple controls.
+// Without this script the <video> keeps its native controls.
+(function () {
+  var v = document.getElementById('film-video'); if (!v) return;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var saveData = navigator.connection && navigator.connection.saveData;
+  var frame = v.parentNode, btn = frame.querySelector('.film-play'), label = btn.querySelector('.film-play-label');
+  var bar = frame.querySelector('.film-bar'), seek = bar.querySelector('.film-seek'), time = bar.querySelector('.film-time');
+  var toggleBtn = bar.querySelector('[data-act=toggle]'), muteBtn = bar.querySelector('[data-act=mute]');
+  var tall = matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+  frame.classList.toggle('tall', tall);
+  v.poster = v.getAttribute(tall ? 'data-tall-poster' : 'data-wide-poster');
+  v.removeAttribute('controls');
+  while (v.firstChild) v.removeChild(v.firstChild);
+  v.src = v.getAttribute(tall ? 'data-tall' : 'data-wide');
+  v.muted = true; v.loop = true;
+  btn.hidden = false;
+  var engaged = false, seen = false, idleTimer;
+
+  function play() { var p = v.play(); if (p && p.catch) p.catch(function () { sync(); }); }
+  function fmt(t) { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + ('0' + t % 60).slice(-2); }
+  function sync() {
+    frame.classList.toggle('paused', v.paused); frame.classList.toggle('muted', v.muted);
+    toggleBtn.setAttribute('aria-label', v.paused ? 'Play' : 'Pause');
+    muteBtn.setAttribute('aria-label', v.muted ? 'Unmute' : 'Mute');
+  }
+  function wake() {
+    frame.classList.remove('idle'); clearTimeout(idleTimer);
+    if (engaged) idleTimer = setTimeout(function () { frame.classList.add('idle'); }, 2200);
+  }
+  function engage() {
+    engaged = true; seen = false;
+    frame.classList.add('engaged'); btn.hidden = true; bar.hidden = false;
+    v.loop = false; v.muted = false; v.preload = 'auto';
+    try { v.currentTime = 0; } catch (e) {}
+    play(); sync(); wake();
+  }
+  btn.addEventListener('click', function () { engage(); toggleBtn.focus({ preventScroll: true }); });
+  v.addEventListener('click', function () { if (!engaged) engage(); else if (v.paused) play(); else v.pause(); });
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    var act = b.getAttribute('data-act');
+    if (act === 'toggle') { if (v.paused) play(); else v.pause(); }
+    else if (act === 'mute') v.muted = !v.muted;
+    else if (act === 'full') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (frame.requestFullscreen) frame.requestFullscreen();
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+    }
+  });
+  seek.addEventListener('input', function () { v.currentTime = parseFloat(seek.value); });
+  v.addEventListener('loadedmetadata', function () { seek.max = v.duration || 30; });
+  v.addEventListener('timeupdate', function () { if (!engaged) return; seek.value = v.currentTime; time.textContent = fmt(v.currentTime); });
+  ['play', 'pause', 'volumechange'].forEach(function (ev) { v.addEventListener(ev, sync); });
+  v.addEventListener('ended', function () {
+    engaged = false; frame.classList.remove('engaged', 'idle'); bar.hidden = true; btn.hidden = false;
+    label.firstChild.nodeValue = 'Watch again'; btn.setAttribute('aria-label', 'Watch the 30-second film again');
+  });
+  ['mousemove', 'touchstart', 'focusin', 'keydown'].forEach(function (ev) { frame.addEventListener(ev, wake, { passive: true }); });
+
+  // Preview while in view; once playing with sound, pause when scrolled away.
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) {
+    var vis = es[0].isIntersecting;
+    if (engaged) { if (vis) seen = true; else if (seen && !v.paused) v.pause(); return; }
+    if (reduce || saveData) return;
+    if (vis) { v.preload = 'auto'; v.muted = true; play(); } else if (!v.paused) v.pause();
+  }, { threshold: 0.35 }).observe(frame);
+
+  // "Watch the film" in the hero: scroll to it and start with sound (same click, so audio is allowed).
+  document.querySelectorAll('[data-film-play]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      frame.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      engage();
+    });
+  });
+})();

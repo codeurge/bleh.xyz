@@ -88,7 +88,7 @@ function film(tall) {
   cue(21.24, 'blip', -19, P.nodes[1], 'node B pops: seg(t, 21.22, 21.62)');
   cue(21.57, 'blip', -17, P.blk, 'signed block pops: seg(t, 21.55, 21.95)');
   cue(22.08, 'signed', -7, P.blk, 'pink tick lands on the block: back(seg(t, 22.05, 22.4))');
-  cue(22.85, 'sparkle', -9, P.mirrors, 'four mirrors pop 130 ms apart: 22.85 + i*.13 (the pings in the file use the same stagger)');
+  cue(22.85, 'sparkle', -9, P.mirrors, 'three mirrors pop 130 ms apart: 22.85 + i*.13 (the pings in the file use the same stagger)');
   cue(24.02, 'blip', -17, P.chip, '"timestamped on Bitcoin" chip: seg(t, 24.0, 24.35)');
   cue(24.95, 'powerdown', -9, P.cdn, 'CDN crossed out, its packets stop: seg(t, 24.95, 25.3)');
   cue(25.65, 'shrug', -8, tall ? 0.15 : P.mirrors, '"Nothing happens." The three live mirrors bounce: t > 25.65');
