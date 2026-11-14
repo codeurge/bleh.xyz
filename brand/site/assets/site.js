@@ -276,3 +276,140 @@
     });
   });
 })();
+
+// open archive: lists the signed days of the public archive, re-checks the hash chain in the
+// browser (each manifest's SHA-256 against the index and its previous_manifest_sha256), and
+// queries a day's Parquet files with DuckDB-WASM, loaded from jsDelivr only when asked.
+// docs/specs/manifest-v0.md, docs/specs/archive-layout-v0.md § 4.
+(function () {
+  var sec = document.getElementById('archive'); if (!sec || !window.fetch || !window.crypto || !crypto.subtle) return;
+  var BASE = 'https://data.bleh.xyz/reference-normalized/';
+  var DUCKDB = 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm';
+  var $ = function (id) { return document.getElementById(id); };
+  var days = [], conn = null, loading = null;
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  function size(n) { return n < 1024 ? n + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KB' : n < 1073741824 ? (n / 1048576).toFixed(1) + ' MB' : (n / 1073741824).toFixed(2) + ' GB'; }
+  function get(path, kind) { return fetch(BASE + path, { mode: 'cors', credentials: 'omit' }).then(function (r) { if (!r.ok) throw new Error(path + ' ' + r.status); return kind === 'buf' ? r.arrayBuffer() : r.text(); }); }
+  function stat(value, label, cls) { var d = el('div', 'arch-stat' + (cls ? ' ' + cls : '')); d.appendChild(el('b', null, value)); d.appendChild(el('span', null, label)); return d; }
+
+  get('_manifests/index.json').then(function (t) {
+    var idx = JSON.parse(t).manifests || [];
+    return Promise.all([
+      Promise.all(idx.map(function (e) {
+        return get('_manifests/' + e.date + '/manifest.json', 'buf').then(function (buf) {
+          return crypto.subtle.digest('SHA-256', buf).then(function (h) {
+            return { entry: e, sha: hex(h), doc: JSON.parse(new TextDecoder().decode(buf)) };
+          });
+        });
+      })),
+      get('_manifests/magnets.txt').catch(function () { return ''; })
+    ]);
+  }).then(function (res) {
+    var list = res[0], magnets = {};
+    res[1].split('\n').forEach(function (line) { var i = line.indexOf(' '); if (i > 0) magnets[line.slice(0, i)] = line.slice(i + 1).trim(); });
+    var broken = null, prev = null, files = 0, records = 0, bytes = 0;
+    list.forEach(function (m) {
+      var man = m.doc.manifest || {};
+      if (m.sha !== m.entry.sha256 || (prev && man.previous_manifest_sha256 !== prev)) broken = broken || m.entry.date;
+      prev = m.sha;
+      var f = man.files || [], rc = 0, sz = 0;
+      f.forEach(function (x) { rc += x.record_count || 0; sz += x.size || 0; });
+      files += f.length; records += rc; bytes += sz;
+      days.push({ date: man.date, files: f, records: rc, bytes: sz, signer: man.signer, magnet: magnets[man.date] });
+    });
+    if (!days.length) return;
+    var latest = days[days.length - 1];
+
+    var st = $('arch-stats');
+    st.appendChild(stat(days.length.toLocaleString('en-US'), 'Days published'));
+    st.appendChild(stat(records.toLocaleString('en-US'), 'Records'));
+    st.appendChild(stat(size(bytes), files + ' Parquet files'));
+    st.appendChild(stat(latest.date, 'Latest day'));
+    st.appendChild(broken ? stat('Broken', 'Hash chain at ' + broken, 'bad') : stat('✓ Intact', 'Hash chain, checked here', 'ok'));
+
+    $('arch-index').href = BASE + '_manifests/index.json';
+    $('arch-signer').textContent = latest.signer || 'none stated';
+    $('arch-cmd-date').textContent = latest.date;
+
+    var rows = $('arch-rows'), pick = $('q-day');
+    days.slice().reverse().forEach(function (d) {
+      var tr = el('tr'); tr.setAttribute('data-date', d.date);
+      var q = el('button', null, d.date); q.type = 'button'; q.setAttribute('aria-label', 'Query ' + d.date);
+      q.addEventListener('click', function () { choose(d.date); $('q-sql').focus(); });
+      var td = el('td'); td.appendChild(q); tr.appendChild(td);
+      tr.appendChild(el('td', null, d.files.length));
+      tr.appendChild(el('td', null, d.records.toLocaleString('en-US')));
+      tr.appendChild(el('td', null, size(d.bytes)));
+      var links = el('td'), wrap = el('span', 'arch-links');
+      var a = el('a', null, 'manifest'); a.href = BASE + '_manifests/' + d.date + '/manifest.json'; wrap.appendChild(a);
+      if (d.magnet) { var mg = el('a', null, 'magnet'); mg.href = d.magnet; wrap.appendChild(mg); }
+      links.appendChild(wrap); tr.appendChild(links); rows.appendChild(tr);
+      var o = el('option', null, d.date + ' · ' + d.files.length + ' files'); o.value = d.date; pick.appendChild(o);
+    });
+    pick.addEventListener('change', function () { choose(pick.value); });
+    choose(latest.date);
+    sec.hidden = false;
+  }).catch(function () { /* archive unreachable: keep the section hidden */ });
+
+  function choose(date) {
+    $('q-day').value = date;
+    [].forEach.call(document.querySelectorAll('#arch-rows tr'), function (tr) { tr.classList.toggle('sel', tr.getAttribute('data-date') === date); });
+  }
+
+  function engine() {
+    if (conn) return Promise.resolve(conn);
+    if (loading) return loading;
+    loading = import(DUCKDB).then(function (duckdb) {
+      var bundle;
+      return duckdb.selectBundle(duckdb.getJsDelivrBundles()).then(function (b) {
+        bundle = b;
+        var url = URL.createObjectURL(new Blob(['importScripts("' + b.mainWorker + '");'], { type: 'text/javascript' }));
+        var db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), new Worker(url));
+        return db.instantiate(bundle.mainModule, bundle.pthreadWorker).then(function () { URL.revokeObjectURL(url); return db.connect(); });
+      });
+    }).then(function (c) { conn = c; return c; }, function (e) { loading = null; throw e; });
+    return loading;
+  }
+
+  // Arrow hands DATE and TIMESTAMP columns over as epoch milliseconds (type ids 8 and 10).
+  function cell(v, typeId) {
+    if (v == null) return '';
+    if (typeof v === 'number' && (typeId === 8 || typeId === 10)) {
+      var iso = new Date(v).toISOString();
+      return typeId === 8 ? iso.slice(0, 10) : iso.replace('T', ' ').replace('.000Z', 'Z');
+    }
+    if (typeof v === 'bigint') return v.toString();
+    if (v instanceof Date) return v.toISOString();
+    if (typeof v === 'object') { try { return JSON.stringify(v, function (k, x) { return typeof x === 'bigint' ? x.toString() : x; }); } catch (e) { return String(v); } }
+    return String(v);
+  }
+
+  $('q-run').addEventListener('click', function () {
+    var btn = this, out = $('q-out'), status = $('q-status');
+    var day = days.filter(function (d) { return d.date === $('q-day').value; })[0];
+    if (!day) return;
+    var urls = day.files.map(function (f) { return "'" + (BASE + f.path).replace(/'/g, "''") + "'"; }).join(', ');
+    btn.disabled = true; out.textContent = '';
+    status.textContent = conn ? 'Running…' : 'Loading DuckDB…';
+    var t0 = performance.now();
+    engine().then(function (c) {
+      status.textContent = 'Running…';
+      return c.query('CREATE OR REPLACE VIEW day AS SELECT * FROM read_parquet([' + urls + '], hive_partitioning = true, union_by_name = true)')
+        .then(function () { return c.query($('q-sql').value); });
+    }).then(function (res) {
+      var fields = res.schema.fields, names = fields.map(function (f) { return f.name; }), all = res.toArray(), shown = all.slice(0, 200);
+      var table = el('table'), head = el('tr');
+      names.forEach(function (n) { head.appendChild(el('th', null, n)); });
+      var thead = el('thead'); thead.appendChild(head); table.appendChild(thead);
+      var body = el('tbody');
+      shown.forEach(function (r) { var tr = el('tr'); fields.forEach(function (f) { var v = cell(r[f.name], f.type && f.type.typeId); var td = el('td', null, v); td.title = v; tr.appendChild(td); }); body.appendChild(tr); });
+      table.appendChild(body); out.appendChild(table);
+      status.textContent = all.length.toLocaleString('en-US') + ' rows' + (all.length > shown.length ? ', first 200 shown' : '') + ' · ' + Math.round(performance.now() - t0) + ' ms';
+    }).catch(function (e) {
+      out.appendChild(el('div', 'err', String(e && e.message || e)));
+      status.textContent = 'Query failed';
+    }).then(function () { btn.disabled = false; });
+  });
+})();

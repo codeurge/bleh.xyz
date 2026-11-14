@@ -308,6 +308,49 @@ footer .fine{flex-basis:100%;font-size:13px;max-width:80ch}
   @keyframes ring{from{transform:scale(.85);opacity:1}to{transform:scale(1.35);opacity:0}}
 }
 
+/* open archive */
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.archive{border-top:1px solid var(--line)}
+.arch-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.arch-stat{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);min-width:0}
+.arch-stat b{display:block;font:800 clamp(1.2rem,4.8vw,1.6rem)/1.1 var(--sans);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arch-stat span{display:block;margin-top:6px;font:500 12px/1.3 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.arch-stat.ok b{color:var(--bid)}
+.arch-stat.bad b{color:var(--ask)}
+.arch-grid{display:grid;gap:16px}
+@media (min-width:980px){.arch-grid{grid-template-columns:1fr 1.1fr;align-items:start}}
+.arch-grid > *{min-width:0}
+.arch-days,.arch-query{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:18px}
+.arch-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+.arch-h a{font-size:12.5px}
+.arch-scroll{max-height:420px;overflow:auto;margin:0 -6px}
+.arch-table{width:100%;border-collapse:collapse;font:400 13.5px/1.4 var(--mono);font-variant-numeric:tabular-nums}
+.arch-table th{position:sticky;top:0;background:var(--surface);text-align:left;font-weight:500;color:var(--mute);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:6px;border-bottom:1px solid var(--line)}
+.arch-table td{padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.arch-table td:nth-child(n+2):nth-child(-n+4),.arch-table th:nth-child(n+2):nth-child(-n+4){text-align:right}
+.arch-table tr.sel td{background:var(--soft)}
+.arch-table button{appearance:none;border:0;background:none;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.arch-links{display:flex;gap:10px;justify-content:flex-end}
+.arch-links a{font-size:12.5px}
+.arch-note{color:var(--mute);font-size:14.5px;margin-bottom:14px}
+.arch-label{display:block;font:500 12px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:12px 0 6px}
+.arch-input{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:10px 12px;font-size:14px}
+textarea.arch-input{resize:vertical;min-height:84px;line-height:1.5}
+.arch-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
+.arch-actions .btn{padding:11px 18px;font-size:15px;cursor:pointer}
+.arch-actions .btn:disabled{opacity:.6;cursor:progress}
+.arch-status{font-size:12.5px;color:var(--mute)}
+.arch-out{margin-top:14px;overflow:auto;max-height:360px;border-radius:10px}
+.arch-out:empty{display:none}
+.arch-out table{border-collapse:collapse;font:400 12.5px/1.4 var(--mono);font-variant-numeric:tabular-nums;width:max-content;min-width:100%}
+.arch-out th,.arch-out td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;max-width:420px;overflow:hidden;text-overflow:ellipsis}
+.arch-out th{position:sticky;top:0;background:var(--soft);font-weight:500}
+.arch-out .err{color:var(--ask);font:400 13px/1.5 var(--mono);white-space:pre-wrap}
+@media (max-width:479px){.arch-table th:nth-child(4),.arch-table td:nth-child(4){display:none}.arch-days,.arch-query{padding:14px}}
+.arch-verify{margin-top:22px}
+.arch-verify .code{margin:12px 0}
+.arch-verify pre{font-size:12.5px}
+
 /* motion */
 @keyframes pop{0%{transform:scale(1,0)}55%{transform:scale(.9,1.22)}75%{transform:scale(1.06,.92)}100%{transform:scale(1,1)}}
 @keyframes blink{50%{opacity:.25}}

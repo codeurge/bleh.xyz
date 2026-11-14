@@ -44,6 +44,7 @@
       <a class="opt" href="#what">What you get</a>
       <a class="opt" href="#how">How it works</a>
       <a class="opt" href="#coverage">Coverage</a>
+      <a class="opt" href="#archive">Archive</a>
       <a class="opt" href="#dev">Developers</a>
       <a class="opt" href="manifesto.html">Manifesto</a>
       <a href="https://github.com/codeurge/bleh.xyz">GitHub</a>
@@ -276,6 +277,49 @@
     <div class="tiles" id="tiles"></div>
     <p class="note" id="data-meta"></p>
     <details class="notices"><summary>Sources and notices</summary><ul id="notices"></ul><p class="notices-terms">When you reuse these values, keep each notice with the values it covers. See <a href="terms.html#notices">terms of use, section 3</a>.</p></details>
+  </div>
+</section>
+
+<section id="archive" class="archive" aria-labelledby="a-h" hidden>
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow">The open archive</span>
+      <h2 id="a-h">History you can download, verify and query.</h2>
+      <p class="lede">Each published day is a signed manifest, hash-chained to the one before and timestamped on Bitcoin, with its files on HTTPS, BitTorrent and IPFS. It starts with the reference series; Hyperliquid trades and books join the same archive as they are recorded.</p>
+    </div>
+    <div class="arch-stats" id="arch-stats" aria-live="polite"></div>
+    <div class="arch-grid">
+      <div class="arch-days">
+        <div class="arch-h"><h3>Published days</h3><a class="mono" id="arch-index" href="#">index.json</a></div>
+        <div class="arch-scroll">
+          <table class="arch-table">
+            <thead><tr><th scope="col">Day</th><th scope="col">Files</th><th scope="col">Records</th><th scope="col">Size</th><th scope="col"><span class="sr">Links</span></th></tr></thead>
+            <tbody id="arch-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="arch-query">
+        <div class="arch-h"><h3>Query a day in your browser</h3></div>
+        <p class="arch-note">DuckDB runs in this tab and reads the Parquet files straight from <span class="mono">data.bleh.xyz</span>. Nothing loads until you run a query; the first run fetches the engine, about 5 MB, from jsDelivr.</p>
+        <label class="arch-label" for="q-day">Day</label>
+        <select id="q-day" class="arch-input"></select>
+        <label class="arch-label" for="q-sql">SQL over the view <span class="mono">day</span></label>
+        <textarea id="q-sql" class="arch-input mono" rows="4" spellcheck="false">SELECT * FROM day LIMIT 50</textarea>
+        <div class="arch-actions">
+          <button class="btn primary" type="button" id="q-run">Run query</button>
+          <span class="arch-status mono" id="q-status" role="status"></span>
+        </div>
+        <div class="arch-out" id="q-out"></div>
+      </div>
+    </div>
+    <details class="notices arch-verify">
+      <summary>Verify it yourself</summary>
+      <p>The page above checks the hash chain. The verifier also checks each manifest's signature, its Bitcoin timestamp and every file's hash:</p>
+      <div class="code"><pre id="arch-cmd">cargo run -p origin --bin archive -- verify \
+  --url https://data.bleh.xyz/reference-normalized --archive reference-normalized \
+  --date <span id="arch-cmd-date">2026-10-28</span> --trusted 0x&lt;signer address&gt;</pre></div>
+      <p>Each manifest states its signer (<span class="mono" id="arch-signer">…</span>). Trust a signer from the published signer registry, not from the manifest itself; the registry is not published yet.</p>
+    </details>
   </div>
 </section>
 

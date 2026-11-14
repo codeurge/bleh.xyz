@@ -9,6 +9,11 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- bleh.xyz has an "Open archive" section: every published day of the
+  public archive with its manifest and magnet, the hash chain re-checked in
+  the visitor's browser, and SQL over a day's Parquet files with
+  DuckDB-WASM, which loads from jsDelivr only when a query is run.
+
 - The 30-second brand film is on bleh.xyz, under the hero: a muted preview
   plays while it is on screen (not with reduced motion or Data Saver),
   "Play with sound" and the hero's "Watch the film" start it from the top
