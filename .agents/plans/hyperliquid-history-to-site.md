@@ -86,47 +86,53 @@ coverage-map](phase-2-historical-data.md).
    server's LAN only. The static archive plus DuckDB in the browser need no
    server.
 
-## Owner decisions needed
+## Owner decisions (resolved 2026-11-14)
 
-Each has a recommendation; nothing below starts without a decision.
+The owner approved all four as recommended.
 
-- **D1. Registry source.**
-  - *Recommended:* derive it from the admitted data itself, with no new
-    source.
-    - Coins come from the fills.
-    - Class comes from the symbol: plain names are core perpetuals,
-      `dex:NAME` are HIP-3 markets with namespace and the
-      `oracle_anchored_venue` flag, and `@N` or pair names are spot, which
-      is dropped.
-    - The size scale is the most decimals any size of that coin shows over
-      the period; the price scale follows the documented rule. Every price
-      must fit it, and a coin where one doesn't is reported, not
-      registered.
-    - Delisted coins are covered automatically, because they traded.
-    - When a node runs, its metadata is authoritative: conflicts are
-      reported and the registered spec is kept (registry-v0 § 3).
-  - *Alternative:* a narrow admission for the public info API's metadata
-    endpoints (names and decimals only, never record content), after
-    checking its terms against admission rule 2.
-- **D2. The early period (2025-03-22 to 2025-07-26).**
-  - *Recommended:* start the `hyperliquid-backfill` chain at 2025-07-27
-    (by-block fills, exact blocks through the live code path).
-  - Publish the early period later as its own archive,
-    `hyperliquid-backfill-early`, after an ADR decides how block-less
-    trades are sequenced: a new method version, records flagged
-    accordingly, ordered by time and derived ID, no `block_number`
-    guessed.
-  - Until then its raw stays private and complete.
-- **D3. Filtered raw publication.** ADR 0006 makes filtered raw the public
-  reproducibility root, so `process --filtered` output is publishable.
-  - *Recommended:* measure one processed week, then publish Parquet and
-    filtered raw on R2 if the projected total stays under about $3 a month.
-  - Otherwise keep filtered raw on the home-archive server and publish it
-    by torrent and IPFS only.
-- **D4. Public API.**
-  - *Recommended:* static archive only for now: browser queries over R2.
-  - Later, a read-only Cloudflare Tunnel to the history API (free) if
-    there is demand.
+- **D1. Registry source:** derived from the admitted fills themselves, method
+  `hl-backfill-registry/v1` ([ADR 0019](../../docs/decisions/0019-backfill-registry-from-admitted-fills.md)),
+  implemented as `hl-backfill registry`. No new source.
+- **D2. Early period:** the `hyperliquid-backfill` chain starts at 2025-07-27;
+  2025-03-22 to 2025-07-26 stays complete in the private raw tier and is
+  published later as `hyperliquid-backfill-early` after its own ADR
+  ([ADR 0020](../../docs/decisions/0020-hyperliquid-backfill-archive-start.md)).
+- **D3. Filtered raw publication:** measure one processed week; publish
+  Parquet and filtered raw on R2 if the projected total stays under about
+  $3 a month, otherwise filtered raw by torrent and IPFS only. Sample ratios
+  (below) project about $1 a month for both, so publishing both is expected.
+- **D4. Public API:** static archive with browser queries now; a read-only
+  Cloudflare Tunnel to the history API later if there is demand.
+
+## Sample results (2026-11-14)
+
+Run locally on archived samples with `process --format parquet` and the
+derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
+2026-11-13, 1 hour each of `node_fills` 2025-06-01 and `node_trades`
+2025-03-22):
+
+| Sample | Raw (LZ4) | Trades | Parquet | Filtered raw (zstd) | Time | Peak memory |
+|---|---|---|---|---|---|---|
+| By-block 2025-07-27 10–11h | 38.9 MB | 207,217 | 3.7 MB (0.094×), 173 files | 5.7 MB (0.145×) | 20 s | 0.9 GB |
+| By-block 2026-11-13 00–01h | 102.9 MB | 492,247 | 8.7 MB (0.085×), 404 files | 14.4 MB (0.140×) | 49 s | 1.6 GB |
+| `node_fills` 2025-06-01 00h | 10.9 MB | 0 (61,239 unresolved: no clock) | — | — | 6 s | 0.5 GB |
+| `node_trades` 2025-03-22 10h | 1.1 MB | 0 (9,098 unresolved: no clock) | — | — | 0.2 s | 0.07 GB |
+
+- Projection for the 345 GB by-block period: about 29–32 GB of Parquet and
+  48–50 GB of filtered raw, about 80 GB in all: roughly $1 a month on R2
+  beyond the free 10 GB.
+- Throughput on one Apple core is about 2 MB of raw per second, so the
+  by-block period is on the order of two CPU-days; measure on the server
+  under its 2-CPU cap before planning runs.
+- Real data needed three reader fixes before anything processed:
+  `cloid` and `priorityGas` (excluded fields, now named in ADM-0001) were
+  rejected as schema drift; `block_time` carries nine fractional digits,
+  which the reader rejected as sub-millisecond precision; and filtered bare
+  `node_fills` lines were mistaken for block lines.
+- Outcome markets (`#N`) are not registered: their prices have five
+  decimals while the reader assumes four (`OUTCOME_PRICE_SCALE`). Their
+  events are counted `unknown_coin` (about 15,000 per hour on 2026-11-13)
+  until the assumption is corrected in the reader and the registry method.
 
 ## Acceptance criteria
 
@@ -169,26 +175,26 @@ Each has a recommendation; nothing below starts without a decision.
      if it stopped; it resumes from the checkpoint.
 
 2. **verify-formats-on-samples**
-   - Status: Ready
+   - Status: Done (2026-11-14; see Sample results)
    - Owner: Unassigned
    - Dependencies: finish-trade-copy (one day of each dataset is enough)
    - PR: Not opened
-   - Next action: Run `process --format jsonl` on one day of each dataset
-     into the scratch directory. Settle buckets spec § 6 items 3–4
-     (`node_fills` batching, `node_trades` fields). Recheck the buckets'
-     terms (ADM-0003) and record both in the spec and the admission.
+   - Next action: Done for formats (buckets spec § 6 items 3–4). Still to
+     do: recheck the buckets' terms (ADM-0003) at the first real import.
 
 3. **backfill-registry** (D1)
-   - Status: Blocked (owner decision D1)
+   - Status: In progress (`hl-backfill registry` built; ADR 0019)
    - Owner: Unassigned
    - Dependencies: verify-formats-on-samples
    - PR: Not opened
-   - Next action: Add `hl-backfill registry`, which scans the raw tier and
-     writes a registry-v0 document by the D1 method, reporting price-scale
-     violations. Review it by pull request and publish it under `_registry/`.
+   - Next action: When the copy is complete, run `./backfill.sh registry`
+     over `node_fills_by_block` 2025-07-27 to the latest day, review the
+     report (violations, coin count), and publish the document under
+     `_registry/`. Correct the outcome price scale (reader assumption and
+     method v2) to bring outcome markets in.
 
 4. **process-from-2025-07-27**
-   - Status: Blocked (backfill-registry)
+   - Status: Ready once the copy completes (registry from task 3)
    - Owner: Unassigned
    - Dependencies: backfill-registry,
      [backfill-fills](phase-2-historical-data.md)
@@ -232,7 +238,7 @@ Each has a recommendation; nothing below starts without a decision.
      disabled for this archive.
 
 8. **sign-and-publish-backfill**
-   - Status: Blocked (D2, D3, process-from-2025-07-27, ipfs-datastore-off-docker-img)
+   - Status: Blocked (process-from-2025-07-27, ipfs-datastore-off-docker-img)
    - Owner: Unassigned
    - Dependencies: 4, 6, 7; [static-catalog](phase-2-historical-data.md)
    - PR: Not opened
@@ -261,7 +267,7 @@ Each has a recommendation; nothing below starts without a decision.
       site.
 
 11. **early-period-method** (D2)
-    - Status: Blocked (owner decision D2)
+    - Status: Ready (ADR 0020 fixes the split; the sequencing ADR is next)
     - Owner: Unassigned
     - Dependencies: verify-formats-on-samples
     - PR: Not opened
