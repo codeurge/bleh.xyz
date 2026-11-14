@@ -111,7 +111,11 @@ Tier 0.5 runs role `origin` on the qualifying home server instead of steps
    builds every image (`origin`, `hl-node`, `archive`, `gateway`,
    `history-api`, `swap-pollers`, `hl-backfill`, `tools`, `hl-node-reader`),
    pushes `ghcr.io/codeurge/bleh.xyz/<service>:<sha>` with SBOM and
-   provenance, and signs it with cosign. A push deploys nothing.
+   provenance, and signs it with cosign. A push deploys nothing. It builds
+   only when the push changes an image input (Rust sources, `docs/specs/`,
+   `Cargo.*`, the toolchain or `deploy/docker/`), and a newer push cancels
+   a build in progress, so promote the latest SHA whose deploy run
+   succeeded.
 2. **Staging:** Actions → deploy → Run workflow on `main` with the SHA and
    `staging`. Staging can be the synthetic stack on a spare host or a
    second set of hosts; its GitHub environment lists their

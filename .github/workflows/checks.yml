@@ -9,6 +9,43 @@ permissions:
   contents: read
 
 jobs:
+  # Decides whether the Rust, Solidity and dependency jobs run. They are
+  # skipped only when every changed file is prose that no build or test
+  # reads: docs/ (except docs/specs/, which tests include), .agents/,
+  # brand/ and top-level Markdown. Anything else, or a base commit that
+  # cannot be found (new branch, rewritten history), runs everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify changed files
+        id: diff
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          code=false
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
+            code=true
+          else
+            while IFS= read -r f; do
+              case "$f" in
+                docs/specs/*) code=true ;;
+                docs/*|.agents/*|brand/*) ;;
+                */*) code=true ;;
+                *.md) ;;
+                *) code=true ;;
+              esac
+            done < <(git diff --name-only "$BASE" HEAD)
+          fi
+          echo "code=${code}" | tee -a "$GITHUB_OUTPUT"
+
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -43,16 +80,36 @@ jobs:
           fi
 
   rust:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    # A newer push to the same branch or pull request supersedes this one.
+    concurrency:
+      group: rust-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Clippy plus the test build (every crate, bundled DuckDB) outgrow the
+      # runner's free disk; a full disk kills the job before rust-cache can
+      # save. Drop preinstalled toolchains it never uses (as in deploy.yml).
+      - name: Free runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h /
 
       - name: Install the pinned toolchain
         run: |
           rustup toolchain install
           rustup show active-toolchain
 
+      # Only main saves the cache; pull requests restore it. This keeps one
+      # warm entry instead of one per pull request competing for the
+      # repository's cache quota.
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Format
         run: cargo fmt --all --check
@@ -67,6 +124,8 @@ jobs:
   # match a fresh build with the pinned compiler (package-lock.json). Node.js
   # is preinstalled on the runner; npm runs no install scripts.
   contracts:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -79,6 +138,8 @@ jobs:
           node compile.mjs --check
 
   deny:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

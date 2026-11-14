@@ -199,6 +199,15 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- CI builds and checks less, and faster. The deploy workflow builds images
+  only for pushes that change an image input, compiles the workspace once
+  per platform for all images (`deploy/docker/docker-bake.hcl`) on native
+  amd64 and arm64 runners instead of once per image under emulation, and a
+  newer push cancels an older build. Not every commit on main has images
+  any more; promote the latest one that does. In `checks`, docs-only
+  changes skip the Rust, Solidity and `cargo deny` jobs, a newer push
+  cancels an older `rust` job, the `rust` job frees runner disk (it used to
+  run out and never save its cache), and only `main` saves the Rust cache.
 - `archive publish` sends Kubo the file name instead of its archive path.
   With the path, Kubo returned a directory's CID and every publish failed
   its CID check.

@@ -1,10 +1,18 @@
 # Build and promote bleh.xyz service images (docs/operations/deploy.md).
 #
-# - On every push to main: build every service image from the commit, push
-#   to GHCR tagged with the full commit SHA, attach SBOM and provenance, and
-#   sign with cosign (keyless, GitHub OIDC). Relay images (gateway,
-#   history-api, tools) are multi-arch because the default relays are arm64;
-#   node-box images (origin, hl-node, archive) are amd64 only.
+# - On a push to main that changes an image input (paths below): build every
+#   service image from the commit, push to GHCR tagged with the full commit
+#   SHA, attach SBOM and provenance, and sign with cosign (keyless, GitHub
+#   OIDC). Relay images (gateway, history-api, tools) are multi-arch because
+#   the default relays are arm64; node-box images (origin, hl-node, archive)
+#   are amd64 only. deploy/docker/docker-bake.hcl builds every target in one
+#   BuildKit session, so the workspace compiles once per platform, each on a
+#   native runner (no emulation); the publish job then merges the platform
+#   digests into one `<sha>` tag per image and signs it.
+#   A newer push cancels a build still in progress, and a push that changes
+#   no image input builds nothing, so not every commit on main has images.
+#   Promote the latest commit that does (the promote job refuses one that
+#   does not, at the signature check).
 # - Manual promote: "Run workflow" on main with a commit SHA and an
 #   environment. Nothing is deployed on push. The staging and production
 #   GitHub environments carry protection rules (required reviewers;
@@ -29,6 +37,18 @@ name: deploy
 on:
   push:
     branches: [main]
+    # Everything the images are built from. COPY . . in the Dockerfile takes
+    # the whole tree, but only these paths reach a binary.
+    paths:
+      - "crates/**"
+      - "tools/**"
+      - "docs/specs/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".dockerignore"
+      - "deploy/docker/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
     inputs:
       sha:
@@ -46,7 +66,8 @@ permissions: {}
 
 concurrency:
   group: deploy-${{ github.event_name }}-${{ inputs.environment || 'build' }}
-  cancel-in-progress: false
+  # Builds: only the newest push matters. Promotions are never cancelled.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   # GHCR names must be lower case.
@@ -55,27 +76,17 @@ env:
 jobs:
   build:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
     timeout-minutes: 240
     permissions:
       contents: read
       packages: write
-      # cosign keyless signing.
-      id-token: write
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
-          - {target: origin, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: hl-node-reader, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: gateway, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
-          - {target: archive, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: history-api, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
-          - {target: swap-pollers, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: reference-pollers, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: hl-backfill, platforms: linux/amd64, file: deploy/docker/Dockerfile}
-          - {target: tools, platforms: "linux/amd64,linux/arm64", file: deploy/docker/Dockerfile}
-          - {target: hl-node, platforms: linux/amd64, file: deploy/docker/hl-node/Dockerfile}
+          - {arch: amd64, runner: ubuntu-latest}
+          - {arch: arm64, runner: ubuntu-24.04-arm}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -95,8 +106,6 @@ jobs:
         id: meta
         run: echo "epoch=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-        if: contains(matrix.platforms, ',')
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -106,33 +115,88 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Path context: the checkout holds only committed files, and the root
-      # .dockerignore keeps .git and local junk out.
-      - name: Build and push
-        id: build
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      # .dockerignore keeps .git and local junk out. No layer cache: the
+      # compile layer changes with every commit and its cargo cache mounts
+      # are not exported, so a cache would only fill the Actions cache quota.
+      - name: Build and push by digest
+        id: bake
+        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
+        env:
+          VCS_REF: ${{ github.sha }}
+          SOURCE_DATE_EPOCH: ${{ steps.meta.outputs.epoch }}
         with:
-          context: .
-          file: ${{ matrix.file }}
-          target: ${{ matrix.target != 'hl-node' && matrix.target || '' }}
-          platforms: ${{ matrix.platforms }}
-          build-args: |
-            SOURCE_DATE_EPOCH=${{ steps.meta.outputs.epoch }}
-            VCS_REF=${{ github.sha }}
-          tags: ${{ env.REGISTRY }}/${{ matrix.target }}:${{ github.sha }}
-          labels: org.opencontainers.image.revision=${{ github.sha }}
-          outputs: type=image,push=true,rewrite-timestamp=true
-          provenance: mode=max
-          sbom: true
-          cache-from: type=gha,scope=${{ matrix.target }}
-          cache-to: type=gha,scope=${{ matrix.target }},mode=max
+          source: .
+          files: deploy/docker/docker-bake.hcl
+          targets: ${{ matrix.arch }}
+          set: |
+            *.platform=linux/${{ matrix.arch }}
+
+      - name: Record digests
+        env:
+          METADATA: ${{ steps.bake.outputs.metadata }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          mkdir -p digests
+          jq -r 'to_entries[] | select(.value["containerimage.digest"] != null)
+                 | "\(.key) \(.value["containerimage.digest"])"' <<<"$METADATA" \
+            | sort > "digests/${ARCH}.txt"
+          cat "digests/${ARCH}.txt"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.arch }}
+          path: digests/${{ matrix.arch }}.txt
+          if-no-files-found: error
+          retention-days: 1
+
+  # One `<sha>` tag per image over its platform digests (attestations are
+  # carried over), signed by digest.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      packages: write
+      # cosign keyless signing.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-*
+          path: digests
+          merge-multiple: true
 
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sign
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-          IMAGE: ${{ env.REGISTRY }}/${{ matrix.target }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+      - name: Tag and sign
+        run: |
+          set -euo pipefail
+          # Keep in step with deploy/docker/docker-bake.hcl and the promote
+          # job's list.
+          amd64=(origin hl-node-reader gateway archive history-api swap-pollers reference-pollers hl-backfill tools hl-node)
+          arm64=(gateway history-api tools)
+          digest_of() { awk -v t="$2" '$1 == t { print $2 }' "digests/$1.txt"; }
+          for t in "${amd64[@]}"; do
+            sources=("${REGISTRY}/${t}@$(digest_of amd64 "$t")")
+            if [[ " ${arm64[*]} " == *" ${t} "* ]]; then
+              sources+=("${REGISTRY}/${t}@$(digest_of arm64 "$t")")
+            fi
+            for src in "${sources[@]}"; do
+              [[ "$src" == *@sha256:* ]] || { echo "${t}: missing digest"; exit 1; }
+            done
+            docker buildx imagetools create --tag "${REGISTRY}/${t}:${GITHUB_SHA}" "${sources[@]}"
+            digest=$(docker buildx imagetools inspect "${REGISTRY}/${t}:${GITHUB_SHA}" \
+              --format '{{json .Manifest}}' | jq -r .digest)
+            cosign sign --yes "${REGISTRY}/${t}@${digest}"
+            echo "${t}: ${GITHUB_SHA} -> ${digest} (${#sources[@]} platform(s))"
+          done
 
   promote:
     # The dispatch must run this file as it is on main, so a branch cannot
