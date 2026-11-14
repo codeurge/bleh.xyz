@@ -5,6 +5,12 @@ unless marked otherwise. Check them against primary sources before relying on
 them. Each source's fields are admitted under the
 [admission policy](admission-policy.md).
 
+The [open sources survey of 2026-11](research/open-sources-survey-2026-11.md)
+ranks further candidates (more on-chain venues, US and non-US public
+sources). It lists rejections with their deciding clauses, sets the next-5
+admission queue and notes anything that needs money. Its top three are
+requested as ADM-0020 to ADM-0022.
+
 ## Tier A: open venues, read from our own nodes
 
 These venues do their own price discovery and record trades and orders as

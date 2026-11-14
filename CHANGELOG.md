@@ -9,6 +9,14 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Open sources survey (`docs/research/open-sources-survey-2026-11.md`):
+  candidate venues and public sources ranked by accuracy value, cost and
+  expected verdict; rejections with their deciding clauses (among them
+  Lighter, Derive, oracle-priced perpetual venues, MSRB EMMA, FINRA TRACE,
+  FRED, the Bank of Japan, SNB and SARON, and EU and UK post-trade data);
+  the next-5 admission queue; and the items that would need money.
+  Linked from `docs/sources.md`.
+
 - Three admission requests, status `Requested` and awaiting the owner's
   decision: ADM-0020 (Ethereum mainnet Uniswap v3 and hookless v4 pools for
   ETH, wrapped BTC and tokenized gold, read from an own node), ADM-0021 (EIA

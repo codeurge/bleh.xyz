@@ -1,7 +1,7 @@
 # Open reference prices — Plan
 
 Status: Active
-Last updated: 2026-11-12
+Last updated: 2026-11-14
 
 ## Goal
 
@@ -40,6 +40,7 @@ futures data, live and historical:
 | Synthetic contract months | ADR 0013; method spec `docs/specs/method-synthetic-months-v1.md`; crate `crates/synthetic` |
 | Bring your own feed | ADR 0014 |
 | Web snapshots | ADR 0016; spec `docs/specs/web-snapshot-v0.md` |
+| Open sources survey | ADM-0020 to ADM-0022; survey `docs/research/open-sources-survey-2026-11.md` |
 
 ## Tasks
 
@@ -113,3 +114,17 @@ futures data, live and historical:
      uploads to the public bucket and bleh.xyz shows the panel from
      `https://data.bleh.xyz/web/v0/`. Free-tier guidance and
      `scripts/r2-usage.sh` are in the runbook.
+
+6. **open-sources-survey**
+   - Status: In review
+   - Owner: research lane
+   - Dependencies: None
+   - PR: Not opened (owner pushes to main)
+   - Done: survey `docs/research/open-sources-survey-2026-11.md` (ranked
+     candidates, rejections, next-5 queue, costs); ADM-0020 (Ethereum
+     Uniswap pools), ADM-0021 (EIA) and ADM-0022 (BLS CPI) drafted with
+     status `Requested`
+   - Next action: owner decisions on ADM-0020 to ADM-0022 and on the
+     survey's policy questions (non-US public bodies under ADR 0012,
+     notices on derived records); then draft the foreign overnight-rate
+     and inflation records (queue items 4 and 5)

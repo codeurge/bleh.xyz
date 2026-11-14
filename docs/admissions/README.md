@@ -36,4 +36,5 @@ Every observation carries its admission ID.
 
 Admission is a maintainer's engineering decision about field lineage. The
 remaining candidates are listed in [docs/sources.md](../sources.md), with
-their phases in [docs/roadmap.md](../roadmap.md).
+their phases in [docs/roadmap.md](../roadmap.md), and ranked in the
+[open sources survey](../research/open-sources-survey-2026-11.md).
