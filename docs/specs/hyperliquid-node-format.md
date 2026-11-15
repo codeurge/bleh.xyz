@@ -304,9 +304,11 @@ are counted in metrics, never as unknown coins) and by the filter (§ 12).
 - Scales: size scale `szDecimals`; price scale `6 - szDecimals` for
   perpetuals (prices have at most 5 significant figures and at most that
   many decimals; integer prices are always allowed). **To verify:**
-  whether HIP-3 markets follow the perp rule, and the outcome-market rule
-  (prices lie between 0 and 1; the fixtures assume scale 4, and size
-  decimals 0 when metadata gives none).
+  whether HIP-3 markets follow the perp rule, and the outcome-market rule.
+  Outcome markets take the spot rule, price scale `8 - szDecimals`
+  ([ADR 0021](../decisions/0021-outcome-market-price-scale.md); prices lie
+  between 0 and 1 and archived fills show five decimals), with size
+  decimals 0 when metadata gives none.
 - HIP-4 Yes and No books for one outcome are merged (buying Yes at `p`
   equals selling No at `1 - p`). **To verify:** which coin the node
   reports fills and diffs under for a merged book. Until then both coins

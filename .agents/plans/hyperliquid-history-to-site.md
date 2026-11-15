@@ -136,7 +136,7 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
 
 ## Acceptance criteria
 
-- [ ] All 14,460 trade-history objects are in the raw tier, each with a
+- [x] All 14,460 trade-history objects are in the raw tier, each with a
       checkpoint entry whose size, ETag and SHA-256 match.
 - [ ] A registry covering every coin that traded in the period is published
       at `data.bleh.xyz/_registry/hyperliquid/registry.json` with its method
@@ -165,14 +165,13 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
 ## Ordered tasks
 
 1. **finish-trade-copy**
-   - Status: In progress
+   - Status: Done
    - Owner: Repository owner
    - Dependencies: [bucket-copy](phase-2-historical-data.md)
    - PR: Not opened
-   - Next action: When `copy-trades.done` appears, check 14,460 checkpoint
-     entries and 392 GB. Rerun `backfill-reports/run-copy-trades.sh` after
-     the home-archive server's maintenance window (Sunday 06:00–06:45 local)
-     if it stopped; it resumes from the checkpoint.
+   - Next action: Done 2026-11-15T04:31Z: 14,469 objects, 392,595,876,451
+     bytes, 0 failed; on-disk count and bytes equal the checkpoint; SHA-256
+     spot checks match.
 
 2. **verify-formats-on-samples**
    - Status: Done (2026-11-14; see Sample results)
@@ -187,11 +186,11 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
    - Owner: Unassigned
    - Dependencies: verify-formats-on-samples
    - PR: Not opened
-   - Next action: When the copy is complete, run `./backfill.sh registry`
-     over `node_fills_by_block` 2025-07-27 to the latest day, review the
-     report (violations, coin count), and publish the document under
-     `_registry/`. Correct the outcome price scale (reader assumption and
-     method v2) to bring outcome markets in.
+   - Next action: Run `./backfill.sh registry --concurrency 24` (method
+     v2, ADR 0021: outcome markets take the spot rule) over
+     `node_fills_by_block` 2025-07-27 to 2026-11-14, review the report
+     (violations, coin count), and publish the document under
+     `_registry/`.
 
 4. **process-from-2025-07-27**
    - Status: Ready once the copy completes (registry from task 3)

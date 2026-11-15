@@ -63,7 +63,9 @@ venue no longer lists.
   the node reader assumes four for outcome markets
   (`OUTCOME_PRICE_SCALE`, an unverified assumption). Outcome markets stay
   out of the backfill until that assumption is corrected in the reader and
-  the registry method together.
+  the registry method together. [ADR 0021](0021-outcome-market-price-scale.md)
+  does that: outcome markets take the spot rule (`8 - szDecimals`), method
+  `hl-backfill-registry/v2`.
 
 ## Alternatives considered
 

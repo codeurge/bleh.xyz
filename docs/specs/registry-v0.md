@@ -104,7 +104,7 @@ admitted coin it does not know appears, and every
 | `perpDexs[].name`, then `meta` with `dex` → `universe[].name` | `venue_symbol` = `<dex>:<name>` (bare names get the prefix); `namespace` = `<dex>`; `class` = `perp` |
 | `outcomeMeta` → `outcomes[].outcome` = `n` | Two instruments, `venue_symbol` `#<10n>` and `#<10n+1>`; `class` = `outcome` |
 | `universe[].szDecimals` | `size_scale` |
-| (derived) | `price_scale` = `6 - szDecimals` for perpetuals; 4 for outcome markets (assumption to verify) |
+| (derived) | `price_scale` = `6 - szDecimals` for perpetuals; `8 - szDecimals` for outcome markets, the spot rule ([ADR 0021](../decisions/0021-outcome-market-price-scale.md), assumption to verify) |
 | `outcomes[].szDecimals`, if given | `size_scale` (default 0) |
 | `universe[].isDelisted` | Ignored: delisted markets stay registered because history refers to them |
 | (policy) | `flags` = `[oracle_anchored_venue]` for deployer (HIP-3) markets, `[]` otherwise; per-coin overrides allowed |

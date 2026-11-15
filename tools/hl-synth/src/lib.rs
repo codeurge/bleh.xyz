@@ -223,18 +223,19 @@ fn markets() -> Vec<MarketDef> {
             max_px: 750_000,
             hip3: true,
         },
-        // HIP-4 outcome market. The symbol format and price scale are
-        // assumptions (to verify): price is a probability in (0, 1).
+        // HIP-4 outcome market. The symbol format is an assumption (to
+        // verify); price is a probability in (0, 1) at the spot rule's
+        // scale, 8 - szDecimals (ADR 0021), on a 0.001 tick.
         MarketDef {
             coin: "#9001",
             class: MarketClass::Outcome,
             sz_decimals: 0,
-            price_scale: 4,
-            tick: 10,
+            price_scale: 8,
+            tick: 100_000,
             lot: 1,
-            ref_px: 5_000,
-            min_px: 10,
-            max_px: 9_990,
+            ref_px: 50_000_000,
+            min_px: 100_000,
+            max_px: 99_900_000,
             hip3: false,
         },
     ]

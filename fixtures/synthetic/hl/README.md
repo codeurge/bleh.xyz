@@ -36,7 +36,7 @@ generator's output, so change the generator and these files together.
 Markets: a core perpetual (`SYN`, price scale 3, size scale 3), a HIP-3
 deployer perpetual (`syn:IDX`, price scale 4, size scale 2, flagged
 `oracle_anchored_venue`) and a HIP-4 outcome market (`#9001`, price scale
-4, size scale 0). Prices and sizes in node files drop trailing zeros, as
+8, the spot rule of ADR 0021, size scale 0). Prices and sizes in node files drop trailing zeros, as
 the venue does.
 
 Cases covered: two fills per trade, partial fills, adds, in-place modifies,

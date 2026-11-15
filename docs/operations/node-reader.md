@@ -258,7 +258,7 @@ place named). When a node shows otherwise, change that name, the spec,
 | 6 | Modifies are in-place `update` diffs (or `remove` plus `new`) | `normalize::classify_diff` (fed by `reserve_final_fills`) |
 | 7 | Halt-settlement fills are pairs with no `crossed = true` fill; liquidation methods `market` and `backstop` | `crossed_count_is_book_trade`, `LIQUIDATION_METHOD_MARKET`, `LIQUIDATION_METHOD_BACKSTOP` |
 | 8 | L4 envelope `{"height": H, "snapshot": [...]}` | `L4_HEIGHT_KEY`, `L4_SNAPSHOT_KEY`, `snapshot::parse_l4_envelope` |
-| 9 | HIP-3 uses the perp price rule; outcome price scale 4 and default size decimals 0; outcome coins `#{10n}` and `#{10n+1}` (both registered); spot coins `@N` or `A/B` | `HIP3_USES_PERP_PRICE_RULE`, `OUTCOME_PRICE_SCALE`, `OUTCOME_DEFAULT_SZ_DECIMALS`, `outcome_coins`, `classify_coin` |
+| 9 | HIP-3 uses the perp price rule; outcome price scale `8 - szDecimals` (ADR 0021) and default size decimals 0; outcome coins `#{10n}` and `#{10n+1}` (both registered); spot coins `@N` or `A/B` | `HIP3_USES_PERP_PRICE_RULE`, `outcome_price_scale`, `OUTCOME_DEFAULT_SZ_DECIMALS`, `outcome_coins`, `classify_coin` |
 
 Further assumptions of this reader, outside § 11:
 

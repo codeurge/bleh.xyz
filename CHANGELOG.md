@@ -7,6 +7,14 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ## Unreleased
 
+### Changed
+
+- HIP-4 outcome markets use the spot price rule, price scale
+  `8 - szDecimals`, instead of a fixed 4 (ADR 0021). Archived fills show
+  five-decimal outcome prices, which left every outcome coin out of the
+  derived registry. The registry method is now `hl-backfill-registry/v2`.
+  The synthetic fixtures' outcome market moves to scale 8.
+
 ### Added
 
 - `hl-backfill registry`: derives the backfill's instrument registry from

@@ -173,7 +173,7 @@ hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
 
 `process` needs an instrument registry. Without a node, it is derived from
 the admitted fills themselves ([ADR 0019](../decisions/0019-backfill-registry-from-admitted-fills.md),
-method `hl-backfill-registry/v1`):
+method `hl-backfill-registry/v2` since [ADR 0021](../decisions/0021-outcome-market-price-scale.md)):
 
 ```bash
 hl-backfill registry --raw s3://<raw-bucket>/hl-archive \
@@ -192,7 +192,8 @@ scales, first and last day, trade count) and every coin left out with the
 reason; the exit status is 1 if any object failed or any coin was left out.
 First run on samples (2026-11-14): 378 perpetuals registered (159 HIP-3);
 all 289 outcome coins left out, because their prices have five decimals
-and the reader assumes four.
+and the reader assumed four. ADR 0021 (method v2) gives outcome markets the
+spot rule, `8 - szDecimals`, which brings them in.
 
 ### 5.1 Run
 

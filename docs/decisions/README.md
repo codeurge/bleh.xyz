@@ -28,3 +28,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0018](0018-registry-v0.md) | Registry document, v0: exposures, venue mappings, calendars, rolls, series and liquidity grades beside instruments | Accepted |
 | [0019](0019-backfill-registry-from-admitted-fills.md) | Backfill instrument registry derived from the admitted fills (`hl-backfill-registry/v1`) | Accepted |
 | [0020](0020-hyperliquid-backfill-archive-start.md) | The `hyperliquid-backfill` archive starts at 2025-07-27; the early period becomes its own archive later | Accepted |
+| [0021](0021-outcome-market-price-scale.md) | Outcome markets use the spot price rule (`8 - szDecimals`); registry method v2 | Accepted |

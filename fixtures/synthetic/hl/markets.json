@@ -5,7 +5,7 @@
       "venue": "hyperliquid",
       "class": "outcome",
       "venue_symbol": "#9001",
-      "price_scale": 4,
+      "price_scale": 8,
       "size_scale": 0,
       "flags": [],
       "admission": "ADM-0001"

@@ -209,9 +209,20 @@ pub const L4_SNAPSHOT_KEY: &str = "snapshot";
 /// applies that rule to every perpetual; this constant documents it.
 pub const HIP3_USES_PERP_PRICE_RULE: bool = true;
 
-/// Assumption 9: price scale of HIP-4 outcome markets (prices are
-/// probabilities between 0 and 1).
-pub const OUTCOME_PRICE_SCALE: u8 = 4;
+/// Assumption 9: HIP-4 outcome markets follow the spot price rule: at most
+/// `8 - szDecimals` price decimals (and five significant figures). The
+/// venue documents outcomes as sharing "most implementation details with
+/// spot" and gives no separate rule; observed prices (probabilities between
+/// 0 and 1) have five decimals, which a fixed scale of 4 could not hold
+/// (ADR 0021).
+pub const OUTCOME_MAX_DECIMALS: u8 = 8;
+
+/// Assumption 9: price scale of a HIP-4 outcome market with `sz_decimals`
+/// size decimals (`8 - szDecimals`, ADR 0021).
+#[must_use]
+pub const fn outcome_price_scale(sz_decimals: u8) -> u8 {
+    OUTCOME_MAX_DECIMALS.saturating_sub(sz_decimals)
+}
 
 /// Assumption 9: size decimals of HIP-4 outcome markets when metadata does
 /// not give `szDecimals`.

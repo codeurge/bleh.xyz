@@ -20,8 +20,9 @@
 //!    (`@N`, pairs) is dropped.
 //! 4. The size scale is the largest number of size decimals seen for the
 //!    coin over the selection. The price scale follows the venue's rule
-//!    ([`InstrumentSpec::hyperliquid`]: `6 - size scale` for perpetuals, a
-//!    fixed scale for outcome markets).
+//!    ([`InstrumentSpec::hyperliquid`]: `6 - size scale` for perpetuals;
+//!    `8 - size scale` for outcome markets, the spot rule, since method v2
+//!    and ADR 0021; v1 used a fixed 4 and left every outcome coin out).
 //! 5. Every observed price must fit the price scale. A coin where one does
 //!    not (for example after a change of `szDecimals` within the period) is
 //!    reported as a violation and **not** registered, so its events are
@@ -38,7 +39,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use hl_node_reader::assumptions::{CoinClass, OUTCOME_PRICE_SCALE, classify_coin};
+use hl_node_reader::assumptions::{CoinClass, classify_coin, outcome_price_scale};
 use hl_node_reader::markets::default_flags;
 use mesh_types::{AdmissionId, InstrumentSpec, MarketClass, Registry};
 use serde::Serialize;
@@ -48,7 +49,7 @@ use crate::buckets::{Dataset, Day};
 
 /// Method name and version, recorded in every report (rule 5: a change to
 /// the method gets a new version).
-pub const METHOD: &str = "hl-backfill-registry/v1";
+pub const METHOD: &str = "hl-backfill-registry/v2";
 
 /// Largest perpetual size scale the venue's price rule allows.
 const PERP_MAX_DECIMALS: u8 = 6;
@@ -269,12 +270,14 @@ impl RegistryBuilder {
                     continue;
                 }
                 CoinClass::Outcome => {
-                    if c.max_px_decimals > OUTCOME_PRICE_SCALE {
+                    let ps = outcome_price_scale(c.max_sz_decimals);
+                    if c.max_px_decimals > ps {
                         report.violations.push(Violation {
                             coin: coin.clone(),
                             reason: format!(
-                                "a price has {} decimals; outcome prices have {}",
-                                c.max_px_decimals, OUTCOME_PRICE_SCALE
+                                "a price has {} decimals; with {} size decimals outcome \
+                                 prices may have at most {ps}",
+                                c.max_px_decimals, c.max_sz_decimals
                             ),
                         });
                         continue;
@@ -283,7 +286,7 @@ impl RegistryBuilder {
                         MarketClass::Outcome,
                         coin,
                         c.max_sz_decimals,
-                        Some(OUTCOME_PRICE_SCALE),
+                        Some(ps),
                         self.admission.clone(),
                     )
                 }
@@ -393,6 +396,8 @@ mod tests {
         events.extend(pair("BTC", "100001.5", "0.1", 2));
         events.extend(pair("xyz:CL", "61.25", "0.5", 3));
         events.extend(pair("#90", "0.5123", "3", 4));
+        // Five decimals, as observed on the venue (ADR 0021).
+        events.extend(pair("#91", "0.48771", "2", 6));
         let raw = vec![block_line(10, "2025-07-27T00:00:01.000", events)];
         let mut b = RegistryBuilder::new(adm());
         b.observe(
@@ -415,7 +420,7 @@ mod tests {
         assert_eq!(rep.method, METHOD);
         assert_eq!(rep.objects, 2);
         // Each matched pair is two fill objects.
-        assert_eq!(rep.trades_observed, 10);
+        assert_eq!(rep.trades_observed, 12);
 
         let hl = VenueId::new("hyperliquid").unwrap();
         let btc = reg.by_venue_symbol(&hl, "BTC").unwrap();
@@ -427,7 +432,10 @@ mod tests {
         assert!(cl.flags.contains(Flag::OracleAnchoredVenue));
         let outcome = reg.by_venue_symbol(&hl, "#90").unwrap();
         assert_eq!(outcome.class, MarketClass::Outcome);
-        assert_eq!(outcome.price_scale, OUTCOME_PRICE_SCALE);
+        assert_eq!(outcome.price_scale, outcome_price_scale(0));
+        assert_eq!(outcome.price_scale, 8);
+        let five = reg.by_venue_symbol(&hl, "#91").unwrap();
+        assert_eq!((five.size_scale, five.price_scale), (0, 8));
 
         let btc_rep = rep.coins.iter().find(|c| c.coin == "BTC").unwrap();
         assert_eq!(btc_rep.first_day.as_deref(), Some("2025-07-27"));

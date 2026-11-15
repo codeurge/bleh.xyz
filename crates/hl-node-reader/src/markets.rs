@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::assumptions::{
-    CoinClass, OUTCOME_DEFAULT_SZ_DECIMALS, OUTCOME_PRICE_SCALE, classify_coin, outcome_coins,
+    CoinClass, OUTCOME_DEFAULT_SZ_DECIMALS, classify_coin, outcome_coins, outcome_price_scale,
 };
 use crate::http::{HttpError, InfoClient};
 use crate::metrics::{Metrics, names};
@@ -254,7 +254,12 @@ pub fn specs_from_metadata(
     for o in &meta.outcomes {
         let sz = o.sz_decimals.unwrap_or(OUTCOME_DEFAULT_SZ_DECIMALS);
         for coin in outcome_coins(o.outcome) {
-            wanted.push((MarketClass::Outcome, coin, sz, Some(OUTCOME_PRICE_SCALE)));
+            wanted.push((
+                MarketClass::Outcome,
+                coin,
+                sz,
+                Some(outcome_price_scale(sz)),
+            ));
         }
     }
     let mut specs = Vec::new();
