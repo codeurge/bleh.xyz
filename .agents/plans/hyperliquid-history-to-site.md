@@ -246,13 +246,14 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
      daily, oldest first from 2025-07-27, with `RECORDS_THROUGH` set to the
      last day of the unbroken run of months whose every shard exited 0 with
      no skipped objects, so no day is sealed while a wave writes it.
-   - Next action: Check the first published days with `archive verify
-     --url`, then record coverage in the buckets spec § 5 when the last
+   - First days: 2025-07-27 to 07-31 signed, pinned and verified over
+     HTTPS on 2026-11-15 (183 checks passed, 0 failed).
+   - Next action: Record coverage in the buckets spec § 5 when the last
      month is signed.
 
 9. **site-multi-archive**
-   - Status: Built (2026-11-14); to confirm on the first published
-     `hyperliquid-backfill` day
+   - Status: Done (2026-11-15): confirmed on the first published
+     `hyperliquid-backfill` days
    - Owner: Repository owner
    - Dependencies: sign-and-publish-backfill (first days)
    - PR: None (pushed to `main`)
@@ -268,9 +269,11 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
      40 manifests on load, with a button to check every manifest. Tested on
      the live reference archive and on a synthetic 45-day trade and bar
      archive.
-   - Next action: When the first backfill day publishes, open the site,
-     run the default query on the busiest instrument, and check the chart
-     and both exports. Bars appear once bars-for-backfill (task 5) writes
+   - Confirmed: 2025-07-27 to 07-31 (signed, verified, 173 files a day)
+     appear as "5 days · hyperliquid-backfill"; the default query on
+     `hyperliquid:perp:HYPE` for 2025-07-31 returned 502,141 trades with a
+     price chart, and both export buttons are offered.
+   - Next action: Bars appear once bars-for-backfill (task 5) writes
      `kind=bar`.
 
 10. **coverage-page**
