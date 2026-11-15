@@ -17,6 +17,19 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Site, "Open archive": an archive picker (published archives, with
+  `hyperliquid-backfill`, `swaps-normalized` and `hyperliquid-backfill-early`
+  shown as coming soon until they publish); record kind and instrument
+  filters derived from the day's manifest, so the browser reads only the
+  chosen instrument's files; a price-over-time chart for trades, bars and
+  reference values; CSV and Parquet downloads of the full query result (the
+  table shows the first 200 rows); links to the selection's files, manifest,
+  anchors and magnet; and DuckDB CLI and Python snippets that fetch the
+  same selection from the manifest. Large archives check the last 40
+  manifests on load, with a button to check every one. The query view now
+  reads files with `hive_partitioning = false`, so the `instrument` column
+  shows the real ID (`a:b:c`) instead of its path form (`a~b~c`).
+
 - `hl-backfill registry`: derives the backfill's instrument registry from
   the admitted fills in the raw tier (ADR 0019, method
   `hl-backfill-registry/v1`): class from the symbol, size scale from the

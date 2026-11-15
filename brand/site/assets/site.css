@@ -347,6 +347,52 @@ textarea.arch-input{resize:vertical;min-height:84px;line-height:1.5}
 .arch-out th{position:sticky;top:0;background:var(--soft);font-weight:500}
 .arch-out .err{color:var(--ask);font:400 13px/1.5 var(--mono);white-space:pre-wrap}
 @media (max-width:479px){.arch-table th:nth-child(4),.arch-table td:nth-child(4){display:none}.arch-days,.arch-query{padding:14px}}
+.arch-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin-bottom:16px}
+.arch-opt{appearance:none;text-align:left;font:inherit;color:var(--fg);background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;min-width:0;transition:border-color .2s}
+.arch-opt b{display:block;font:700 15px/1.25 var(--sans)}
+.arch-opt span{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:var(--mute)}
+.arch-opt em{display:block;margin-top:8px;font-style:normal;font-size:11.5px;letter-spacing:.04em;color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch-opt:hover{border-color:var(--mute)}
+.arch-opt[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.arch-opt[aria-pressed=true] em{color:var(--accent)}
+.arch-opt.soon{cursor:default;background:none;border-style:dashed}
+.arch-opt.soon b{color:var(--mute)}
+.arch-table tr.bad td{color:var(--ask)}
+.arch-link{appearance:none;border:0;background:none;padding:0;margin-top:12px;font:500 13px/1.4 var(--mono);color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.arch-fields{display:grid;gap:0 12px}
+.arch-fields:has(> div:not([hidden]) + div:not([hidden])){grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+.arch-inst{display:grid;gap:8px}
+@media (min-width:560px){.arch-inst{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}}
+.arch-inst .arch-input{min-width:0}
+.arch-input:disabled{opacity:.6}
+.arch-hint{font-size:12px;line-height:1.5;color:var(--mute);margin-top:6px;min-height:1.5em}
+.arch-chart{margin:16px 0 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.arch-chart figcaption{font:500 12px/1.45 var(--mono);color:var(--mute);margin-bottom:8px}
+.arch-plot{width:100%;overflow:hidden}
+.arch-svg{display:block;width:100%;height:auto;touch-action:pan-y}
+.arch-svg text{font:400 11px var(--mono);fill:var(--mute)}
+.arch-svg .grid{stroke:var(--line);stroke-width:1}
+.arch-svg .band{fill:var(--accent);opacity:.16}
+.arch-svg .line{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.arch-svg .guide{stroke:var(--mute);stroke-width:1;stroke-dasharray:3 3}
+.arch-svg .dot{fill:var(--accent);stroke:var(--bg);stroke-width:1.5}
+.arch-one{font:800 1.8rem/1.2 var(--sans);font-variant-numeric:tabular-nums}
+.arch-export{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap;margin-top:14px}
+.arch-export .btn{padding:10px 16px;font-size:14px;cursor:pointer;background:none;color:var(--fg)}
+.arch-export .btn:disabled{opacity:.6;cursor:progress}
+.arch-get{margin-top:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:18px;min-width:0}
+.arch-get .arch-links{flex-wrap:wrap}
+.arch-get-grid{display:grid;gap:16px}
+@media (min-width:980px){.arch-get-grid{grid-template-columns:1fr 1.1fr;align-items:start}}
+.arch-get-grid > *{min-width:0}
+.arch-get h4.arch-label{margin-top:0}
+.arch-files{list-style:none;padding:0;margin:0;max-height:300px;overflow:auto;font-size:12.5px}
+.arch-files li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);min-width:0}
+.arch-files a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.arch-files span{color:var(--mute);white-space:nowrap;flex:none}
+.arch-get pre{font-size:12.5px;line-height:1.6;max-height:360px}
+.arch-copy{appearance:none;border:1px solid #2b2735;background:#262230;color:var(--codefg);font:500 12px/1 var(--mono);padding:8px 12px;border-radius:8px;cursor:pointer}
+@media (max-width:479px){.arch-get{padding:14px}.arch-files span{display:none}}
 .arch-verify{margin-top:22px}
 .arch-verify .code{margin:12px 0}
 .arch-verify pre{font-size:12.5px}

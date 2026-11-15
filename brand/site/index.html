@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#fff6e9" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#16141c" media="(prefers-color-scheme: dark)">
 <meta name="bleh-data" content="https://data.bleh.xyz/web/v0/">
+<meta name="bleh-archive" content="https://data.bleh.xyz/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="bleh.xyz">
 <meta property="og:title" content="bleh.xyz — open market data, no permission slip">
@@ -285,8 +286,9 @@
     <div class="sec-head reveal">
       <span class="eyebrow">The open archive</span>
       <h2 id="a-h">History you can download, verify and query.</h2>
-      <p class="lede">Each published day is a signed manifest, hash-chained to the one before and timestamped on Bitcoin, with its files on HTTPS, BitTorrent and IPFS. It starts with the reference series; Hyperliquid trades and books join the same archive as they are recorded.</p>
+      <p class="lede">Each published day is a signed manifest, hash-chained to the one before and timestamped on Bitcoin, with its files on HTTPS, BitTorrent and IPFS. Pick an archive, a day and an instrument: see it here, export it, or fetch the same files with your own tools.</p>
     </div>
+    <div class="arch-pick" id="arch-pick" role="group" aria-label="Archive"></div>
     <div class="arch-stats" id="arch-stats" aria-live="polite"></div>
     <div class="arch-grid">
       <div class="arch-days">
@@ -297,26 +299,68 @@
             <tbody id="arch-rows"></tbody>
           </table>
         </div>
+        <button class="arch-link" type="button" id="arch-checkall" hidden>Check every day's manifest</button>
       </div>
       <div class="arch-query">
         <div class="arch-h"><h3>Query a day in your browser</h3></div>
-        <p class="arch-note">DuckDB runs in this tab and reads the Parquet files straight from <span class="mono">data.bleh.xyz</span>. Nothing loads until you run a query; the first run fetches the engine, about 5 MB, from jsDelivr.</p>
-        <label class="arch-label" for="q-day">Day</label>
-        <select id="q-day" class="arch-input"></select>
+        <p class="arch-note">DuckDB runs in this tab and reads the Parquet files straight from <span class="mono">data.bleh.xyz</span>, only those of the instrument you pick. Nothing loads until you run a query; the first run fetches the engine, about 5 MB, from jsDelivr.</p>
+        <div class="arch-fields">
+          <div><label class="arch-label" for="q-day">Day</label>
+          <select id="q-day" class="arch-input"></select></div>
+          <div id="q-kind-wrap" hidden><label class="arch-label" for="q-kind">Record kind</label>
+          <select id="q-kind" class="arch-input"></select></div>
+        </div>
+        <label class="arch-label" for="q-find">Instrument</label>
+        <div class="arch-inst">
+          <input id="q-find" class="arch-input" type="search" placeholder="Filter instruments" autocomplete="off" spellcheck="false" aria-describedby="q-count" aria-controls="q-inst">
+          <select id="q-inst" class="arch-input" aria-label="Instrument" aria-describedby="q-count"></select>
+        </div>
+        <p class="arch-hint mono" id="q-count" aria-live="polite"></p>
         <label class="arch-label" for="q-sql">SQL over the view <span class="mono">day</span></label>
-        <textarea id="q-sql" class="arch-input mono" rows="4" spellcheck="false">SELECT * FROM day LIMIT 50</textarea>
+        <textarea id="q-sql" class="arch-input mono" rows="4" spellcheck="false">SELECT * FROM day</textarea>
         <div class="arch-actions">
           <button class="btn primary" type="button" id="q-run">Run query</button>
           <span class="arch-status mono" id="q-status" role="status"></span>
         </div>
+        <figure class="arch-chart" id="q-chart" hidden>
+          <figcaption id="q-chart-cap"></figcaption>
+          <div class="arch-plot" id="q-plot"></div>
+          <p class="arch-hint mono" id="q-chart-read" aria-hidden="true"></p>
+        </figure>
         <div class="arch-out" id="q-out"></div>
+        <div class="arch-export" id="q-export" hidden>
+          <button class="btn ghost" type="button" id="q-csv">Download CSV</button>
+          <button class="btn ghost" type="button" id="q-parquet">Download Parquet</button>
+          <span class="arch-status mono" id="q-export-status" role="status"></span>
+        </div>
       </div>
+    </div>
+    <div class="arch-get" id="arch-get" hidden>
+      <div class="arch-h"><h3>Take it with you</h3><span class="arch-links" id="get-links"></span></div>
+      <p class="arch-note">Every file is a plain HTTPS download, also on BitTorrent and IPFS. The snippets fetch the same selection from the day's manifest, so you can export it without this page.</p>
+      <div class="arch-get-grid">
+        <div>
+          <h4 class="arch-label" id="get-files-h">Files</h4>
+          <ul class="arch-files" id="get-files" aria-labelledby="get-files-h"></ul>
+          <p class="arch-hint mono" id="get-files-more"></p>
+        </div>
+        <div class="code">
+          <div class="tabs" role="tablist" aria-label="Export without this page">
+            <button role="tab" id="t-sn-sql" aria-controls="c-sn-sql" aria-selected="true" type="button">DuckDB CLI</button>
+            <button role="tab" id="t-sn-py" aria-controls="c-sn-py" aria-selected="false" tabindex="-1" type="button">Python</button>
+          </div>
+<div role="tabpanel" id="c-sn-sql" aria-labelledby="t-sn-sql" tabindex="0"><pre><code id="sn-sql"></code></pre></div>
+<div role="tabpanel" id="c-sn-py" aria-labelledby="t-sn-py" tabindex="0" hidden><pre><code id="sn-py"></code></pre></div>
+          <div class="code-note"><button class="arch-copy" type="button" id="sn-copy">Copy snippet</button> <span id="sn-copied" role="status"></span></div>
+        </div>
+      </div>
+      <details class="notices" id="get-notices-wrap" hidden><summary>Source notices for this selection</summary><ul id="get-notices"></ul><p class="notices-terms">Keep each notice with the values it covers, in exports too. See <a href="terms.html#notices">terms of use, section 3</a>.</p></details>
     </div>
     <details class="notices arch-verify">
       <summary>Verify it yourself</summary>
       <p>The page above checks the hash chain. The verifier also checks each manifest's signature, its Bitcoin timestamp and every file's hash:</p>
       <div class="code"><pre id="arch-cmd">cargo run -p origin --bin archive -- verify \
-  --url https://data.bleh.xyz/reference-normalized --archive reference-normalized \
+  --url https://data.bleh.xyz/<span class="arch-cmd-name">reference-normalized</span> --archive <span class="arch-cmd-name">reference-normalized</span> \
   --date <span id="arch-cmd-date">2026-10-28</span> --trusted 0x&lt;signer address&gt;</pre></div>
       <p>Each manifest states its signer (<span class="mono" id="arch-signer">…</span>). Trust a signer from the published signer registry, not from the manifest itself; the registry is not published yet.</p>
     </details>

@@ -247,13 +247,27 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
      `archive verify --url`, and record coverage in the buckets spec § 5.
 
 9. **site-multi-archive**
-   - Status: Ready
-   - Owner: Unassigned
+   - Status: Built (2026-11-14); to confirm on the first published
+     `hyperliquid-backfill` day
+   - Owner: Repository owner
    - Dependencies: sign-and-publish-backfill (first days)
-   - PR: Not opened
-   - Next action: Generalize the "Open archive" section: an archive picker,
-     an instrument filter (the manifest's paths give instruments), and a
-     per-instrument query and bar chart over that day's file only.
+   - PR: None (pushed to `main`)
+   - Done: the "Open archive" section probes `reference-normalized`,
+     `hyperliquid-backfill`, `swaps-normalized` and
+     `hyperliquid-backfill-early` (the `ARCHIVES` list in
+     `brand/site/assets/site.js`) and shows unpublished ones as coming soon.
+     Kind and instrument filters come from the manifest's Hive paths, and the
+     query reads only the chosen instrument's files. Trades, bars and
+     reference values get a price-over-time chart. Results download as CSV
+     or Parquet, file links and a DuckDB or Python snippet export the same
+     selection without the site, and archives over 40 days check the last
+     40 manifests on load, with a button to check every manifest. Tested on
+     the live reference archive and on a synthetic 45-day trade and bar
+     archive.
+   - Next action: When the first backfill day publishes, open the site,
+     run the default query on the busiest instrument, and check the chart
+     and both exports. Bars appear once bars-for-backfill (task 5) writes
+     `kind=bar`.
 
 10. **coverage-page**
     - Status: Ready
