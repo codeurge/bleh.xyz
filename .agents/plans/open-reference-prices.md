@@ -1,7 +1,7 @@
 # Open reference prices — Plan
 
 Status: Active
-Last updated: 2026-11-14
+Last updated: 2026-11-15
 
 ## Goal
 
@@ -41,6 +41,7 @@ futures data, live and historical:
 | Bring your own feed | ADR 0014 |
 | Web snapshots | ADR 0016; spec `docs/specs/web-snapshot-v0.md` |
 | Open sources survey | ADM-0020 to ADM-0022; survey `docs/research/open-sources-survey-2026-11.md` |
+| Reference quantities | ADR 0023 |
 
 ## Tasks
 
@@ -92,8 +93,9 @@ futures data, live and historical:
      synthetic engine's reference-poller curve preset; compose, systemd,
      alerts and runbook `docs/operations/reference-pollers.md`; tests on
      synthetic fixtures only
-   - Next action: volumes and tenorless rates (runbook open point); then a
-     first real backfill into `reference-backfill`. Done since: the DTCC
+   - Next action: tenorless rates and Treasury auction amounts (runbook
+     open point); then a first real backfill into `reference-backfill`.
+     Volumes are task 8. Done since: the DTCC
      sentence of the NY Fed notice (2026-11-13), and the
      `reference-normalized` archive (ADR 0017), signed and published at
      `https://data.bleh.xyz/reference-normalized` from 2026-11-13
@@ -145,6 +147,29 @@ futures data, live and historical:
      User-Agent address; access specification sections; runbook section;
      compose variables; tests on synthetic fixtures
    - Next action: owner merge and deploy, then a first `eia` and `bls`
-     backfill into `reference-backfill`. Open: EIA stocks, storage and
-     supply are admitted but not emitted until a record kind holds a
-     quantity (the same open point as task 4's volumes; needs an ADR)
+     backfill into `reference-backfill`. EIA stocks, storage and supply
+     are emitted by task 8
+
+8. **reference-quantities**
+   - Status: In review
+   - Owner: reference-pollers lane
+   - Dependencies: tasks 4 and 7; ADM-0007, ADM-0010, ADM-0011, ADM-0012
+     and ADM-0021 (volume fields `Admitted`)
+   - PR: branch `feat/reference-quantities` (the owner merges)
+   - Done: ADR 0023 (Accepted): `reference_value` measures `stock`,
+     `flow`, `capacity` and `ratio` with a `unit` from a closed
+     vocabulary, omitted when absent so existing records keep their
+     bytes; `mesh-types` (type, validation, allowlist, Arrow column,
+     JSON Schema); `archive` (appended nullable `unit` Parquet column,
+     field ID 20; files without it still decode; web snapshots carry
+     `unit`); readers: EIA weekly stocks (Cushing included), flows,
+     capacity, utilisation, gas storage and monthly supply; NY Fed
+     `volumeInBillions`; NDPSR sales and moisture; LMR head counts
+     (2511 every purchase type, 2466); feeder head counts; EIA backfill
+     start moved to 1920 (monthly crude production); catalogue entries;
+     specs, runbook; tests on synthetic fixtures
+   - Next action: owner merge and deploy; the site's reference panel
+     should show `unit` for quantity series (site lane); a fresh `eia`
+     backfill picks up volume history. Not done: Treasury auction amounts
+     and bid-to-cover, LMR weights and carcass data, dairy reports
+     3346 to 3350, 3361 and 3462 (layouts not yet documented)

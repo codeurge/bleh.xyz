@@ -53,7 +53,7 @@ fields.
 | `heatmap_tile` | Resting size by time and price (§ 2.10) | yes |
 | `liquidity_grade` | A market's liquidity grade (§ 2.10) | yes |
 | `coverage` | What the recorder observed of a venue over an interval (§ 2.11) | no |
-| `reference_value` | A published public reference value: rate, yield, price or index level (§ 2.12) | no |
+| `reference_value` | A published public reference value: rate, yield, price, index level or quantity (§ 2.12) | no |
 | `synthetic_month` | Fair value of one contract month of an exposure (§ 2.13) | yes |
 | `positioning` | A regulator's futures positioning statistics for one trader category (§ 2.14) | no |
 
@@ -285,8 +285,8 @@ emitted by future reference pollers and read by the synthetic-month engine
 
 | Field | Type | Meaning |
 |---|---|---|
-| `measure` | `rate`, `par_yield`, `zero_yield`, `price`, `index_level` | What the value is |
-| `value` | decimal | Percent per annum for rates and yields; currency units for prices |
+| `measure` | `rate`, `par_yield`, `zero_yield`, `price`, `index_level`, `stock`, `flow`, `capacity`, `ratio` | What the value is (the last four are quantities, see below) |
+| `value` | decimal | Percent per annum for rates and yields; currency units for prices; `unit` for quantities |
 | `tenor` | string or null | `ON`, `TN`, or 1 to 3 digits and a unit `D`, `W`, `M`, `Y` (`3M`) |
 | `maturity_date` | `YYYY-MM-DD` or null | Maturity of the instrument the value refers to |
 | `day_count` | `act_360`, `act_365_fixed`, `act_act`, `thirty_360` or null | Required for simple and discount rates |
@@ -295,6 +295,37 @@ emitted by future reference pollers and read by the synthetic-month engine
 | `as_of_date` | `YYYY-MM-DD` | The business day the value is for |
 | `revision` | integer | 0 for the first publication; a higher revision for the same series, tenor, maturity, period and `as_of_date` supersedes |
 | `period_start_ms`, `period_end_ms` | ms, optional | The delivery or settlement interval within the day that the value is for (for example one hour or 15 minutes of a grid operator's price), start inclusive, end exclusive. Both present or both omitted; omitted (not `null`) when absent, so records without a period keep their canonical encoding |
+| `unit` | unit (below), optional | Unit of a quantity. Present exactly on `stock`, `flow`, `capacity` and `ratio`; omitted (not `null`) on every other measure, so their canonical encoding is unchanged ([ADR 0023](../decisions/0023-reference-quantities.md)) |
+
+**Quantities** ([ADR 0023](../decisions/0023-reference-quantities.md)):
+
+| `measure` | Meaning |
+|---|---|
+| `stock` | A level at the end of the period `as_of_date` stands for (crude oil stocks, gas in storage). Never per day |
+| `flow` | An amount over the period, or its average rate when the unit is per day (production, imports, sales, head counts, funding volume) |
+| `capacity` | The most a facility can process or hold |
+| `ratio` | A part of a whole (utilisation, moisture content). Unit `percent`, and only a ratio takes `percent` |
+
+| `unit` | Means | Base unit | Factor |
+|---|---|---|---|
+| `barrels` | Barrels of 42 US gallons | barrels | 1 |
+| `thousand_barrels` | Thousands of barrels | barrels | 10^3 |
+| `thousand_barrels_per_day` | Thousands of barrels per day | barrels per day | 10^3 |
+| `million_cubic_feet` | Millions of cubic feet (MMcf) | cubic feet | 10^6 |
+| `billion_cubic_feet` | Billions of cubic feet (Bcf) | cubic feet | 10^9 |
+| `pounds` | Pounds | pounds | 1 |
+| `metric_tons` | Metric tons | metric tons | 1 |
+| `head` | Animals | head | 1 |
+| `usd` | US dollars | US dollars | 1 |
+| `million_usd` | Millions of US dollars | US dollars | 10^6 |
+| `billion_usd` | Billions of US dollars | US dollars | 10^9 |
+| `percent` | Percent | percent | 1 |
+
+- `value` is the number the source published, in the unit it published
+  it in, with the scale the digits give (§ 1). It is never rescaled: to
+  get base units, multiply by the factor, which is exact in decimal.
+- Quantities carry no `currency`, `day_count` or `compounding`; money
+  amounts use the `usd` units.
 
 - `prov.venue` is the source; `prov.instrument` is `<source>:ref:<series>`
   with the source's own series name. A curve publishes one record per
@@ -587,8 +618,10 @@ normalized partitions:
   `spec`, `first_seq`, order lifetimes, queue levels, heatmap cells);
   otherwise a plain scalar. Kinds with no `price` or `size` column
   (`liquidity_grade`, `coverage`, `reference_value`, `positioning`) have
-  no scale columns. `reference_value` stores `value` as `decimal` and the
-  optional period as nullable timestamps. `synthetic_month` stores `fair_value` and `spot` as `price`;
+  no scale columns. `reference_value` stores `value` as `decimal`, the
+  optional period as nullable timestamps, and `unit` as a nullable
+  string, the last column (appended by ADR 0023: files written before it
+  have no `unit` column, and readers take it as null). `synthetic_month` stores `fair_value` and `spot` as `price`;
   its rates and `year_fraction` are `decimal`, `quality` and `admissions`
   are `json`, and dates are text. Parquet does not
   keep field metadata, so readers take the encoding from the schema.

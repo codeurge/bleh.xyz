@@ -442,7 +442,8 @@
         {"name": "as_of_date", "type": "utf8", "nullable": false, "metadata": {"PARQUET:field_id": "16"}},
         {"name": "revision", "type": "uint32", "nullable": false, "metadata": {"PARQUET:field_id": "17"}},
         {"name": "period_start_ms", "type": "timestamp[ms, UTC]", "nullable": true, "metadata": {"PARQUET:field_id": "18"}},
-        {"name": "period_end_ms", "type": "timestamp[ms, UTC]", "nullable": true, "metadata": {"PARQUET:field_id": "19"}}
+        {"name": "period_end_ms", "type": "timestamp[ms, UTC]", "nullable": true, "metadata": {"PARQUET:field_id": "19"}},
+        {"name": "unit", "type": "utf8", "nullable": true, "metadata": {"PARQUET:field_id": "20"}}
       ]
     },
     {

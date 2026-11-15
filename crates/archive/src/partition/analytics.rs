@@ -252,10 +252,6 @@ fn missing(name: &str) -> Error {
     Error::invalid(format!("column {name} missing or of the wrong type"))
 }
 
-fn column<'a>(batch: &'a RecordBatch, name: &str) -> Result<&'a ArrayRef> {
-    batch.column_by_name(name).ok_or_else(|| missing(name))
-}
-
 fn decimal_text(m: i64, scale: u8) -> Result<String> {
     Ok(Price::new(m, scale)
         .map_err(|e| Error::invalid(format!("decimal: {e}")))?
@@ -292,7 +288,16 @@ pub(super) fn decode(kind: RecordKind, batch: &RecordBatch) -> Result<Vec<Record
         }
         for f in schema.fields().iter().filter(|f| is_kind_field(f.name())) {
             let name = f.name().as_str();
-            let arr = column(batch, name)?;
+            // A nullable column appended to the schema after a file was
+            // written (for example `reference_value.unit`, ADR 0023) is
+            // absent from that file and reads as null.
+            let Some(arr) = batch.column_by_name(name) else {
+                if f.is_nullable() {
+                    obj.insert(name.to_owned(), Value::Null);
+                    continue;
+                }
+                return Err(missing(name));
+            };
             if arr.is_null(i) {
                 obj.insert(name.to_owned(), Value::Null);
                 continue;

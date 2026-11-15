@@ -17,11 +17,16 @@
 //! Series `LS850.<CLASS>.<GRADE>.<LOW>_<HIGH>[.<NOTE>].{avg_price,
 //! price_low,price_high}` under `usda-mn:ref:`, dated by the report date
 //! (`Week Ending:` or `Report Date:`, else the first date in the heading).
-//! The files hold only the latest issue, so there is no backfill; the
-//! live poller alerts when the file's date is older than ten days
-//! (observed on 2026-11-12). PDF issues are not parsed.
+//! Each kept sale row's head count (admitted, ADM-0012) is
+//! `<...>.head_count`, a `flow` in `head` (ADR 0023); an excluded row is
+//! dropped whole, head count included. The receipts block is not a table
+//! row and is not read. The files hold only the latest issue, so there is
+//! no backfill; the live poller alerts when the file's date is older than
+//! ten days (observed on 2026-11-12). PDF issues are not parsed.
 
 use std::time::Duration;
+
+use mesh_types::{QuantityUnit, ReferenceMeasure};
 
 use super::{Bases, ParseError, Parsed, Reader, Schedule, Target, WEEKDAYS};
 use crate::num;
@@ -137,6 +142,16 @@ pub fn parse_summary(body: &[u8]) -> Result<Parsed, ParseError> {
         }
         if !any {
             out.skip("missing");
+        }
+        // t[0] is digits by the row shape.
+        if let Ok(Some(head)) = num::decimal(t[0]) {
+            out.obs.push(Obs::Ref(RefObs::quantity(
+                format!("{key}.head_count"),
+                ReferenceMeasure::Flow,
+                head,
+                QuantityUnit::Head,
+                as_of,
+            )));
         }
     }
     // Distinct sale rows that share a series on one date get distinct

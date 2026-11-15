@@ -374,6 +374,7 @@ impl Snapshotter {
                 v.compounding.as_ref().map(enum_name).map(Value::String),
             );
             insert_some(&mut meta, "currency", v.currency.as_ref().map(|c| json!(c)));
+            insert_some(&mut meta, "unit", v.unit.map(|u| json!(u.as_str())));
             meta.insert(
                 "flags".into(),
                 serde_json::to_value(v.prov.flags).unwrap_or(Value::Null),
@@ -935,6 +936,35 @@ mod tests {
         );
         assert!(series.get("maturity_date").is_none(), "nulls are omitted");
         assert_eq!(v["admission"], "ADM-9002");
+    }
+
+    #[test]
+    fn quantity_series_carry_their_unit() {
+        let tmp = tempfile::tempdir().unwrap();
+        let d = tmp.path();
+        let stock = r#"{"kind":"reference_value","prov":{"instrument":"example-energy:ref:STOCKS.W","venue":"example-energy","ts_source_ms":1767700000000,"ts_ingest_ns":"1767700000000000000","seq":{"block_number":1,"event_index":0},"admission":"ADM-9005","flags":[]},"measure":"stock","value":"421234","tenor":null,"maturity_date":null,"day_count":null,"compounding":null,"currency":null,"as_of_date":"2026-01-02","revision":0,"unit":"thousand_barrels"}"#;
+        append(
+            d,
+            "2026-01-06",
+            "reference_value.jsonl",
+            &[stock.to_owned()],
+        );
+        append(
+            d,
+            "2026-01-06",
+            "reference_value.jsonl",
+            &[reference("2026-01-06", 1_767_700_000_002, "4.30", 0)],
+        );
+        let mut s = snap(d);
+        s.ingest().unwrap();
+        let files = s.render(1).unwrap();
+        let series = &get(&files, "reference/example-energy.json")["series"][0];
+        assert_eq!(series["measure"], "stock");
+        assert_eq!(series["unit"], "thousand_barrels");
+        assert!(series.get("currency").is_none());
+        assert_eq!(series["latest"]["value"], "421234");
+        let rate = &get(&files, "reference/example-rates.json")["series"][0];
+        assert!(rate.get("unit").is_none(), "no unit on a rate");
     }
 
     #[test]

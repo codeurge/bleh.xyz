@@ -366,6 +366,7 @@ const REFERENCE_VALUE: &[&str] = &[
     "revision",
     "period_start_ms",
     "period_end_ms",
+    "unit",
 ];
 
 const POSITIONING: &[&str] = &[
@@ -798,6 +799,30 @@ mod tests {
             &|v| v["prov"]["flags"] = serde_json::json!(["unknown"])
         ));
         assert!(rejected(&|v| v["kind"] = Value::from("quote")));
+
+        // Quantities (ADR 0023): the schema enforces the unit rules the
+        // type's validation does.
+        let stock = serde_json::to_value(Record::from(crate::reference::tests::stock())).unwrap();
+        let price = serde_json::to_value(Record::from(crate::reference::tests::price())).unwrap();
+        let rejected_from = |base: &Value, edit: &dyn Fn(&mut Value)| {
+            let mut v = base.clone();
+            edit(&mut v);
+            schemas.validate(&v, index).is_err()
+        };
+        assert!(schemas.validate(&stock, index).is_ok());
+        assert!(rejected_from(&stock, &|v| {
+            v.as_object_mut().unwrap().remove("unit");
+        }));
+        assert!(rejected_from(&stock, &|v| v["unit"] = Value::from("Mbbl")));
+        assert!(rejected_from(&stock, &|v| v["unit"] = Value::from("percent")));
+        assert!(rejected_from(&stock, &|v| v["unit"] =
+            Value::from("thousand_barrels_per_day")));
+        assert!(rejected_from(&price, &|v| v["unit"] = Value::from("usd")));
+        assert!(rejected_from(&stock, &|v| v["measure"] = Value::from("ratio")));
+        assert!(!rejected_from(&stock, &|v| {
+            v["measure"] = Value::from("ratio");
+            v["unit"] = Value::from("percent");
+        }));
     }
 
     /// The examples in observation-v0.md § 12 are records: they parse,

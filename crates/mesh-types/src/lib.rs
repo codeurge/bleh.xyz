@@ -96,7 +96,7 @@ pub use record::{
     AggressorSide, Bar, BarInterval, BookAction, BookEvent, BookSide, BookSnapshot, Level, Record,
     RecordKind, RestingOrder, SnapshotDepth, Trade, ValidationError,
 };
-pub use reference::{Compounding, DayCount, ReferenceMeasure, ReferenceValue};
+pub use reference::{Compounding, DayCount, QuantityUnit, ReferenceMeasure, ReferenceValue};
 pub use registry::{InstrumentSpec, MarketClass, Registry};
 pub use seq::Seq;
 pub use signing::{BlockCommitment, EthAddress, EthSignature, SigningKey, StreamId};

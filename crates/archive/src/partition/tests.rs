@@ -106,6 +106,71 @@ fn row_groups_are_fixed_size() {
 }
 
 #[test]
+fn reference_quantities_round_trip_with_their_unit() {
+    let recs = by_kind(RecordKind::ReferenceValue);
+    let (bytes, hash) = write_parquet(RecordKind::ReferenceValue, &recs).unwrap();
+    let back = read_parquet(Bytes::from(bytes)).unwrap();
+    assert_eq!(back.records, recs);
+    assert_eq!(back.content_hash, hash);
+    let units: Vec<Option<mesh_types::QuantityUnit>> = back
+        .records
+        .iter()
+        .map(|r| match r {
+            Record::ReferenceValue(v) => v.unit,
+            _ => unreachable!(),
+        })
+        .collect();
+    assert!(units.contains(&Some(mesh_types::QuantityUnit::ThousandBarrels)));
+    assert!(units.contains(&Some(mesh_types::QuantityUnit::Percent)));
+    assert!(units.contains(&None), "prices keep no unit");
+}
+
+#[test]
+fn reference_files_without_the_unit_column_still_decode() {
+    // A partition written before ADR 0023 has no `unit` column. It must
+    // decode to the same records, and so the same content hash.
+    let recs: Vec<Record> = by_kind(RecordKind::ReferenceValue)
+        .into_iter()
+        .filter(|r| matches!(r, Record::ReferenceValue(v) if v.unit.is_none()))
+        .collect();
+    assert!(!recs.is_empty());
+    let batch = convert::encode(RecordKind::ReferenceValue, &recs).unwrap();
+    let keep: Vec<usize> = (0..batch.num_columns())
+        .filter(|&i| batch.schema().field(i).name() != "unit")
+        .collect();
+    let old = batch.project(&keep).unwrap();
+    assert!(old.column_by_name("unit").is_none());
+    assert_eq!(
+        convert::decode(RecordKind::ReferenceValue, &old).unwrap(),
+        recs
+    );
+    // Through Parquet as well.
+    let mut buf = Vec::new();
+    let mut w = parquet::arrow::ArrowWriter::try_new(&mut buf, old.schema(), None).unwrap();
+    w.write(&old).unwrap();
+    w.close().unwrap();
+    let reader =
+        parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder::try_new(Bytes::from(buf))
+            .unwrap()
+            .build()
+            .unwrap();
+    let mut back = Vec::new();
+    for b in reader {
+        back.extend(convert::decode(RecordKind::ReferenceValue, &b.unwrap()).unwrap());
+    }
+    assert_eq!(back, recs);
+    assert_eq!(
+        mesh_types::content_hash(&back).unwrap(),
+        mesh_types::content_hash(&recs).unwrap()
+    );
+    // A required column is still required.
+    let keep: Vec<usize> = (0..batch.num_columns())
+        .filter(|&i| batch.schema().field(i).name() != "measure")
+        .collect();
+    assert!(convert::decode(RecordKind::ReferenceValue, &batch.project(&keep).unwrap()).is_err());
+}
+
+#[test]
 fn scale_mismatch_within_a_row_is_rejected() {
     let r = testutil::book_event(
         1,

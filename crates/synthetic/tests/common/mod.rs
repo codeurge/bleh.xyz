@@ -149,6 +149,7 @@ pub fn reference(
         revision,
         period_start_ms: None,
         period_end_ms: None,
+        unit: None,
     }
     .into()
 }

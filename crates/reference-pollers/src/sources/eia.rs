@@ -26,18 +26,28 @@
 //! | Weekly retail gasoline and on-highway diesel | EIA-878, EIA-888 | `price` in US dollars per gallon, dated the survey Monday |
 //! | Weekly residential heating oil and propane | State Heating Oil and Propane Program | `price`, dated the survey Monday |
 //! | Monthly refiner sales, crude first purchase, imported crude cost, natural gas city-gate and end-use prices | Monthly price surveys | `price`, dated the first of the month, `exchange_referenced` |
-//! | Weekly petroleum supply and stocks (including Cushing), weekly natural gas storage, monthly supply | EIA-800 to EIA-805, EIA-814, EIA-912, monthly surveys | Admitted volumes: not emitted (no record kind holds a quantity) |
+//! | Weekly petroleum stocks (including Cushing) | EIA-800 to EIA-805, EIA-814 | `stock` in `thousand_barrels`, dated the week-ending Friday |
+//! | Weekly refinery inputs, production, imports, exports, product supplied | Same | `flow` in `thousand_barrels_per_day` (the week's daily average) |
+//! | Weekly operable crude distillation capacity and utilisation | Same | `capacity` in `thousand_barrels_per_day`; `ratio` in `percent` |
+//! | Weekly natural gas storage by region | EIA-912 | `stock` in `billion_cubic_feet`, dated the week-ending Friday |
+//! | Monthly crude oil production, natural gas production, consumption, storage injections and withdrawals | Monthly surveys | `flow` in `thousand_barrels` or `million_cubic_feet` (the month's total), dated the first of the month |
 //!
-//! Values are carried exactly as written in the file (the JSON number's
-//! text, never a float). Live records take `ts_source_ms` from the
-//! series' `last_updated`, EIA's statement of when it published the
-//! values.
+//! Each allowlisted series names its measure (ADR 0023). The unit comes
+//! from the series' `units` text through [`quantity_unit`]; a unit text
+//! that is not known, or that does not fit the measure, drops the series
+//! and is reported (`units:<id>`), as a price not in dollars is. Values
+//! are carried exactly as written in the file (the JSON number's text,
+//! never a float, never rescaled). Volumes carry no flag
+//! (`exchange_referenced` is for the monthly survey prices only, ADM-0021
+//! check 3). Live records take `ts_source_ms` from the series'
+//! `last_updated`, EIA's statement of when it published the values.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::sync::OnceLock;
 use std::time::Duration;
 
+use mesh_types::{QuantityUnit, ReferenceMeasure};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
@@ -99,8 +109,8 @@ pub enum Family {
 }
 
 impl Family {
-    /// Prices, which `reference_value` holds; the volume families are
-    /// admitted but not emitted.
+    /// Price families; the others are volume families, emitted as
+    /// quantities (ADR 0023).
     #[must_use]
     pub const fn is_price(self) -> bool {
         matches!(
@@ -122,219 +132,221 @@ use Family::{
     MonthlyPrice as MP, MonthlySupply as MS, ResidentialHeating as RH, WeeklyRetail as WR,
     WeeklyStorage as WG, WeeklySupply as WS,
 };
+use ReferenceMeasure::{Capacity as C, Flow as F, Price as P, Ratio as R, Stock as S};
 
-/// Admitted series: explicit bulk series IDs, each in one admitted family,
-/// taken from EIA's data tables (dnav, read 2026-11-14). Any series not
-/// listed is dropped.
-pub const ALLOWLIST: &[(&str, Family)] = &[
+/// Admitted series: explicit bulk series IDs, each in one admitted family
+/// and with its measure (`price` for the price families; `stock`, `flow`,
+/// `capacity` or `ratio` for the volume families), taken from EIA's data
+/// tables (dnav, read 2026-11-14). Any series not listed is dropped.
+pub const ALLOWLIST: &[(&str, Family, ReferenceMeasure)] = &[
     // Weekly petroleum stocks (Weekly Petroleum Status Report).
-    ("PET.WTTSTUS1.W", WS),
-    ("PET.WTESTUS1.W", WS),
-    ("PET.WCRSTUS1.W", WS),
-    ("PET.WCESTUS1.W", WS),
-    ("PET.W_EPC0_SAX_NUS_MBBL.W", WS),
-    ("PET.WCSSTUS1.W", WS),
-    ("PET.WCESTP11.W", WS),
-    ("PET.WCESTP21.W", WS),
-    ("PET.W_EPC0_SAX_YCUOK_MBBL.W", WS),
-    ("PET.WCESTP31.W", WS),
-    ("PET.WCESTP41.W", WS),
-    ("PET.WCESTP51.W", WS),
-    ("PET.WGTSTUS1.W", WS),
-    ("PET.WGFSTUS1.W", WS),
-    ("PET.WBCSTUS1.W", WS),
-    ("PET.W_EPOOXE_SAE_NUS_MBBL.W", WS),
-    ("PET.WKJSTUS1.W", WS),
-    ("PET.WDISTUS1.W", WS),
-    ("PET.WD0ST_NUS_1.W", WS),
-    ("PET.WD1ST_NUS_1.W", WS),
-    ("PET.WDGSTUS1.W", WS),
-    ("PET.WRESTUS1.W", WS),
-    ("PET.WPRSTUS1.W", WS),
-    ("PET.W_EPLLPZ_SAE_NUS_MBBL.W", WS),
-    ("PET.WUOSTUS1.W", WS),
+    ("PET.WTTSTUS1.W", WS, S),
+    ("PET.WTESTUS1.W", WS, S),
+    ("PET.WCRSTUS1.W", WS, S),
+    ("PET.WCESTUS1.W", WS, S),
+    ("PET.W_EPC0_SAX_NUS_MBBL.W", WS, S),
+    ("PET.WCSSTUS1.W", WS, S),
+    ("PET.WCESTP11.W", WS, S),
+    ("PET.WCESTP21.W", WS, S),
+    ("PET.W_EPC0_SAX_YCUOK_MBBL.W", WS, S),
+    ("PET.WCESTP31.W", WS, S),
+    ("PET.WCESTP41.W", WS, S),
+    ("PET.WCESTP51.W", WS, S),
+    ("PET.WGTSTUS1.W", WS, S),
+    ("PET.WGFSTUS1.W", WS, S),
+    ("PET.WBCSTUS1.W", WS, S),
+    ("PET.W_EPOOXE_SAE_NUS_MBBL.W", WS, S),
+    ("PET.WKJSTUS1.W", WS, S),
+    ("PET.WDISTUS1.W", WS, S),
+    ("PET.WD0ST_NUS_1.W", WS, S),
+    ("PET.WD1ST_NUS_1.W", WS, S),
+    ("PET.WDGSTUS1.W", WS, S),
+    ("PET.WRESTUS1.W", WS, S),
+    ("PET.WPRSTUS1.W", WS, S),
+    ("PET.W_EPLLPZ_SAE_NUS_MBBL.W", WS, S),
+    ("PET.WUOSTUS1.W", WS, S),
     // Weekly production, refinery inputs, capacity and utilisation.
-    ("PET.WCRFPUS2.W", WS),
-    ("PET.WCRRIUS2.W", WS),
-    ("PET.WGIRIUS2.W", WS),
-    ("PET.WOCLEUS2.W", WS),
-    ("PET.WPULEUS3.W", WS),
-    ("PET.W_EPOOXE_YOP_NUS_MBBLD.W", WS),
+    ("PET.WCRFPUS2.W", WS, F),
+    ("PET.WCRRIUS2.W", WS, F),
+    ("PET.WGIRIUS2.W", WS, F),
+    ("PET.WOCLEUS2.W", WS, C),
+    ("PET.WPULEUS3.W", WS, R),
+    ("PET.W_EPOOXE_YOP_NUS_MBBLD.W", WS, F),
     // Weekly refiner and blender net production.
-    ("PET.WGFRPUS2.W", WS),
-    ("PET.WKJRPUS2.W", WS),
-    ("PET.WDIRPUS2.W", WS),
-    ("PET.WRERPUS2.W", WS),
-    ("PET.WPRTP_NUS_2.W", WS),
+    ("PET.WGFRPUS2.W", WS, F),
+    ("PET.WKJRPUS2.W", WS, F),
+    ("PET.WDIRPUS2.W", WS, F),
+    ("PET.WRERPUS2.W", WS, F),
+    ("PET.WPRTP_NUS_2.W", WS, F),
     // Weekly imports, exports and net imports.
-    ("PET.WTTIMUS2.W", WS),
-    ("PET.WCRIMUS2.W", WS),
-    ("PET.WCEIMUS2.W", WS),
-    ("PET.WCSIMUS2.W", WS),
-    ("PET.WRPIMUS2.W", WS),
-    ("PET.WGTIMUS2.W", WS),
-    ("PET.WKJIMUS2.W", WS),
-    ("PET.WDIIMUS2.W", WS),
-    ("PET.WREIMUS2.W", WS),
-    ("PET.WPRIM_NUS-Z00_2.W", WS),
-    ("PET.WTTEXUS2.W", WS),
-    ("PET.WCREXUS2.W", WS),
-    ("PET.WRPEXUS2.W", WS),
-    ("PET.W_EPM0F_EEX_NUS-Z00_MBBLD.W", WS),
-    ("PET.WKJEXUS2.W", WS),
-    ("PET.WDIEXUS2.W", WS),
-    ("PET.WREEXUS2.W", WS),
-    ("PET.W_EPLLPZ_EEX_NUS-Z00_MBBLD.W", WS),
-    ("PET.WTTNTUS2.W", WS),
-    ("PET.WCRNTUS2.W", WS),
-    ("PET.WRPNTUS2.W", WS),
+    ("PET.WTTIMUS2.W", WS, F),
+    ("PET.WCRIMUS2.W", WS, F),
+    ("PET.WCEIMUS2.W", WS, F),
+    ("PET.WCSIMUS2.W", WS, F),
+    ("PET.WRPIMUS2.W", WS, F),
+    ("PET.WGTIMUS2.W", WS, F),
+    ("PET.WKJIMUS2.W", WS, F),
+    ("PET.WDIIMUS2.W", WS, F),
+    ("PET.WREIMUS2.W", WS, F),
+    ("PET.WPRIM_NUS-Z00_2.W", WS, F),
+    ("PET.WTTEXUS2.W", WS, F),
+    ("PET.WCREXUS2.W", WS, F),
+    ("PET.WRPEXUS2.W", WS, F),
+    ("PET.W_EPM0F_EEX_NUS-Z00_MBBLD.W", WS, F),
+    ("PET.WKJEXUS2.W", WS, F),
+    ("PET.WDIEXUS2.W", WS, F),
+    ("PET.WREEXUS2.W", WS, F),
+    ("PET.W_EPLLPZ_EEX_NUS-Z00_MBBLD.W", WS, F),
+    ("PET.WTTNTUS2.W", WS, F),
+    ("PET.WCRNTUS2.W", WS, F),
+    ("PET.WRPNTUS2.W", WS, F),
     // Weekly product supplied.
-    ("PET.WRPUPUS2.W", WS),
-    ("PET.WGFUPUS2.W", WS),
-    ("PET.WKJUPUS2.W", WS),
-    ("PET.WDIUPUS2.W", WS),
-    ("PET.WREUPUS2.W", WS),
-    ("PET.WPRUP_NUS_2.W", WS),
-    ("PET.WWOUP_NUS_2.W", WS),
+    ("PET.WRPUPUS2.W", WS, F),
+    ("PET.WGFUPUS2.W", WS, F),
+    ("PET.WKJUPUS2.W", WS, F),
+    ("PET.WDIUPUS2.W", WS, F),
+    ("PET.WREUPUS2.W", WS, F),
+    ("PET.WPRUP_NUS_2.W", WS, F),
+    ("PET.WWOUP_NUS_2.W", WS, F),
     // Weekly working gas in underground storage (EIA-912).
-    ("NG.NW2_EPG0_SWO_R48_BCF.W", WG),
-    ("NG.NW2_EPG0_SWO_R31_BCF.W", WG),
-    ("NG.NW2_EPG0_SWO_R32_BCF.W", WG),
-    ("NG.NW2_EPG0_SWO_R34_BCF.W", WG),
-    ("NG.NW2_EPG0_SWO_R35_BCF.W", WG),
-    ("NG.NW2_EPG0_SWO_R33_BCF.W", WG),
-    ("NG.NW2_EPG0_SSO_R33_BCF.W", WG),
-    ("NG.NW2_EPG0_SNO_R33_BCF.W", WG),
+    ("NG.NW2_EPG0_SWO_R48_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SWO_R31_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SWO_R32_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SWO_R34_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SWO_R35_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SWO_R33_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SSO_R33_BCF.W", WG, S),
+    ("NG.NW2_EPG0_SNO_R33_BCF.W", WG, S),
     // Weekly retail gasoline (EIA-878), United States.
-    ("PET.EMM_EPM0_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPM0U_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPM0R_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMRU_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMRR_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMM_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMMU_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMMR_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMP_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMPU_PTE_NUS_DPG.W", WR),
-    ("PET.EMM_EPMPR_PTE_NUS_DPG.W", WR),
+    ("PET.EMM_EPM0_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPM0U_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPM0R_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMRU_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMRR_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMM_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMMU_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMMR_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMP_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMPU_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMM_EPMPR_PTE_NUS_DPG.W", WR, P),
     // Weekly retail regular gasoline by PADD region.
-    ("PET.EMM_EPMR_PTE_R10_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R1X_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R1Y_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R1Z_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R20_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R30_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R40_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R50_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_R5XCA_DPG.W", WR),
-    ("PET.EMM_EPMR_PTE_SCA_DPG.W", WR),
+    ("PET.EMM_EPMR_PTE_R10_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R1X_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R1Y_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R1Z_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R20_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R30_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R40_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R50_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_R5XCA_DPG.W", WR, P),
+    ("PET.EMM_EPMR_PTE_SCA_DPG.W", WR, P),
     // Weekly retail on-highway diesel (EIA-888), United States and PADDs.
-    ("PET.EMD_EPD2D_PTE_NUS_DPG.W", WR),
-    ("PET.EMD_EPD2DXL0_PTE_NUS_DPG.W", WR),
-    ("PET.EMD_EPD2DM10_PTE_NUS_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R10_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R1X_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R1Y_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R1Z_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R20_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R30_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R40_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R50_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_R5XCA_DPG.W", WR),
-    ("PET.EMD_EPD2D_PTE_SCA_DPG.W", WR),
+    ("PET.EMD_EPD2D_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMD_EPD2DXL0_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMD_EPD2DM10_PTE_NUS_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R10_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R1X_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R1Y_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R1Z_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R20_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R30_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R40_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R50_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_R5XCA_DPG.W", WR, P),
+    ("PET.EMD_EPD2D_PTE_SCA_DPG.W", WR, P),
     // Weekly residential heating oil and propane (residential only; the
     // wholesale series beside them are OPIS quotes and excluded).
-    ("PET.W_EPD2F_PRS_NUS_DPG.W", RH),
-    ("PET.W_EPLLPA_PRS_NUS_DPG.W", RH),
+    ("PET.W_EPD2F_PRS_NUS_DPG.W", RH, P),
+    ("PET.W_EPLLPA_PRS_NUS_DPG.W", RH, P),
     // Monthly crude oil production.
-    ("PET.MCRFPUS1.M", MS),
-    ("PET.MCRFPP11.M", MS),
-    ("PET.MCRFPP21.M", MS),
-    ("PET.MCRFPP31.M", MS),
-    ("PET.MCRFPP41.M", MS),
-    ("PET.MCRFPP51.M", MS),
-    ("PET.MCRFPTX1.M", MS),
-    ("PET.MCRFPND1.M", MS),
-    ("PET.MCRFPNM1.M", MS),
-    ("PET.MCRFP3FM1.M", MS),
-    ("PET.MCRFPAK1.M", MS),
+    ("PET.MCRFPUS1.M", MS, F),
+    ("PET.MCRFPP11.M", MS, F),
+    ("PET.MCRFPP21.M", MS, F),
+    ("PET.MCRFPP31.M", MS, F),
+    ("PET.MCRFPP41.M", MS, F),
+    ("PET.MCRFPP51.M", MS, F),
+    ("PET.MCRFPTX1.M", MS, F),
+    ("PET.MCRFPND1.M", MS, F),
+    ("PET.MCRFPNM1.M", MS, F),
+    ("PET.MCRFP3FM1.M", MS, F),
+    ("PET.MCRFPAK1.M", MS, F),
     // Monthly natural gas supply and disposition.
-    ("NG.N9070US2.M", MS),
-    ("NG.N9140US2.M", MS),
-    ("NG.N5050US2.M", MS),
-    ("NG.N5060US2.M", MS),
+    ("NG.N9070US2.M", MS, F),
+    ("NG.N9140US2.M", MS, F),
+    ("NG.N5050US2.M", MS, F),
+    ("NG.N5060US2.M", MS, F),
     // Monthly refiner motor gasoline prices by grade and sales type.
-    ("PET.EMA_EPM0_PTG_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_PTR_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_POR_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_PWG_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_PDR_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_PRG_NUS_DPG.M", MP),
-    ("PET.EMA_EPM0_PBR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PTG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PTR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_POR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PWG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PDR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PRG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMR_PBR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PTG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PTR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_POR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PWG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PDR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PRG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMM_PBR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PTG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PTR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_POR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PWG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PDR_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PRG_NUS_DPG.M", MP),
-    ("PET.EMA_EPMP_PBR_NUS_DPG.M", MP),
+    ("PET.EMA_EPM0_PTG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_PTR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_POR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_PWG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_PDR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_PRG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPM0_PBR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PTG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PTR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_POR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PWG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PDR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PRG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMR_PBR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PTG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PTR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_POR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PWG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PDR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PRG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMM_PBR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PTG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PTR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_POR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PWG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PDR_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PRG_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPMP_PBR_NUS_DPG.M", MP, P),
     // Monthly refiner No. 2 distillate and No. 2 diesel prices.
-    ("PET.EMA_EPD2_PTA_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_PRT_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_PCS_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_PIN_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_PTC_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_POA_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2_PWA_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_PTA_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_PCS_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_PIN_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_PTC_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_POA_NUS_DPG.M", MP),
-    ("PET.EMA_EPD2D_PWA_NUS_DPG.M", MP),
+    ("PET.EMA_EPD2_PTA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_PRT_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_PCS_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_PIN_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_PTC_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_POA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2_PWA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_PTA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_PCS_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_PIN_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_PTC_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_POA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPD2D_PWA_NUS_DPG.M", MP, P),
     // Monthly refiner propane (consumer grade) prices.
-    ("PET.EMA_EPLLPA_PTA_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PRT_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PCS_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PIN_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PTC_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PPL_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_POA_NUS_DPG.M", MP),
-    ("PET.EMA_EPLLPA_PWA_NUS_DPG.M", MP),
+    ("PET.EMA_EPLLPA_PTA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PRT_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PCS_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PIN_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PTC_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PPL_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_POA_NUS_DPG.M", MP, P),
+    ("PET.EMA_EPLLPA_PWA_NUS_DPG.M", MP, P),
     // Monthly domestic crude oil first purchase prices.
-    ("PET.F000000__3.M", MP),
-    ("PET.F001000__3.M", MP),
-    ("PET.F002000__3.M", MP),
-    ("PET.F003000__3.M", MP),
-    ("PET.F004000__3.M", MP),
-    ("PET.F005000__3.M", MP),
-    ("PET.F002038__3.M", MP),
-    ("PET.F002040__3.M", MP),
-    ("PET.F003048__3.M", MP),
-    ("PET.F005071__3.M", MP),
+    ("PET.F000000__3.M", MP, P),
+    ("PET.F001000__3.M", MP, P),
+    ("PET.F002000__3.M", MP, P),
+    ("PET.F003000__3.M", MP, P),
+    ("PET.F004000__3.M", MP, P),
+    ("PET.F005000__3.M", MP, P),
+    ("PET.F002038__3.M", MP, P),
+    ("PET.F002040__3.M", MP, P),
+    ("PET.F003048__3.M", MP, P),
+    ("PET.F005071__3.M", MP, P),
     // Monthly refiner acquisition cost of imported crude oil.
-    ("PET.R1300____3.M", MP),
+    ("PET.R1300____3.M", MP, P),
     // Monthly natural gas city-gate and end-use prices.
-    ("NG.N3050US3.M", MP),
-    ("NG.N3010US3.M", MP),
-    ("NG.N3020US3.M", MP),
-    ("NG.N3035US3.M", MP),
-    ("NG.N3045US3.M", MP),
+    ("NG.N3050US3.M", MP, P),
+    ("NG.N3010US3.M", MP, P),
+    ("NG.N3020US3.M", MP, P),
+    ("NG.N3035US3.M", MP, P),
+    ("NG.N3045US3.M", MP, P),
 ];
 
 /// Series ID prefixes of the excluded families: the spot and futures
@@ -382,14 +394,58 @@ pub fn is_excluded_family(id: &str) -> bool {
 /// excluded family.
 #[must_use]
 pub fn family(id: &str) -> Option<Family> {
+    entry(id).map(|(f, _)| f)
+}
+
+/// The admitted family and measure of `id`, if it is on the allowlist and
+/// not in an excluded family.
+#[must_use]
+pub fn entry(id: &str) -> Option<(Family, ReferenceMeasure)> {
     if is_excluded_family(id) {
         return None;
     }
-    static INDEX: OnceLock<HashMap<&'static str, Family>> = OnceLock::new();
+    static INDEX: OnceLock<HashMap<&'static str, (Family, ReferenceMeasure)>> = OnceLock::new();
     INDEX
-        .get_or_init(|| ALLOWLIST.iter().copied().collect())
+        .get_or_init(|| ALLOWLIST.iter().map(|&(id, f, m)| (id, (f, m))).collect())
         .get(id)
         .copied()
+}
+
+/// The unit of a bulk series' `units` text (ADR 0023), for the volume
+/// families: thousand barrels, thousand barrels per day (or per calendar
+/// day, as capacity is stated), barrels, million and billion cubic feet,
+/// and percent. Matching ignores case and surrounding space; anything else
+/// is `None`.
+#[must_use]
+pub fn quantity_unit(units: &str) -> Option<QuantityUnit> {
+    let u = units.trim().to_ascii_lowercase();
+    Some(match u.as_str() {
+        "barrels" => QuantityUnit::Barrels,
+        "thousand barrels" => QuantityUnit::ThousandBarrels,
+        "thousand barrels per day" | "thousand barrels per calendar day" => {
+            QuantityUnit::ThousandBarrelsPerDay
+        }
+        "million cubic feet" => QuantityUnit::MillionCubicFeet,
+        "billion cubic feet" => QuantityUnit::BillionCubicFeet,
+        "percent" => QuantityUnit::Percent,
+        _ => return None,
+    })
+}
+
+/// True if `unit` fits `measure` for an EIA volume series: a ratio is in
+/// percent and nothing else is; a stock is never per day, and a flow over
+/// a week is (EIA states weekly flows as daily averages); a capacity is
+/// per day.
+#[must_use]
+pub fn unit_fits(measure: ReferenceMeasure, unit: QuantityUnit, weekly: bool) -> bool {
+    match measure {
+        ReferenceMeasure::Ratio => unit == QuantityUnit::Percent,
+        _ if unit == QuantityUnit::Percent => false,
+        ReferenceMeasure::Stock => !unit.is_per_day(),
+        ReferenceMeasure::Flow => !weekly || unit.is_per_day(),
+        ReferenceMeasure::Capacity => unit.is_per_day(),
+        _ => false,
+    }
 }
 
 /// True if a `copyright` or `source` text credits a third party: any
@@ -557,7 +613,7 @@ fn read_series(dataset: Dataset, line: &str, scope: Scope, out: &mut Parsed) {
         out.skip("excluded");
         return;
     }
-    let Some(fam) = family(id) else {
+    let Some((fam, measure)) = entry(id) else {
         out.skip("out_of_scope");
         return;
     };
@@ -581,19 +637,26 @@ fn read_series(dataset: Dataset, line: &str, scope: Scope, out: &mut Parsed) {
         out.skip("malformed");
         return;
     }
-    if !fam.is_price() {
-        out.skip("unsupported_volume");
-        return;
-    }
-    if !s
-        .units
-        .as_deref()
-        .is_some_and(|u| u.to_ascii_lowercase().contains("dollar"))
-    {
+    // Prices are in dollars; a quantity's unit text must map to the
+    // vocabulary and fit the series' measure (ADR 0023).
+    let unit = if fam.is_price() {
+        let dollars = s
+            .units
+            .as_deref()
+            .is_some_and(|u| u.to_ascii_lowercase().contains("dollar"));
+        dollars.then_some(None)
+    } else {
+        s.units
+            .as_deref()
+            .and_then(quantity_unit)
+            .filter(|&u| unit_fits(measure, u, weekly))
+            .map(Some)
+    };
+    let Some(unit) = unit else {
         out.unknown.insert(format!("units:{id}"));
         out.skip("malformed");
         return;
-    }
+    };
     let published_ms = if scope.live {
         s.last_updated.as_deref().and_then(parse_updated)
     } else {
@@ -616,7 +679,10 @@ fn read_series(dataset: Dataset, line: &str, scope: Scope, out: &mut Parsed) {
         };
         match parsed {
             Ok(Some(v)) => {
-                let mut r = RefObs::usd_price(series.clone(), v, date);
+                let mut r = match unit {
+                    Some(u) => RefObs::quantity(series.clone(), measure, v, u, date),
+                    None => RefObs::usd_price(series.clone(), v, date),
+                };
                 r.exchange_referenced = fam.exchange_referenced();
                 r.published_ms = published_ms;
                 out.obs.push(Obs::Ref(r));
@@ -781,9 +847,19 @@ mod tests {
     #[test]
     fn allowlist_never_meets_the_excluded_families() {
         let mut seen = std::collections::BTreeSet::new();
-        for (id, fam) in ALLOWLIST {
+        for (id, fam, measure) in ALLOWLIST {
             assert!(!is_excluded_family(id), "{id}");
             assert!(seen.insert(*id), "duplicate {id}");
+            // Price families hold prices, volume families quantities.
+            assert_eq!(fam.is_price(), *measure == ReferenceMeasure::Price, "{id}");
+            assert_eq!(!fam.is_price(), measure.is_quantity(), "{id}");
+            if *fam == Family::WeeklyStorage {
+                assert_eq!(*measure, ReferenceMeasure::Stock, "{id}");
+            }
+            if *fam == Family::MonthlySupply {
+                assert_eq!(*measure, ReferenceMeasure::Flow, "{id}");
+            }
+            assert_eq!(entry(id), Some((*fam, *measure)));
             assert!(id.starts_with("PET.") || id.starts_with("NG."), "{id}");
             let weekly = matches!(
                 fam,
@@ -810,6 +886,57 @@ mod tests {
             assert!(is_excluded_family(id), "{id}");
             assert_eq!(family(id), None, "{id}");
         }
+    }
+
+    #[test]
+    fn units_map_to_the_vocabulary_and_fit_the_measure() {
+        use QuantityUnit as U;
+        assert_eq!(quantity_unit("Thousand Barrels"), Some(U::ThousandBarrels));
+        assert_eq!(
+            quantity_unit(" thousand barrels per day "),
+            Some(U::ThousandBarrelsPerDay)
+        );
+        assert_eq!(
+            quantity_unit("Thousand Barrels per Calendar Day"),
+            Some(U::ThousandBarrelsPerDay)
+        );
+        assert_eq!(
+            quantity_unit("Billion Cubic Feet"),
+            Some(U::BillionCubicFeet)
+        );
+        assert_eq!(
+            quantity_unit("Million Cubic Feet"),
+            Some(U::MillionCubicFeet)
+        );
+        assert_eq!(quantity_unit("Percent"), Some(U::Percent));
+        for t in [
+            "",
+            "Thousand Barrels per Stream Day",
+            "Dollars per Gallon",
+            "Mbbl",
+            "Thousand Cubic Feet",
+        ] {
+            assert_eq!(quantity_unit(t), None, "{t:?}");
+        }
+        use ReferenceMeasure as M;
+        assert!(unit_fits(M::Stock, U::ThousandBarrels, true));
+        assert!(!unit_fits(M::Stock, U::ThousandBarrelsPerDay, true));
+        assert!(unit_fits(M::Flow, U::ThousandBarrelsPerDay, true));
+        assert!(
+            !unit_fits(M::Flow, U::ThousandBarrels, true),
+            "weekly flows are per day"
+        );
+        assert!(
+            unit_fits(M::Flow, U::ThousandBarrels, false),
+            "monthly totals"
+        );
+        assert!(unit_fits(M::Flow, U::MillionCubicFeet, false));
+        assert!(unit_fits(M::Capacity, U::ThousandBarrelsPerDay, true));
+        assert!(!unit_fits(M::Capacity, U::Percent, true));
+        assert!(unit_fits(M::Ratio, U::Percent, true));
+        assert!(!unit_fits(M::Ratio, U::ThousandBarrels, true));
+        assert!(!unit_fits(M::Stock, U::Percent, true));
+        assert!(!unit_fits(M::Price, U::Usd, true));
     }
 
     #[test]

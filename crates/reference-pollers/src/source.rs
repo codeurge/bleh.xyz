@@ -146,9 +146,10 @@ impl SourceId {
             Self::UsdaDairy => (2000, 1, 1),
             Self::UsdaFeeder => return None,
             Self::Ercot => (2010, 1, 1),
-            // The earliest admitted price series (crude first purchase
-            // prices, monthly); volumes start earlier but are not emitted.
-            Self::Eia => (1974, 1, 1),
+            // The earliest admitted series: monthly crude oil production
+            // (a quantity, ADR 0023). The earliest price series (crude
+            // first purchase prices) starts in 1974.
+            Self::Eia => (1920, 1, 1),
             Self::Bls => (1913, 1, 1),
         };
         Date::new(y, m, d)

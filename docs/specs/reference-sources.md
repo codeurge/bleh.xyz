@@ -307,6 +307,11 @@ publish an OpenAPI 3.0 spec at
 - SOFRAI records hold `effectiveDate`, `type`, `average30day`,
   `average90day`, `average180day`, `index` and `revisionIndicator`.
 
+**Emitted volumes.** `volumeInBillions` (admitted, ADM-0007) is emitted as
+`nyfed:ref:<RATE>.VOLUME`, measure `flow`, unit `billion_usd`, the number as
+published ([ADR 0023](../decisions/0023-reference-quantities.md)). It
+carries the rate's notice.
+
 **Schedule (business days, NY Fed holiday calendar):**
 
 - SOFR, BGCR and TGCR at about 8:00 a.m. ET.
@@ -488,6 +493,16 @@ rather than hard-coding times.
 - Formula, forward, export, specialty and comprehensive pork reports
   (2504–2509, 2680, 2681, 2702, 2703) are polled for volumes only.
 
+**Emitted volumes** (ADM-0010 admits volumes for every purchase type;
+[ADR 0023](../decisions/0023-reference-quantities.md)): `head_count` of
+every known purchase type in 2511 `Barrows/Gilts` (including the types
+whose prices are excluded and the aggregates, under the codes
+`OTHER_MARKET_FORMULA`, `OTHER_PURCHASE_ARRANGEMENT`, `PRODUCER_SOLD_ALL`,
+`PACKER_SOLD_ALL` and `PACKER_OWNED`) as `LM_HG201.<TYPE>.head_count`, and
+of every 2466 `Detail` row as `LM_CT100.<...>.head_count`: measure `flow`,
+unit `head`, no flag. An unknown purchase type is dropped whole. Weights
+and carcass measurements are admitted but not yet emitted.
+
 ## USDA AMS dairy
 
 Admission: [ADM-0011](../admissions/ADM-0011-usda-dairy-ndpsr-and-class-prices.md).
@@ -517,6 +532,13 @@ Mandatory Reporting Program data it holds. Pollers record the first date
 returned.
 
 **Flags.** Every price field carries `exchange_referenced`.
+
+**Emitted volumes** ([ADR 0023](../decisions/0023-reference-quantities.md)):
+the NDPSR `*_Sales` fields as `NDPSR.<field>`, measure `flow`, unit
+`pounds` (the week's sales), and `cheese_500_Wtd_Mst` (and
+`cheese_500_Mst` where present) as measure `ratio`, unit `percent`
+(moisture content). Admitted by ADM-0011; not prices, so no flag. Revised
+like the prices (`Final` sections).
 
 ## USDA AMS Market News feeder cattle
 
@@ -554,6 +576,11 @@ as linked from:
 Pollers parse the tables and drop narrative paragraphs, which quote futures
 moves. They drop any line the report labels basis, futures or formula
 priced.
+
+**Emitted volumes** ([ADR 0023](../decisions/0023-reference-quantities.md)):
+each kept sale row's head count (admitted, ADM-0012) as
+`LS850.<...>.head_count`, measure `flow`, unit `head`. A dropped row is
+dropped whole, head count included. Receipts are not read.
 
 **Freshness.** On 2026-11-12 `sj_ls850.txt` still carried a report dated
 2026-04-06. Pollers must check each file's report date and alert on stale
@@ -688,9 +715,20 @@ of series IDs taken from those tables (`crates/reference-pollers/src/sources/eia
 | Crude oil first purchase prices | Monthly first purchase survey | `pet_pri_dfp1_k_m` (`F<area>__3`) | Prices, `exchange_referenced` |
 | Refiner acquisition cost of imported crude | Monthly refiner survey | `pet_pri_rac2_dcu_nus_m` (`R1300____3` only) | Prices, `exchange_referenced` |
 | Natural gas city-gate and end-use prices | Monthly natural gas surveys | `ng_pri_sum_dcu_nus_m` (`N3050US3`, `N3010US3`, `N3020US3`, `N3035US3`, `N3045US3`) | Prices, `exchange_referenced` |
-| Weekly petroleum supply, stocks (including Cushing), inputs, utilisation, production, imports, exports | EIA-800 to EIA-805, EIA-814 | `pet_sum_sndw_dcus_nus_w`, `pet_stoc_wstk_dcu_nus_w`, `pet_stoc_wstk_a_epc0_sax_mbbl_w`, `pet_pnp_wiup_dcu_nus_w` | No: volumes |
-| Weekly natural gas storage by region | EIA-912 | `ng_stor_wkly_s1_w` (`NW2_EPG0_S*O_R*_BCF`) | No: volumes |
-| Monthly supply and disposition | Petroleum Supply Monthly, Natural Gas Monthly | `pet_crd_crpdn_adc_mbbl_m`, `ng_sum_snd_dcu_nus_m` | No: volumes |
+| Weekly petroleum supply, stocks (including Cushing), inputs, utilisation, production, imports, exports | EIA-800 to EIA-805, EIA-814 | `pet_sum_sndw_dcus_nus_w`, `pet_stoc_wstk_dcu_nus_w`, `pet_stoc_wstk_a_epc0_sax_mbbl_w`, `pet_pnp_wiup_dcu_nus_w` | Quantities: stocks as `stock` in `thousand_barrels`; inputs, production, imports, exports and product supplied as `flow` in `thousand_barrels_per_day`; operable capacity (`WOCLEUS2`) as `capacity` in `thousand_barrels_per_day`; utilisation (`WPULEUS3`) as `ratio` in `percent` |
+| Weekly natural gas storage by region | EIA-912 | `ng_stor_wkly_s1_w` (`NW2_EPG0_S*O_R*_BCF`) | Quantities: `stock` in `billion_cubic_feet` |
+| Monthly supply and disposition | Petroleum Supply Monthly, Natural Gas Monthly | `pet_crd_crpdn_adc_mbbl_m`, `ng_sum_snd_dcu_nus_m` (`N9070US2` dry production, `N9140US2` consumption, `N5050US2` injections, `N5060US2` withdrawals) | Quantities: `flow` (the month's total) in `thousand_barrels` or `million_cubic_feet` |
+
+**Quantities** ([ADR 0023](../decisions/0023-reference-quantities.md)).
+Each allowlisted volume series names its measure. The unit comes from the
+series' `units` text: `Thousand Barrels`, `Thousand Barrels per Day`,
+`Thousand Barrels per Calendar Day` (capacity), `Barrels`, `Million Cubic
+Feet`, `Billion Cubic Feet` and `Percent`, matched without case. Any other
+text, or a unit that does not fit the measure (a stock per day, a weekly
+flow not per day, a ratio not in percent), drops the series and reports
+`units:<id>`. Values are carried as published, never rescaled, and carry
+no flag (ADM-0021 check 3 flags the monthly survey prices only). Excluded
+families and vendor-credited series are dropped first, as for prices.
 
 **Excluded families** (ADM-0021; never read, whatever the metadata says):
 
@@ -717,8 +755,8 @@ March); natural gas storage Thursday 10:30 a.m. ET; the monthly
 publications near the end or start of each month. Monthly prices are
 revised for several months.
 
-**History.** Varies by series: crude first purchase prices from 1974,
-refiner prices from 1983, retail gasoline from 1990, diesel from 1994.
+**History.** Varies by series: monthly crude oil production from 1920 (the backfill start), crude first purchase prices from 1974,
+refiner prices from 1983, weekly stocks from 1982, retail gasoline from 1990, diesel from 1994.
 
 **Limits and keys.** None for the bulk files; each changed file is
 downloaded whole.

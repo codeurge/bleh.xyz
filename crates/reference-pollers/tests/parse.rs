@@ -6,7 +6,7 @@
 mod common;
 
 use common::{fixture, flagged, live, records, symbols, value_of, zip_of};
-use mesh_types::{Compounding, DayCount, Record, ReferenceMeasure};
+use mesh_types::{Compounding, DayCount, QuantityUnit, Record, ReferenceMeasure};
 use reference_pollers::obs::Stamp;
 use reference_pollers::source::SourceId;
 use reference_pollers::sources::cot::{CotReader, Form};
@@ -81,15 +81,43 @@ fn nyfed_rates_parse_with_conventions() {
 }
 
 #[test]
-fn nyfed_malformed_rows_are_skipped_and_volumes_never_emitted() {
+fn nyfed_malformed_rows_are_skipped_and_volumes_are_quantities() {
     let p = nyfed::parse_rates(&fixture("nyfed/obfr.json")).unwrap();
     assert_eq!(p.skipped.get("malformed"), Some(&1));
-    assert!(p.skipped.get("unsupported_volume").copied().unwrap_or(0) > 0);
+    assert_eq!(p.skipped.get("unsupported_volume"), None);
     let recs = records(SourceId::NyFed, p, live());
     for r in &recs {
         let s = r.prov().instrument.symbol().to_ascii_lowercase();
-        assert!(!s.contains("volume") && !s.contains("undocumented"), "{s}");
+        assert!(!s.contains("undocumented"), "{s}");
+        // Only the volume series is a quantity; every rate keeps no unit.
+        assert_eq!(rv(r).unit.is_some(), s.ends_with(".volume"), "{s}");
     }
+    // volumeInBillions (ADM-0007, admitted) is a flow in billions of US
+    // dollars, as published (ADR 0023).
+    let vol = find(&recs, "OBFR.VOLUME", "2026-03-16");
+    assert_eq!(vol.len(), 1);
+    let v = rv(vol[0]);
+    assert_eq!(v.measure, ReferenceMeasure::Flow);
+    assert_eq!(v.unit, Some(QuantityUnit::BillionUsd));
+    assert_eq!(value_of(vol[0]), "2105");
+    assert_eq!((v.currency.as_deref(), v.tenor.as_deref()), (None, None));
+    assert_eq!((v.compounding, v.day_count), (None, None));
+    assert!(!flagged(vol[0]));
+    let sofr = records(
+        SourceId::NyFed,
+        nyfed::parse_rates(&fixture("nyfed/secured_all.json")).unwrap(),
+        live(),
+    );
+    for s in ["SOFR.VOLUME", "BGCR.VOLUME", "TGCR.VOLUME"] {
+        assert_eq!(find(&sofr, s, "2026-03-16").len(), 1, "{s}");
+    }
+    // The SOFR averages and index carry no volume.
+    let sofrai = records(
+        SourceId::NyFed,
+        nyfed::parse_rates(&fixture("nyfed/sofrai.json")).unwrap(),
+        live(),
+    );
+    assert!(sofrai.iter().all(|r| rv(r).unit.is_none()));
     assert!(nyfed::parse_rates(b"{\"other\":[]}").is_err());
     assert!(nyfed::parse_rates(b"not json").is_err());
 }
@@ -455,13 +483,40 @@ fn lmr_swine_purchase_types_and_flags() {
             .contains("purchase_type:Prod. Sold Example New Type")
     );
     let recs = records(SourceId::UsdaLmr, p, live());
-    assert_eq!(recs.len(), 16);
-    for r in &recs {
+    // 16 prices (four admitted types) and 9 head counts (every known type).
+    assert_eq!(recs.len(), 25);
+    let (heads, prices): (Vec<&Record>, Vec<&Record>) = recs
+        .iter()
+        .partition(|r| r.prov().instrument.symbol().ends_with(".head_count"));
+    assert_eq!((prices.len(), heads.len()), (16, 9));
+    for r in &prices {
         let s = r.prov().instrument.symbol();
+        assert_eq!(rv(r).unit, None, "{s}");
         assert_eq!(flagged(r), !s.starts_with("LM_HG201.NEGOTIATED."), "{s}");
         for banned in ["OTHER", "PACKER", "ALL", "wtd_avg", "EXAMPLE"] {
             assert!(!s.contains(banned), "{s}");
         }
+    }
+    // Volumes are admitted for every purchase type, the excluded-price
+    // types and aggregates included; never flagged; the unknown type is
+    // still dropped whole.
+    for r in &heads {
+        let s = r.prov().instrument.symbol();
+        let v = rv(r);
+        assert_eq!(v.measure, ReferenceMeasure::Flow, "{s}");
+        assert_eq!(v.unit, Some(QuantityUnit::Head), "{s}");
+        assert_eq!(value_of(r), "5123", "{s}");
+        assert!(!flagged(r), "{s}");
+        assert!(!s.contains("EXAMPLE"), "{s}");
+    }
+    for s in [
+        "LM_HG201.NEGOTIATED.head_count",
+        "LM_HG201.COMBINED.head_count",
+        "LM_HG201.OTHER_MARKET_FORMULA.head_count",
+        "LM_HG201.PACKER_OWNED.head_count",
+        "LM_HG201.PRODUCER_SOLD_ALL.head_count",
+    ] {
+        assert_eq!(find(&recs, s, "2026-03-10").len(), 1, "{s}");
     }
     let base = rv(find(&recs, "LM_HG201.NEGOTIATED.base_price", "2026-03-10")[0]);
     assert_eq!(
@@ -490,11 +545,20 @@ fn lmr_cattle_negotiated_detail() {
     let p = lmr::parse_cattle(&fixture("lmr/2466.json")).unwrap();
     assert_eq!(p.skipped.get("out_of_scope"), Some(&1));
     let recs = records(SourceId::UsdaLmr, p, live());
-    assert_eq!(recs.len(), 6);
+    assert_eq!(recs.len(), 8, "six prices and two head counts");
     assert!(recs.iter().all(|r| !flagged(r)));
     assert!(symbols(&recs).contains(
         &"LM_CT100.STEER.LIVE_FOB.OVER_80_CHOICE.1350_1600.weighted_avg_price".to_owned()
     ));
+    let head = find(
+        &recs,
+        "LM_CT100.STEER.LIVE_FOB.OVER_80_CHOICE.1350_1600.head_count",
+        "2026-03-10",
+    );
+    assert_eq!(head.len(), 1);
+    assert_eq!(value_of(head[0]), "1234", "thousands separator removed");
+    assert_eq!(rv(head[0]).unit, Some(QuantityUnit::Head));
+    assert_eq!(rv(head[0]).measure, ReferenceMeasure::Flow);
 }
 
 // ----- USDA dairy -------------------------------------------------------------
@@ -503,27 +567,41 @@ fn lmr_cattle_negotiated_detail() {
 fn dairy_prices_flagged_and_exchange_quotes_excluded() {
     let p = dairy::parse_ndpsr(&fixture("dairy/2993.json")).unwrap();
     assert_eq!(p.skipped.get("excluded"), Some(&1), "the CME-named field");
-    assert!(p.skipped.get("unsupported_volume").copied().unwrap_or(0) >= 6);
+    assert_eq!(p.skipped.get("unsupported_volume"), None);
     // The Final section comes last, after the initial values.
     assert!(
         matches!(p.obs.last(), Some(reference_pollers::obs::Obs::Ref(r)) if r.as_of.to_string() == "2026-02-28")
     );
     let recs = records(SourceId::UsdaDairy, p, live());
-    assert_eq!(recs.len(), 7);
-    assert!(
-        recs.iter().all(flagged),
-        "every NDPSR price is exchange_referenced"
-    );
+    // 7 prices, 6 sales volumes and 1 moisture content.
+    assert_eq!(recs.len(), 14);
     for r in &recs {
-        assert!(
-            !r.prov()
-                .instrument
-                .symbol()
-                .to_ascii_lowercase()
-                .contains("cme")
-        );
-        assert!(!r.prov().instrument.symbol().contains("Sales"));
+        let s = r.prov().instrument.symbol();
+        assert!(!s.to_ascii_lowercase().contains("cme"), "{s}");
+        let v = rv(r);
+        if s.ends_with("_Price") {
+            assert!(flagged(r), "every NDPSR price is exchange_referenced");
+            assert_eq!(v.unit, None);
+        } else if s.ends_with("_Sales") {
+            assert!(!flagged(r), "volumes are not prices: {s}");
+            assert_eq!(
+                (v.measure, v.unit),
+                (ReferenceMeasure::Flow, Some(QuantityUnit::Pounds))
+            );
+        } else {
+            assert_eq!(s, "NDPSR.cheese_500_Wtd_Mst");
+            assert!(!flagged(r));
+            assert_eq!(
+                (v.measure, v.unit),
+                (ReferenceMeasure::Ratio, Some(QuantityUnit::Percent))
+            );
+            assert_eq!(value_of(r), "34.85");
+        }
     }
+    assert_eq!(
+        value_of(find(&recs, "NDPSR.Butter_Sales", "2026-03-07")[0]),
+        "4123456"
+    );
     let c = dairy::parse_class(&fixture("dairy/2991.json")).unwrap();
     assert_eq!(c.skipped.get("excluded"), Some(&1));
     assert!(c.unknown.contains("example_undocumented_Price"));
@@ -549,8 +627,19 @@ fn feeder_rows_kept_narrative_and_basis_dropped() {
         "basis and futures rows"
     );
     let recs = records(SourceId::UsdaFeeder, p, live());
-    assert_eq!(recs.len(), 12);
+    assert_eq!(recs.len(), 16, "12 prices and 4 head counts");
     let syms = symbols(&recs);
+    let head = find(
+        &recs,
+        "LS850.STEERS.MEDIUM_AND_LARGE_1.500_600.head_count",
+        "2026-03-06",
+    );
+    assert_eq!(value_of(head[0]), "1250");
+    assert_eq!(
+        (rv(head[0]).measure, rv(head[0]).unit),
+        (ReferenceMeasure::Flow, Some(QuantityUnit::Head))
+    );
+    assert!(syms.contains(&"LS850.STEERS.MEDIUM_AND_LARGE_1.600_700.FLESHY.head_count".to_owned()));
     assert!(syms.contains(&"LS850.STEERS.MEDIUM_AND_LARGE_1.500_600.avg_price".to_owned()));
     assert!(syms.contains(&"LS850.STEERS.MEDIUM_AND_LARGE_1.600_700.FLESHY.price_low".to_owned()));
     assert!(syms.contains(&"LS850.HEIFERS.MEDIUM_AND_LARGE_1_2.400_500.price_high".to_owned()));

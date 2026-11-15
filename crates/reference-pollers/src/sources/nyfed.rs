@@ -13,15 +13,16 @@
 //! | `EFFR.TARGET_FROM`, `EFFR.TARGET_TO` | FOMC target range | rate, `ON`, simple act/360 |
 //! | `SOFR.AVG30`, `.AVG90`, `.AVG180` | SOFR averages | rate, `30D`/`90D`/`180D`, simple act/360 |
 //! | `SOFR.INDEX` | SOFR Index | index level |
+//! | `<RATE>.VOLUME` | `volumeInBillions` | flow in `billion_usd` (ADR 0023): the day's underlying transaction volume, as published |
 //!
-//! `volumeInBillions` is admitted but is a volume, which `reference_value`
-//! does not carry; it is counted as skipped. Revisions (same-day, after
-//! about 2:30 p.m. ET) arrive as changed values for a date already seen
-//! and become new revisions; live polls re-read the last ten days.
+//! Revisions (same-day, after about 2:30 p.m. ET, and the quarterly
+//! revisions of the summary statistics) arrive as changed values for a
+//! date already seen and become new revisions; live polls re-read the
+//! last ten days.
 
 use std::time::Duration;
 
-use mesh_types::{Compounding, DayCount, ReferenceMeasure};
+use mesh_types::{Compounding, DayCount, QuantityUnit, ReferenceMeasure};
 use serde_json::Value;
 
 use super::{Bases, ParseError, Parsed, Reader, Schedule, Target, WEEKDAYS};
@@ -206,9 +207,15 @@ pub fn parse_rates(body: &[u8]) -> Result<Parsed, ParseError> {
                 on_rate("EFFR.TARGET_TO".into(), p, date)
             });
         }
-        if obj.get("volumeInBillions").is_some_and(|v| !v.is_null()) {
-            out.skip("unsupported_volume");
-        }
+        emit(&mut out, "volumeInBillions", &|p| {
+            Obs::Ref(RefObs::quantity(
+                format!("{kind}.VOLUME"),
+                ReferenceMeasure::Flow,
+                p,
+                QuantityUnit::BillionUsd,
+                date,
+            ))
+        });
     }
     Ok(out)
 }
