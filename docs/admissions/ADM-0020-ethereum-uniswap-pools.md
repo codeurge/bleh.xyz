@@ -177,3 +177,7 @@ Admitted on 2026-11-15 by the repository owner for the fields and pools above,
 read only from the project's own Ethereum node as described in "How we
 read it". No public RPC endpoint or data provider is used. Ingestion
 starts when the node has its dedicated SSD (see "Where").
+
+Blocked (owner, 2026-11-15): no dedicated 2 TB SSD is available for now, so
+the node is not run and no reader is built. The admission stands; work
+resumes when the drive is funded.
