@@ -127,4 +127,24 @@ futures data, live and historical:
    - Next action: owner decisions on ADM-0020 to ADM-0022 and on the
      survey's policy questions (non-US public bodies under ADR 0012,
      notices on derived records); then draft the foreign overnight-rate
-     and inflation records (queue items 4 and 5)
+     and inflation records (queue items 4 and 5). ADM-0021 and ADM-0022
+     were admitted on 2026-11-15; their readers are task 7
+
+7. **eia-bls-readers**
+   - Status: In review
+   - Owner: reference-pollers lane
+   - Dependencies: task 4 (reference-pollers crate); ADM-0021 and ADM-0022
+     `Admitted`
+   - PR: branch `feat/eia-bls-readers` (the owner merges)
+   - Done: sources `eia` (bulk `PET.zip`, `NG.zip`; explicit series
+     allowlist; excluded families and vendor-credited series dropped;
+     weekly retail and residential prices; monthly survey prices flagged
+     `exchange_referenced`) and `bls` (`cu`, `cw`, `su`, `ap` data files;
+     index levels and average prices; seasonal and C-CPI-U revisions;
+     `--bls-areas`, default U.S. city average); notices; `--contact`
+     User-Agent address; access specification sections; runbook section;
+     compose variables; tests on synthetic fixtures
+   - Next action: owner merge and deploy, then a first `eia` and `bls`
+     backfill into `reference-backfill`. Open: EIA stocks, storage and
+     supply are admitted but not emitted until a record kind holds a
+     quantity (the same open point as task 4's volumes; needs an ADR)

@@ -438,9 +438,12 @@ services:
     <<: *bleh-service
     profiles: [home-archive]
     image: ${BLEH_REGISTRY:-bleh}/reference-pollers:${BLEH_TAG:-local}
-    # Admitted public reference sources (ADM-0005 to ADM-0013): rates,
-    # settlement anchors, Commitments of Traders. Flags and variables:
-    # docs/operations/reference-pollers.md.
+    # Admitted public reference sources (ADM-0005 to ADM-0013, ADM-0021,
+    # ADM-0022): rates, settlement anchors, Commitments of Traders, EIA
+    # energy statistics, BLS consumer price indexes. Each source polls on
+    # its own release calendar (EIA: Wednesday and Thursday afternoons plus
+    # a daily poll; BLS: weekday mornings around the 8:30 a.m. ET CPI
+    # release). Flags and variables: docs/operations/reference-pollers.md.
     command: ["run"]
     environment:
       RUST_LOG: ${RUST_LOG:-info}
@@ -450,8 +453,12 @@ services:
       REFERENCE_POLLERS_STATE_DIR: /var/lib/bleh/reference/state
       REFERENCE_POLLERS_OUT_DIR: /var/lib/bleh/reference/records
       REFERENCE_POLLERS_USER_AGENT: ${REFERENCE_USER_AGENT:-bleh.xyz reference-pollers}
+      # Project role address appended to the User-Agent (BLS asks bulk
+      # clients for a contact; never a person's address).
+      REFERENCE_POLLERS_CONTACT: ${REFERENCE_CONTACT:-data@bleh.xyz}
       REFERENCE_POLLERS_SOURCES: ${REFERENCE_SOURCES:-}
       REFERENCE_POLLERS_ERCOT_PRODUCTS: ${REFERENCE_ERCOT_PRODUCTS:-12331,12329,12301,24898}
+      REFERENCE_POLLERS_BLS_AREAS: ${REFERENCE_BLS_AREAS:-0000}
     ports: ["${BLEH_OVERLAY_IP:-127.0.0.1}:9188:9188"]
     volumes:
       - reference-data:/var/lib/bleh/reference
@@ -809,7 +816,9 @@ services:
       REFERENCE_POLLERS_STATE_DIR: /var/lib/bleh/reference/state
       REFERENCE_POLLERS_RAW_DIR: /var/lib/bleh/reference/raw
       REFERENCE_POLLERS_USER_AGENT: ${REFERENCE_USER_AGENT:-bleh.xyz reference-pollers}
+      REFERENCE_POLLERS_CONTACT: ${REFERENCE_CONTACT:-data@bleh.xyz}
       REFERENCE_POLLERS_SOURCES: ${REFERENCE_SOURCES:-}
+      REFERENCE_POLLERS_BLS_AREAS: ${REFERENCE_BLS_AREAS:-0000}
     volumes:
       - reference-data:/var/lib/bleh/reference
     tmpfs: ["/tmp:size=1g"]

@@ -13,6 +13,8 @@
 //! | USDA dairy | ADM-0011 | `usda-dairy` | prices (`exchange_referenced`) |
 //! | USDA feeder cattle report files | ADM-0012 | `usda-mn` | prices |
 //! | ERCOT website downloads | ADM-0013 | `ercot` | prices per interval |
+//! | EIA bulk files, EIA's own surveys | ADM-0021 | `eia` | retail and survey prices (monthly ones `exchange_referenced`) |
+//! | BLS time-series files | ADM-0022 | `bls` | CPI-U, CPI-W, C-CPI-U index levels; average prices |
 //!
 //! Each reader is written clean-room from `docs/specs/reference-sources.md`
 //! and reads only the admitted channels and fields, through explicit

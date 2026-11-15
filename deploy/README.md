@@ -201,7 +201,7 @@ Implemented; reference in [reference-pollers.md](../docs/operations/reference-po
 | | |
 |---|---|
 | Ports | `REFERENCE_POLLERS_LISTEN` (9188): `/metrics`, `/health` |
-| Variables set | `REFERENCE_POLLERS_RAW_DIR`, `REFERENCE_POLLERS_STATE_DIR`, `REFERENCE_POLLERS_OUT_DIR` (under the `reference-data` volume), `REFERENCE_POLLERS_USER_AGENT`, `REFERENCE_POLLERS_SOURCES`, `REFERENCE_POLLERS_ERCOT_PRODUCTS`, `REFERENCE_POLLERS_LOG_JSON` |
+| Variables set | `REFERENCE_POLLERS_RAW_DIR`, `REFERENCE_POLLERS_STATE_DIR`, `REFERENCE_POLLERS_OUT_DIR` (under the `reference-data` volume), `REFERENCE_POLLERS_USER_AGENT`, `REFERENCE_POLLERS_CONTACT`, `REFERENCE_POLLERS_SOURCES`, `REFERENCE_POLLERS_ERCOT_PRODUCTS`, `REFERENCE_POLLERS_BLS_AREAS`, `REFERENCE_POLLERS_LOG_JSON` |
 | Backfill | `docker compose --profile backfill run --rm reference-backfill` (archive `reference-backfill` under the `reference-data` volume), or `bleh-reference-backfill.service` |
 | systemd alternative | `bleh@reference-pollers` with `systemd/env/reference-pollers.example.conf` |
 | Metrics used | `ref_last_success_timestamp_seconds{source}`, `ref_unknown_fields_total{source,field}`, `ref_parse_errors_total{source}`, `ref_stale_reports_total{source}` |

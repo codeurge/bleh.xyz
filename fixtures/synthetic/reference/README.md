@@ -17,6 +17,8 @@ readers in `crates/reference-pollers` can be tested without the network.
 | `dairy/` | NDPSR and class-price sections | `Final` sections (revisions), an exchange-named field, an undocumented price |
 | `feeder/` | Fixed-layout weekly summary text | Narrative quoting futures, basis and futures rows, a note column, a stale issue |
 | `ercot/` | Report listings and CSV documents | XML duplicates, an invalid hour, the repeated hour at the end of daylight time, a correction, an unknown column |
+| `eia/` | EIA bulk files (`PET.txt`, `NG.txt`; zipped in the tests) | Excluded spot, futures, Henry Hub and wholesale series labelled as EIA's own, an allowlisted series with a vendor credit, wrong units, volumes, `null`, `NA` and `W` values, a series not on the allowlist, category lines |
+| `bls/` | BLS time-series data files (`cu`, `cw`, `su`, `ap`), tab-separated and padded | Annual and semiannual periods, a gap (footnote `X`), a PPI series, malformed rows, a non-default area, a seasonal revision and C-CPI-U initial to interim (`.revised`) |
 
 ERCOT historical workbooks and zip packaging are built in the tests.
 

@@ -247,6 +247,8 @@ pub enum BuildError {
 /// | USDA LMR and dairy | the report date, 20:00 (stated publication time first) |
 /// | ERCOT day-ahead | the day before delivery, 19:30 |
 /// | ERCOT real-time | the end of the interval |
+/// | EIA | by family: [`crate::sources::eia::backfill_published_ms`] |
+/// | BLS | the 15th of the month after the reference month, 13:30 (8:30 a.m. ET) |
 #[must_use]
 pub fn backfill_published_ms(source: SourceId, obs: &Obs) -> i64 {
     const H: i64 = 3_600_000;
@@ -266,6 +268,15 @@ pub fn backfill_published_ms(source: SourceId, obs: &Obs) -> i64 {
         (SourceId::FrbH10, _) => {
             let monday = d.add_days(i64::from(7 - d.weekday()));
             monday.start_ms() + 21 * H + 15 * 60_000
+        }
+        (SourceId::Eia, Obs::Ref(r)) => crate::sources::eia::backfill_published_ms(&r.series, d),
+        (SourceId::Bls, _) => {
+            let next = if d.m == 12 {
+                Date::new(d.y + 1, 1, 15)
+            } else {
+                Date::new(d.y, d.m + 1, 15)
+            };
+            next.unwrap_or(d).start_ms() + 13 * H + 30 * 60_000
         }
         (SourceId::Ercot, Obs::Ref(r)) => match r.period {
             Some((_, end)) if r.series.starts_with("RT") => end,

@@ -24,6 +24,26 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- Reference pollers read EIA (ADM-0021) and BLS (ADM-0022) from their bulk
+  files, as sources `eia` and `bls`, into `reference_value` records and
+  `reference-normalized`:
+  - `eia:ref:<series_id>`: weekly retail gasoline and diesel and
+    residential heating oil and propane prices; monthly refiner sales,
+    crude first purchase, imported crude cost and natural gas city-gate and
+    end-use prices, flagged `exchange_referenced`. An explicit series
+    allowlist decides; spot, futures, Henry Hub and wholesale heating oil
+    and propane series are dropped whatever their metadata says, and an
+    allowlisted series that gains a vendor credit is dropped and alerted.
+    Stocks, storage and supply are admitted but not emitted yet.
+  - `bls:ref:<series_id>`: CPI-U, CPI-W and C-CPI-U index levels and
+    average prices, monthly, with seasonal and C-CPI-U revisions as
+    revisions. U.S. city average by default (`--bls-areas`).
+  - Notices: EIA acknowledgement with publication date; BLS citation,
+    retrieval date and disclaimer.
+  - New options `--contact` (default `data@bleh.xyz`, appended to the
+    User-Agent, as BLS asks) and `--bls-areas`; compose variables
+    `REFERENCE_CONTACT` and `REFERENCE_BLS_AREAS`.
+
 - Site, "Open archive": an archive picker (published archives, with
   `hyperliquid-backfill`, `swaps-normalized` and `hyperliquid-backfill-early`
   shown as coming soon until they publish); record kind and instrument

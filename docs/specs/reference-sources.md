@@ -24,12 +24,14 @@ them as expected and alert on them.
 ## Common rules
 
 - **Admission ID.** Every record carries its admission ID (`ADM-0005` to
-  `ADM-0013`).
+  `ADM-0013`, `ADM-0021`, `ADM-0022`).
 - **Required flags:**
   - `exchange_referenced` (ADR 0012, decision 6) goes on:
     - COT futures-and-options-combined records;
     - USDA swine formula prices;
-    - every NDPSR and FMMO price.
+    - every NDPSR and FMMO price;
+    - EIA monthly survey prices (refiner sales, crude first purchase,
+      imported crude cost, natural gas city-gate and end-use).
   - `backfill` goes on history imports.
 - **Notices.**
   - Records under [ADM-0007](../admissions/ADM-0007-nyfed-reference-rates.md),
@@ -41,10 +43,15 @@ them as expected and alert on them.
     terms say so).
   - Source credit is given to the CFTC, the Board and USDA, as their
     policies request.
+  - EIA records carry EIA's acknowledgement (publication date, no implied
+    endorsement); BLS records carry the BLS citation, the retrieval date
+    and the BLS.gov disclaimer, verbatim.
 - **Etiquette.**
   - Poll after the documented release time, not continuously. Use
     conditional requests where the server supports them.
   - Identify the client with a generic user agent that names no person.
+    Where a publisher asks for a contact (BLS), add the project role
+    address `data@bleh.xyz`, never a personal one.
   - Back off exponentially on HTTP 429 or 5xx.
 - **No samples in the repository.** Tests use synthetic fixtures under
   `fixtures/synthetic/` that mimic these layouts. Real downloads are never
@@ -634,3 +641,138 @@ Notes on the products:
   performance of this website or other ERCOT systems" (§ 6).
 - Pollers fetch each new document once and keep a list of downloaded
   `doclookupId` values.
+
+## EIA bulk files
+
+Admission: [ADM-0021](../admissions/ADM-0021-eia-energy-statistics.md).
+Licence basis: US Government works; EIA's
+[copyright and reuse page](https://www.eia.gov/about/copyrights_reuse.php)
+asks for an acknowledgement with the publication date.
+
+**Channel.** The bulk download files, no key:
+
+| File | Contents |
+|---|---|
+| `https://www.eia.gov/opendata/bulk/PET.zip` | Petroleum and other liquids, about 55 MB zipped (2026-11-14) |
+| `https://www.eia.gov/opendata/bulk/NG.zip` | Natural gas, about 4 MB zipped |
+| `https://www.eia.gov/opendata/bulk/manifest.txt` | JSON index of the bulk files with `last_updated` per dataset (not read) |
+
+The Open Data API v2 (`api.eia.gov/v2/`, free key) is for checks only and
+is not read by the pollers.
+
+**Format.** Each zip holds one text file (`PET.txt`, `NG.txt`) with one
+JSON object per line:
+
+- **Series lines** carry `series_id` (`<dataset>.<series>.<frequency>`,
+  for example `PET.WCESTUS1.W`), `name`, `units`, `f` (`D`, `W`, `M`, `Q`,
+  `A`), `copyright`, `source`, `last_updated`
+  (`YYYY-MM-DDTHH:MM:SS±HH:MM`), `start`, `end`, `geography` and `data`,
+  a list of `[period, value]` pairs, newest first. Weekly and daily periods
+  are `YYYYMMDD`, monthly `YYYYMM`. Values are JSON numbers, `null`, or
+  strings for markers (`NA`, `W` for withheld).
+- **Category lines** carry `category_id`, `parent_category_id`, `name`,
+  `notes` and `childseries`, and are skipped.
+
+The series IDs are the same as in EIA's data tables
+(`https://www.eia.gov/dnav/pet/`, `.../dnav/ng/`), where each series links
+its history.
+
+**Admitted families and series.** Read only through an explicit allowlist
+of series IDs taken from those tables (`crates/reference-pollers/src/sources/eia.rs`):
+
+| Family | Survey | Tables (examples) | Emitted |
+|---|---|---|---|
+| Weekly retail gasoline and on-highway diesel | EIA-878, EIA-888 | `pet_pri_gnd_dcus_nus_w`, `pet_pri_gnd_a_epmr_pte_dpgal_w`, `pet_pri_gnd_a_epd2d_pte_dpgal_w` (`EMM_*_PTE_*_DPG`, `EMD_*_PTE_*_DPG`) | Prices, US dollars per gallon |
+| Residential heating oil and propane | State Heating Oil and Propane Program | `pet_pri_wfr_dcus_nus_w`, residential rows only (`W_EPD2F_PRS_NUS_DPG`, `W_EPLLPA_PRS_NUS_DPG`) | Prices |
+| Monthly refiner sales prices | Monthly refiner survey | `pet_pri_refmg_dcu_nus_m`, `pet_pri_dist_dcu_nus_m`, `pet_pri_prop_dcu_nus_m` (`EMA_*`) | Prices, `exchange_referenced` |
+| Crude oil first purchase prices | Monthly first purchase survey | `pet_pri_dfp1_k_m` (`F<area>__3`) | Prices, `exchange_referenced` |
+| Refiner acquisition cost of imported crude | Monthly refiner survey | `pet_pri_rac2_dcu_nus_m` (`R1300____3` only) | Prices, `exchange_referenced` |
+| Natural gas city-gate and end-use prices | Monthly natural gas surveys | `ng_pri_sum_dcu_nus_m` (`N3050US3`, `N3010US3`, `N3020US3`, `N3035US3`, `N3045US3`) | Prices, `exchange_referenced` |
+| Weekly petroleum supply, stocks (including Cushing), inputs, utilisation, production, imports, exports | EIA-800 to EIA-805, EIA-814 | `pet_sum_sndw_dcus_nus_w`, `pet_stoc_wstk_dcu_nus_w`, `pet_stoc_wstk_a_epc0_sax_mbbl_w`, `pet_pnp_wiup_dcu_nus_w` | No: volumes |
+| Weekly natural gas storage by region | EIA-912 | `ng_stor_wkly_s1_w` (`NW2_EPG0_S*O_R*_BCF`) | No: volumes |
+| Monthly supply and disposition | Petroleum Supply Monthly, Natural Gas Monthly | `pet_crd_crpdn_adc_mbbl_m`, `ng_sum_snd_dcu_nus_m` | No: volumes |
+
+**Excluded families** (ADM-0021; never read, whatever the metadata says):
+
+- the spot price table `pet_pri_spt` (series `EER_*_PF4_*`, `RWTC`,
+  `RBRTE`): Refinitiv;
+- the futures tables `pet_pri_fut`, `ng_pri_fut` (`EER_*_PE1_*` to
+  `PE4`, `RCLC1` to `RCLC4`, `RNGC*`): NYMEX;
+- the Henry Hub spot price (`RNGWHHD`): Refinitiv;
+- wholesale and resale heating oil and propane (`*_PWR_*`): OPIS;
+- the natural gas liquids composite price: Bloomberg;
+- wholesale electricity and natural gas hub prices: ICE;
+- any series whose `copyright` is not `None` or whose `copyright` or
+  `source` names a vendor or exchange (reported as `vendor_credit:<id>`).
+
+The research found exchange and vendor series labelled
+`"copyright":"None"` and `"source":"EIA"`, so the allowlist, not the
+metadata, decides.
+
+**Schedule.** The bulk files are rebuilt twice a day, at 5 a.m. and 3 p.m.
+ET, and are available 30 to 45 minutes later. Releases: retail prices
+Monday about 5 p.m. ET; the Weekly Petroleum Status Report Wednesday
+10:30 a.m. ET; residential heating oil and propane Wednesday (October to
+March); natural gas storage Thursday 10:30 a.m. ET; the monthly
+publications near the end or start of each month. Monthly prices are
+revised for several months.
+
+**History.** Varies by series: crude first purchase prices from 1974,
+refiner prices from 1983, retail gasoline from 1990, diesel from 1994.
+
+**Limits and keys.** None for the bulk files; each changed file is
+downloaded whole.
+
+## BLS time-series files
+
+Admission: [ADM-0022](../admissions/ADM-0022-bls-consumer-price-indexes.md).
+Licence basis: public domain
+([BLS copyright page](https://www.bls.gov/opub/copyright-information.htm));
+the [BLS.gov terms](https://www.bls.gov/developers/termsOfService.htm) ask
+for the retrieval date and a disclaimer.
+
+**Channel.** `https://download.bls.gov/pub/time.series/<survey>/`, no key.
+BLS refuses generic clients: the User-Agent must identify the client and
+give a contact address (the project role address). The Public Data API
+(`api.bls.gov`) is for checks only and is not read.
+
+| Survey | Directory | Data files |
+|---|---|---|
+| CPI-U | `cu` | `cu.data.0.Current` (every current series, from 1997; about 49 MB), partitions `cu.data.1.AllItems` to `cu.data.20.USCommoditiesServicesSpecial` (full history by item group or area) |
+| CPI-W | `cw` | as CPI-U (`cw.data.0.Current`, `cw.data.1` to `cw.data.20`) |
+| C-CPI-U | `su` | `su.data.0.Current`, `su.data.1.AllItems` (identical; from December 1999) |
+| Average prices | `ap` | `ap.data.0.Current` (from 1995), `ap.data.1.HouseholdFuels`, `ap.data.2.Gasoline`, `ap.data.3.Food` |
+
+Each directory also holds the layout file (`cu.txt`, `cw.txt`, `su.txt`,
+`ap.txt`) and mapping files (`.series`, `.item`, `.area`, `.footnote`,
+`.period`), which the pollers do not need.
+
+**Format** (layout files, sections 4 and 5). Text with a header row;
+in practice tab-separated with cells padded by spaces, lines ending in
+CRLF. Data file columns: `series_id`, `year`, `period`, `value`,
+`footnote_codes`.
+
+- Series IDs: `CU`/`CW`/`SU`, seasonal code (`S` adjusted, `U` not; C-CPI-U
+  is `U` only), periodicity (`R` monthly, `S` semiannual), area code (4),
+  item code (up to 8), for example `CUUR0000SA0`. Average prices: `AP`,
+  `U`, area (4), item, for example `APU0000709112`.
+- Periods `M01` to `M12`; `M13` is the annual average; `S01` to `S03` are
+  semiannual values.
+- Values have up to three decimals. A month BLS did not publish has a dash
+  or an empty value with footnote `X` ("Data unavailable due to the 2025
+  lapse in appropriations").
+- Footnotes: CPI-U and CPI-W `R` (revised); C-CPI-U `I` (initial) and `U`
+  (interim), final values carry none.
+
+**Admitted.** CPI-U, CPI-W and C-CPI-U index values and average prices,
+every item and area. Producer price indexes, import and export price
+indexes and every other BLS survey are not admitted.
+
+**Schedule.** CPI is released monthly at 8:30 a.m. ET, usually between the
+10th and 14th of the month after the reference month; the files'
+`Last-Modified` is the release time. Seasonally adjusted series are
+revised five years back each February; C-CPI-U values are revised from
+initial to final over 10 to 12 months.
+
+**History.** CPI-U and CPI-W from 1913 (U.S. city average, all items);
+C-CPI-U from December 1999; average prices from 1980 for many items.

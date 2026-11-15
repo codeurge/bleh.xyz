@@ -5,7 +5,8 @@
 //! source module reads only that record's admitted channels and fields.
 //! Rejected or pending sources (CAISO, PJM, MISO, ISO New England, SPP,
 //! NYISO; USDA grain prices; the MyMarketNews API; the ERCOT API;
-//! treasurydirect.gov) have no reader.
+//! treasurydirect.gov; the EIA and BLS APIs, which are for checks only;
+//! BLS producer and import/export price indexes) have no reader.
 
 use std::fmt;
 use std::str::FromStr;
@@ -37,11 +38,16 @@ pub enum SourceId {
     UsdaFeeder,
     /// ERCOT public website downloads (ADM-0013).
     Ercot,
+    /// EIA energy statistics from EIA's own surveys, bulk files (ADM-0021).
+    Eia,
+    /// BLS consumer price indexes and average prices, bulk files
+    /// (ADM-0022).
+    Bls,
 }
 
 impl SourceId {
     /// Every source, in a fixed order.
-    pub const ALL: [SourceId; 10] = [
+    pub const ALL: [SourceId; 12] = [
         SourceId::Cot,
         SourceId::TreasuryRates,
         SourceId::TreasuryAuctions,
@@ -52,6 +58,8 @@ impl SourceId {
         SourceId::UsdaDairy,
         SourceId::UsdaFeeder,
         SourceId::Ercot,
+        SourceId::Eia,
+        SourceId::Bls,
     ];
 
     /// Command-line and state name.
@@ -68,6 +76,8 @@ impl SourceId {
             Self::UsdaDairy => "usda-dairy",
             Self::UsdaFeeder => "usda-feeder",
             Self::Ercot => "ercot",
+            Self::Eia => "eia",
+            Self::Bls => "bls",
         }
     }
 
@@ -84,6 +94,8 @@ impl SourceId {
             Self::UsdaDairy => "usda-dairy",
             Self::UsdaFeeder => "usda-mn",
             Self::Ercot => "ercot",
+            Self::Eia => "eia",
+            Self::Bls => "bls",
         }
     }
 
@@ -106,6 +118,8 @@ impl SourceId {
             Self::UsdaDairy => "ADM-0011",
             Self::UsdaFeeder => "ADM-0012",
             Self::Ercot => "ADM-0013",
+            Self::Eia => "ADM-0021",
+            Self::Bls => "ADM-0022",
         }
     }
 
@@ -132,6 +146,10 @@ impl SourceId {
             Self::UsdaDairy => (2000, 1, 1),
             Self::UsdaFeeder => return None,
             Self::Ercot => (2010, 1, 1),
+            // The earliest admitted price series (crude first purchase
+            // prices, monthly); volumes start earlier but are not emitted.
+            Self::Eia => (1974, 1, 1),
+            Self::Bls => (1913, 1, 1),
         };
         Date::new(y, m, d)
     }
@@ -163,6 +181,8 @@ impl SourceId {
             Self::FrbH10 => BOARD_CREDIT.to_owned(),
             Self::UsdaLmr | Self::UsdaDairy | Self::UsdaFeeder => USDA_CREDIT.to_owned(),
             Self::Ercot => ERCOT_CREDIT.to_owned(),
+            Self::Eia => EIA_NOTICE.to_owned(),
+            Self::Bls => BLS_NOTICE.to_owned(),
         };
         vec![SourceNotice {
             admission: self.admission(),
@@ -246,6 +266,16 @@ pub const USDA_CREDIT: &str = "Source: USDA Agricultural Marketing Service. Valu
 /// Credit for ERCOT data (raw data may be redistributed without notices).
 pub const ERCOT_CREDIT: &str = "Source: ERCOT public market information (www.ercot.com).";
 
+/// The EIA acknowledgement (ADM-0021): EIA's reuse page asks for an
+/// acknowledgement with the publication date, and the API terms ask to
+/// name EIA, not to imply endorsement and not to present modified content
+/// as EIA's.
+pub const EIA_NOTICE: &str = "Source: U.S. Energy Information Administration (EIA), from EIA's own surveys, read from the EIA bulk download files (www.eia.gov/opendata). The publication date of each value is its record's ts_source_ms (estimated from EIA's release schedule on records flagged backfill). Values are carried as EIA published them; values derived by bleh.xyz are labelled as such. bleh.xyz is not affiliated with EIA, and EIA does not endorse or approve any product or service of bleh.xyz.";
+/// The BLS citation, retrieval date and disclaimer (ADM-0022): BLS asks to
+/// be cited, and the BLS.gov terms ask users to cite the retrieval date and
+/// to state the disclaimer verbatim.
+pub const BLS_NOTICE: &str = "Source: U.S. Bureau of Labor Statistics, Consumer Price Index and Average Price data (download.bls.gov/pub/time.series). Retrieved from BLS.gov: live records were retrieved at their ts_ingest_ns; records flagged backfill were retrieved no later than the archive manifest that first lists them. BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.";
+
 /// Every source's notices, sorted and unique, for an archive's
 /// `_notices.json`.
 #[must_use]
@@ -289,5 +319,15 @@ mod tests {
         assert!(ny.contains(NYFED_DTCC_DISCLAIMER));
         assert!(nyfed_notice("The SOFR Averages and SOFR Index").contains(NYFED_DTCC_DISCLAIMER));
         assert!(!nyfed_notice("The Effective Federal Funds Rate (EFFR)").contains("DTCC"));
+        // ADM-0022: citation, retrieval date and the verbatim disclaimer.
+        let bls = &SourceId::Bls.notices()[0].notice;
+        assert!(bls.contains("Bureau of Labor Statistics") && bls.contains("Retrieved"));
+        assert!(bls.contains("BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov."));
+        // ADM-0021: EIA named, publication date, no endorsement implied.
+        let eia = &SourceId::Eia.notices()[0].notice;
+        assert!(
+            eia.contains("Energy Information Administration") && eia.contains("publication date")
+        );
+        assert!(eia.contains("does not endorse"));
     }
 }

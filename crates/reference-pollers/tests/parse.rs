@@ -686,12 +686,23 @@ fn every_source_reads_only_admitted_hosts() {
                 SourceId::UsdaLmr | SourceId::UsdaDairy => host == "mpr.datamart.ams.usda.gov",
                 SourceId::UsdaFeeder => host == "www.ams.usda.gov" && u.contains("/mnreports/"),
                 SourceId::Ercot => host == "www.ercot.com",
+                // Bulk files only: the APIs are for checks (ADM-0021,
+                // ADM-0022), and only the four admitted BLS surveys.
+                SourceId::Eia => host == "www.eia.gov" && u.contains("/opendata/bulk/"),
+                SourceId::Bls => {
+                    host == "download.bls.gov"
+                        && ["cu", "cw", "su", "ap"]
+                            .iter()
+                            .any(|d| u.contains(&format!("/pub/time.series/{d}/{d}.data.")))
+                }
             };
             assert!(allowed, "{id}: {u}");
             assert!(
                 !u.contains("treasurydirect")
                     && !u.contains("api.ercot.com")
-                    && !u.contains("marsapi"),
+                    && !u.contains("marsapi")
+                    && !u.contains("api.eia.gov")
+                    && !u.contains("api.bls.gov"),
                 "{u}"
             );
         }

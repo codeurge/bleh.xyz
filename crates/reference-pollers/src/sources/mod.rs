@@ -14,8 +14,10 @@ use crate::obs::Obs;
 use crate::source::SourceId;
 use crate::time::Date;
 
+pub mod bls;
 pub mod cot;
 pub mod dairy;
+pub mod eia;
 pub mod ercot;
 pub mod feeder;
 pub mod frb;
@@ -181,6 +183,12 @@ pub trait Reader: Send + Sync + std::fmt::Debug {
         40
     }
 
+    /// Bodies the backfill keeps in memory by URL, so files that hold many
+    /// years are fetched once per run.
+    fn backfill_cache(&self) -> usize {
+        8
+    }
+
     /// Days after which the newest value of a poll counts as stale (for
     /// files that hold only the latest issue), if any.
     fn freshness_days(&self) -> Option<i64> {
@@ -239,6 +247,8 @@ pub fn reader(id: SourceId, bases: &Bases) -> Box<dyn Reader> {
         SourceId::UsdaDairy => Box::new(dairy::DairyReader::new(bases)),
         SourceId::UsdaFeeder => Box::new(feeder::FeederReader::new(bases)),
         SourceId::Ercot => Box::new(ercot::ErcotReader::new(bases)),
+        SourceId::Eia => Box::new(eia::EiaReader::new(bases)),
+        SourceId::Bls => Box::new(bls::BlsReader::new(bases)),
     }
 }
 

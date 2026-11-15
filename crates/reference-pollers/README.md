@@ -3,7 +3,8 @@
 Pollers and history backfill for the admitted public reference sources:
 CFTC Commitments of Traders, Treasury rates and auctions, New York Fed
 reference rates, Federal Reserve H.15 and H.10, USDA livestock, dairy and
-feeder cattle prices, and ERCOT prices (ADM-0005 to ADM-0013). Emits
+feeder cattle prices, ERCOT prices (ADM-0005 to ADM-0013), EIA survey
+prices (ADM-0021) and BLS consumer price indexes (ADM-0022). Emits
 `reference_value` and `positioning` records. Owned by the reference-pollers
 lane (open reference prices plan, task 4); see
 `docs/decisions/0007-code-layout.md`.

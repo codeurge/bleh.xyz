@@ -82,6 +82,17 @@ pub struct Args {
     #[arg(long, global = true, env = "REFERENCE_POLLERS_USER_AGENT", default_value = concat!("reference-pollers/", env!("CARGO_PKG_VERSION")))]
     pub user_agent: String,
 
+    /// Contact address appended to the User-Agent, as BLS asks of bulk
+    /// clients (ADM-0022): a project role address, never a person's.
+    /// Empty: none.
+    #[arg(
+        long,
+        global = true,
+        env = "REFERENCE_POLLERS_CONTACT",
+        default_value = "data@bleh.xyz"
+    )]
+    pub contact: String,
+
     /// Minimum milliseconds between request starts.
     #[arg(
         long,
@@ -110,7 +121,7 @@ pub struct Args {
     pub request_timeout: u64,
 
     /// Base URL overrides, `name=url` (names: cftc, treasury, fiscaldata,
-    /// nyfed, frb, datamart, ams, ercot), for mirrors and tests.
+    /// nyfed, frb, datamart, ams, ercot, eia, bls), for mirrors and tests.
     #[arg(
         long = "base-url",
         global = true,
@@ -122,6 +133,11 @@ pub struct Args {
     /// ERCOT report type IDs polled live, comma separated.
     #[arg(long, global = true, env = "REFERENCE_POLLERS_ERCOT_PRODUCTS", default_value = crate::sources::ercot::DEFAULT_PRODUCTS)]
     pub ercot_products: String,
+
+    /// BLS area codes emitted, comma separated, or `all` (every area is
+    /// admitted; the default keeps the U.S. city average).
+    #[arg(long, global = true, env = "REFERENCE_POLLERS_BLS_AREAS", default_value = crate::sources::bls::DEFAULT_AREAS)]
+    pub bls_areas: String,
 
     /// Log as JSON.
     #[arg(long, global = true, env = "REFERENCE_POLLERS_LOG_JSON")]
@@ -195,7 +211,7 @@ impl Args {
     #[must_use]
     pub fn http_config(&self) -> HttpConfig {
         HttpConfig {
-            user_agent: self.user_agent.clone(),
+            user_agent: self.full_user_agent(),
             min_interval: Duration::from_millis(self.min_request_interval_ms),
             timeout: Duration::from_secs(self.request_timeout.max(1)),
             max_retries: self.max_retries,
@@ -203,7 +219,19 @@ impl Args {
         }
     }
 
-    /// Base URLs with the ERCOT product list.
+    /// The User-Agent with the contact address, unless it already names
+    /// it or no contact is set.
+    #[must_use]
+    pub fn full_user_agent(&self) -> String {
+        let contact = self.contact.trim();
+        if contact.is_empty() || self.user_agent.contains(contact) {
+            self.user_agent.clone()
+        } else {
+            format!("{} ({contact})", self.user_agent.trim())
+        }
+    }
+
+    /// Base URLs with the ERCOT product list and the BLS areas.
     ///
     /// # Errors
     ///
@@ -211,6 +239,7 @@ impl Args {
     pub fn bases(&self) -> anyhow::Result<Bases> {
         let mut o = self.base_urls.clone();
         o.push(format!("ercot-products={}", self.ercot_products));
+        o.push(format!("bls-areas={}", self.bls_areas));
         Bases::parse(&o).map_err(anyhow::Error::msg)
     }
 }

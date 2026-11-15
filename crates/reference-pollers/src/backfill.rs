@@ -219,7 +219,7 @@ pub async fn run_source(
                 None => {
                     let b = fetch.get(&t.url, src).await?;
                     if let Some(b) = &b {
-                        if cache.len() >= 8 {
+                        if cache.len() >= reader.backfill_cache().max(1) {
                             cache.pop_front();
                         }
                         cache.push_back((t.url.clone(), b.clone()));

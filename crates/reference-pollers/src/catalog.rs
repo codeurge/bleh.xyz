@@ -213,6 +213,15 @@ pub fn entries() -> Vec<Entry> {
         entry(S::UsdaDairy, "FMMO.<field>", rv, "Announced class and component prices, dated the first of the month", "US dollars per hundredweight (classes) or per pound (components)", XR),
         entry(S::UsdaFeeder, "LS850.<CLASS>.<GRADE>.<LOW>_<HIGH>[.<NOTE>].<field>", rv, "National feeder and stocker cattle summary sale prices", "US dollars per hundredweight", &[]),
         entry(S::Ercot, "<DAM_SPP|DAM_LMP|DAM_MCPC|RT_SPP|RT_LMP|RT_MCPC|RT_MCPC_SCED>.<name>", rv, "ERCOT day-ahead and real-time settlement point prices, LMPs and ancillary service clearing prices, per delivery interval", "US dollars per MWh", &[]),
+        entry(S::Eia, "PET.<EMM_*|EMD_*>_PTE_<area>_DPG.W", rv, "EIA weekly retail gasoline (EIA-878) and on-highway diesel (EIA-888) prices by grade and area, dated the survey Monday; bulk series ID", "US dollars per gallon", &[]),
+        entry(S::Eia, "PET.W_<EPD2F|EPLLPA>_PRS_NUS_DPG.W", rv, "EIA weekly residential heating oil and propane prices (State Heating Oil and Propane Program, heating season), dated the survey Monday", "US dollars per gallon", &[]),
+        entry(S::Eia, "PET.EMA_<product>_<sales type>_NUS_DPG.M", rv, "EIA monthly refiner motor gasoline, No. 2 distillate, diesel and propane prices by sales type, dated the first of the month", "US dollars per gallon", XR),
+        entry(S::Eia, "PET.<F<area>__3|R1300____3>.M", rv, "EIA monthly domestic crude oil first purchase prices by area, and the refiner acquisition cost of imported crude oil, dated the first of the month", "US dollars per barrel", XR),
+        entry(S::Eia, "NG.<N3050US3|N3010US3|N3020US3|N3035US3|N3045US3>.M", rv, "EIA monthly natural gas city-gate, residential, commercial, industrial and electric power prices, dated the first of the month", "US dollars per thousand cubic feet", XR),
+        entry(S::Bls, "CU<S|U><R|S><area><item>", rv, "CPI for All Urban Consumers (CPI-U), seasonally adjusted (S) and not (U), by item and area, monthly, dated the first of the month; CUUR0000SA0 is the all-items U.S. city average index that TIPS accrue against", "index level (base period in the BLS series metadata, mostly 1982-84=100)", &[]),
+        entry(S::Bls, "CW<S|U><R|S><area><item>", rv, "CPI for Urban Wage Earners and Clerical Workers (CPI-W), by item and area, monthly", "index level (base period in the BLS series metadata, mostly 1982-84=100)", &[]),
+        entry(S::Bls, "SUUR<area><item>", rv, "Chained CPI for All Urban Consumers (C-CPI-U), not seasonally adjusted, monthly; initial and interim values are revised to final, as later revisions", "index level (December 1999=100)", &[]),
+        entry(S::Bls, "APU<area><item>", rv, "BLS average retail prices for selected food, household fuel and motor fuel items, monthly", "US dollars per the unit in the BLS item name (per pound, gallon, therm, kWh, dozen)", &[]),
     ]);
     v
 }

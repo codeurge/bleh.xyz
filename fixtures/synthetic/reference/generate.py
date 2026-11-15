@@ -434,4 +434,125 @@ w('ercot/listing_13060.html', listing(13060, [
     (800025, "rpt.00013060.0000000000000000.DAMLZHBSPP_2025.zip"),
     (800026, "rpt.00013060.0000000000000000.DAMLZHBSPP_2026.zip"),
 ]))
+# --- EIA bulk files (ADM-0021) and BLS time-series files (ADM-0022) ---
+EIA_SRC = "EIA, U.S. Energy Information Administration"
+
+
+def series(sid, units, f, data, copyright="None", source=EIA_SRC, updated="2026-11-10T09:52:01-05:00", **extra):
+    o = {"series_id": sid, "name": "Synthetic series " + sid, "units": units, "f": f,
+         "unitsshort": "x", "description": "Synthetic fixture series; every value is invented.",
+         "copyright": copyright, "source": source, "iso3166": "USA", "geography": "USA",
+         "start": data[-1][0] if data else "", "end": data[0][0] if data else "",
+         "last_updated": updated, "data": data}
+    o.update(extra)
+    return json.dumps(o, separators=(',', ':'))
+
+
+pet = [
+    json.dumps({"category_id": "900001", "parent_category_id": "900000", "name": "Synthetic petroleum",
+                "notes": "", "childseries": ["PET.EMM_EPMR_PTE_NUS_DPG.W"]}, separators=(',', ':')),
+    # Weekly retail regular gasoline: two weeks, a gap and an old value.
+    series("PET.EMM_EPMR_PTE_NUS_DPG.W", "Dollars per Gallon", "W",
+           [["20261109", 3.111], ["20261102", 3.125], ["20261026", None], ["19950102", 1.111]]),
+    # Weekly retail diesel: a quoted value, an NA marker and a malformed value.
+    series("PET.EMD_EPD2D_PTE_NUS_DPG.W", "Dollars per Gallon", "W",
+           [["20261109", "3.950"], ["20261102", "NA"], ["20261026", "abc"]]),
+    # Residential heating oil (admitted) and the wholesale series beside it (OPIS, excluded).
+    series("PET.W_EPD2F_PRS_NUS_DPG.W", "Dollars per Gallon", "W", [["20261109", 4.012], ["20261102", 3.998]],
+           updated="2026-11-11T13:05:00-05:00"),
+    series("PET.W_EPD2F_PWR_NUS_DPG.W", "Dollars per Gallon", "W", [["20261109", 2.501]]),
+    # Spot and futures prices labelled as EIA's own (the mislabel the admission found): excluded.
+    series("PET.RWTC.D", "Dollars per Barrel", "D", [["20261109", 61.01]]),
+    series("PET.EER_EPMRU_PF4_Y35NY_DPG.D", "Dollars per Gallon", "D", [["20261109", 2.01]],
+           copyright="Thomson-Reuters", source="Thomson Reuters"),
+    series("PET.RCLC1.D", "Dollars per Barrel", "D", [["20240405", 60.01]]),
+    # Admitted volumes: not emitted.
+    series("PET.WCESTUS1.W", "Thousand Barrels", "W", [["20261106", 400001], ["20261030", 400002]]),
+    series("PET.W_EPC0_SAX_YCUOK_MBBL.W", "Thousand Barrels", "W", [["20261106", 20001]]),
+    # Monthly refiner sales price and crude first purchase price: exchange_referenced.
+    series("PET.EMA_EPMR_PTR_NUS_DPG.M", "Dollars per Gallon", "M", [["202609", 2.801], ["202608", 2.790]],
+           updated="2026-11-02T10:00:00-05:00"),
+    series("PET.F000000__3.M", "Dollars per Barrel", "M", [["202608", 61.25]]),
+    # An allowlisted series that now credits a vendor: dropped and reported.
+    series("PET.EMM_EPMRR_PTE_NUS_DPG.W", "Dollars per Gallon", "W", [["20261109", 3.301]],
+           copyright="Thomson-Reuters"),
+    # An allowlisted price series in unexpected units: dropped and reported.
+    series("PET.EMM_EPM0_PTE_NUS_DPG.W", "Cents per Gallon", "W", [["20261109", 311.1]]),
+    # An EIA series that is not on the allowlist.
+    series("PET.MCRIMUS2.M", "Thousand Barrels", "M", [["202608", 6001]]),
+]
+w('eia/PET.txt', '\n'.join(pet) + '\n')
+
+ng = [
+    json.dumps({"category_id": "900101", "parent_category_id": "900100", "name": "Synthetic natural gas",
+                "notes": "", "childseries": []}, separators=(',', ':')),
+    series("NG.NW2_EPG0_SWO_R48_BCF.W", "Billion Cubic Feet", "W", [["20261106", 3801]]),
+    series("NG.N3050US3.M", "Dollars per Thousand Cubic Feet", "M", [["202608", 4.10], ["202607", 4.05]]),
+    series("NG.N3010US3.M", "Dollars per Thousand Cubic Feet", "M", [["202608", "W"], ["202607", 15.01]]),
+    # Henry Hub spot, labelled as EIA's own: excluded.
+    series("NG.RNGWHHD.D", "Dollars per Million Btu", "D", [["20261109", 3.01]]),
+    # Natural gas import prices are not among the admitted monthly prices.
+    series("NG.N9100US3.M", "Dollars per Thousand Cubic Feet", "M", [["202608", 3.51]]),
+    # A petroleum series in the natural gas file: excluded.
+    series("PET.EMM_EPMR_PTE_NUS_DPG.W", "Dollars per Gallon", "W", [["20261109", 3.111]]),
+]
+w('eia/NG.txt', '\n'.join(ng) + '\n')
+
+
+def bls(rows):
+    head = "series_id        \tyear\tperiod\t       value\tfootnote_codes\r\n"
+    body = ''.join(f"{sid:<17}\t{y}\t{p}\t{v:>12}\t{fn}\r\n" for sid, y, p, v, fn in rows)
+    return head + body
+
+
+w('bls/cu.data.0.Current', bls([
+    ("CUSR0000SA0", "2026", "M08", "321.500", ""),
+    ("CUSR0000SA0", "2026", "M09", "322.250", ""),
+    ("CUUR0000SA0", "1996", "M12", "158.600", ""),
+    ("CUUR0000SA0", "2025", "M10", "-", "X"),
+    ("CUUR0000SA0", "2025", "M13", "318.000", ""),
+    ("CUUR0000SA0", "2026", "M08", "322.012", ""),
+    ("CUUR0000SA0", "2026", "M09", "322.456", ""),
+    ("CUUR0000SA0E", "2026", "M14", "300.000", ""),
+    ("CUUR0000SA0L1E", "2026", "M09", "330.100", ""),
+    ("CUURS49ASA0", "2026", "M09", "350.000", ""),
+    ("CUUS0000SA0", "2026", "S01", "321.000", ""),
+    ("CUUR0000SAF1", "20X6", "M09", "330.000", ""),
+    ("CUXR0000SA0", "2026", "M09", "322.000", ""),
+    ("WPU00000000", "2026", "M09", "250.000", ""),
+]))
+# The February revision of seasonally adjusted values.
+w('bls/cu.data.0.Current.revised', bls([
+    ("CUSR0000SA0", "2026", "M08", "321.600", "R"),
+    ("CUSR0000SA0", "2026", "M09", "322.250", ""),
+    ("CUUR0000SA0", "2026", "M08", "322.012", ""),
+    ("CUUR0000SA0", "2026", "M09", "322.456", ""),
+]))
+w('bls/cu.data.1.AllItems', bls([
+    ("CUUR0000AA0", "1990", "M01", "381.500", ""),
+    ("CUUR0000SA0", "1990", "M01", "127.400", ""),
+    ("CUURS49ASA0", "1990", "M01", "130.100", ""),
+]))
+w('bls/cw.data.0.Current', bls([
+    ("CWUR0000SA0", "2026", "M09", "315.200", ""),
+    ("CWSR0000SA0", "2026", "M09", "314.900", ""),
+]))
+w('bls/su.data.0.Current', bls([
+    ("SUUR0000SA0", "2025", "M09", "168.100", ""),
+    ("SUUR0000SA0", "2026", "M08", "172.345", "I"),
+    ("SUUR0000SA0", "2026", "M09", "172.880", "I"),
+]))
+# Interim values replace initial ones.
+w('bls/su.data.0.Current.revised', bls([
+    ("SUUR0000SA0", "2025", "M09", "168.100", ""),
+    ("SUUR0000SA0", "2026", "M08", "172.401", "U"),
+    ("SUUR0000SA0", "2026", "M09", "172.880", "I"),
+]))
+w('bls/ap.data.0.Current', bls([
+    ("APU0000709112", "2026", "M09", "4.123", ""),
+    ("APU000074714", "2026", "M09", "3.210", ""),
+    ("APUS49A74714", "2026", "M09", "3.900", ""),
+    ("APU0000709112", "2026", "M10", "", "X"),
+]))
+
 print("fixtures written")
