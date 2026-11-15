@@ -13,7 +13,9 @@ versions (see [AGENTS.md](AGENTS.md)).
   the admitted fills in the raw tier (ADR 0019, method
   `hl-backfill-registry/v1`): class from the symbol, size scale from the
   most size decimals seen, every price checked against the derived price
-  scale, coins that fail reported and left out. ADR 0020 starts the
+  scale, coins that fail reported and left out. Objects are read and parsed
+  in parallel (`--concurrency`, default 8); the result does not depend on it.
+  ADR 0020 starts the
   `hyperliquid-backfill` archive at 2025-07-27 and keeps the early period
   for a separate archive.
 - Open sources survey (`docs/research/open-sources-survey-2026-11.md`):

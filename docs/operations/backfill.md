@@ -178,8 +178,12 @@ method `hl-backfill-registry/v1`):
 ```bash
 hl-backfill registry --raw s3://<raw-bucket>/hl-archive \
   --datasets node_fills_by_block --from 2025-07-27 --to 2026-11-14 \
-  --out registry.json > registry-report.json
+  --out registry.json --concurrency 24 > registry-report.json
 ```
+
+Objects are fetched, decompressed and parsed in parallel (`--concurrency`,
+default 8); per-object observations merge order-independently, so the
+registry and report do not depend on the setting.
 
 Objects pass through the same filter as `process`; each coin's class comes
 from its symbol, its size scale is the most size decimals seen, and every

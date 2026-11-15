@@ -10,6 +10,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::Arc;
 
+use futures::StreamExt;
+
 use anyhow::{Context, Result, bail};
 use archive::layout::check_archive;
 use clap::{Args, Parser, Subcommand};
@@ -130,6 +132,9 @@ enum Command {
         /// Where to write the registry document (JSON).
         #[arg(long)]
         out: PathBuf,
+        /// Objects read and parsed at once. The result does not depend on it.
+        #[arg(long, default_value_t = 8)]
+        concurrency: usize,
     },
     /// Compare backfilled records with live-recorded records per hour.
     Compare {
@@ -373,7 +378,12 @@ async fn run(cli: Cli) -> Result<bool> {
             print_json(&report)?;
             Ok(report.failed.is_empty())
         }
-        Command::Registry { sel, raw, out } => {
+        Command::Registry {
+            sel,
+            raw,
+            out,
+            concurrency,
+        } => {
             let datasets: Vec<Dataset> = sel
                 .datasets()?
                 .into_iter()
@@ -391,27 +401,55 @@ async fn run(cli: Cli) -> Result<bool> {
             let raw_store = project_store(&raw_url)?;
             let views = raw_views(&raw_url, &raw_store);
             let objects = list_selection(&views, &datasets, &sel.selection()?, |_, _| {}).await?;
-            let filter = DefaultFilter::default();
             let admission = mesh_types::AdmissionId::new(hl_backfill::ADMISSION)?;
-            let mut builder = RegistryBuilder::new(admission);
-            for obj in &objects {
-                let key = hl_backfill::copy::dest_key(raw_url.prefix(), &obj.bucket, &obj.key)?;
-                let lines = async {
-                    let bytes = raw_store.get(&key).await?.bytes().await?;
-                    let text = hl_backfill::codec::lz4_to_string(
-                        &bytes,
-                        hl_backfill::codec::DEFAULT_MAX_DECOMPRESSED,
-                    )?;
-                    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
-                    Ok::<_, anyhow::Error>(filter.filter_lines(obj.dataset, &lines)?.lines)
-                }
-                .await;
-                match lines {
-                    Ok(lines) => builder.observe(obj.dataset, obj.info.day, &lines),
-                    Err(e) => {
-                        tracing::error!(key = %obj.key, error = %e, "registry: object failed");
-                        builder.failed(&obj.key, e.to_string());
+            let mut builder = RegistryBuilder::new(admission.clone());
+            // Each object is fetched, then decompressed, filtered and
+            // observed on a blocking thread into its own builder; the
+            // builders merge order-independently (RegistryBuilder::merge).
+            let total = objects.len();
+            let mut done = 0usize;
+            let mut parts = futures::stream::iter(objects.iter().map(|obj| {
+                let raw_store = Arc::clone(&raw_store);
+                let admission = admission.clone();
+                let key = hl_backfill::copy::dest_key(raw_url.prefix(), &obj.bucket, &obj.key);
+                async move {
+                    let mut one = RegistryBuilder::new(admission.clone());
+                    let result = async {
+                        let bytes = raw_store.get(&key?).await?.bytes().await?;
+                        let (dataset, day) = (obj.dataset, obj.info.day);
+                        tokio::task::spawn_blocking(move || {
+                            let text = hl_backfill::codec::lz4_to_string(
+                                &bytes,
+                                hl_backfill::codec::DEFAULT_MAX_DECOMPRESSED,
+                            )?;
+                            let lines: Vec<&str> =
+                                text.lines().filter(|l| !l.trim().is_empty()).collect();
+                            let kept = DefaultFilter::default()
+                                .filter_lines(dataset, &lines)?
+                                .lines;
+                            let mut part = RegistryBuilder::new(admission);
+                            part.observe(dataset, day, &kept);
+                            Ok::<_, anyhow::Error>(part)
+                        })
+                        .await?
                     }
+                    .await;
+                    match result {
+                        Ok(part) => one.merge(part),
+                        Err(e) => {
+                            tracing::error!(key = %obj.key, error = %e, "registry: object failed");
+                            one.failed(&obj.key, e.to_string());
+                        }
+                    }
+                    one
+                }
+            }))
+            .buffer_unordered(concurrency.max(1));
+            while let Some(one) = parts.next().await {
+                builder.merge(one);
+                done += 1;
+                if done.is_multiple_of(500) || done == total {
+                    tracing::info!(done, total, "registry: objects read");
                 }
             }
             let (registry, report) = builder.build();

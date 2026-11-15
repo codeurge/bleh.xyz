@@ -189,6 +189,31 @@ impl RegistryBuilder {
         }
     }
 
+    /// Adds another builder's observations (for example one object's,
+    /// built in parallel). Every statistic is a count, a maximum, a minimum
+    /// or a set union, so the result does not depend on merge order.
+    pub fn merge(&mut self, other: Self) {
+        self.report.objects += other.report.objects;
+        self.report.trades_observed += other.report.trades_observed;
+        self.report.malformed_values += other.report.malformed_values;
+        self.report.failed.extend(other.report.failed);
+        for (coin, o) in other.coins {
+            let c = self.coins.entry(coin).or_default();
+            c.trades += o.trades;
+            c.max_px_decimals = c.max_px_decimals.max(o.max_px_decimals);
+            c.max_sz_decimals = c.max_sz_decimals.max(o.max_sz_decimals);
+            c.first_day = match (c.first_day, o.first_day) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            };
+            c.last_day = match (c.last_day, o.last_day) {
+                (Some(a), Some(b)) => Some(a.max(b)),
+                (a, b) => a.or(b),
+            };
+            c.datasets.extend(o.datasets);
+        }
+    }
+
     fn walk(&mut self, v: &Value, dataset: Dataset, day: Option<Day>) {
         match v {
             Value::Object(m) => {
@@ -235,6 +260,7 @@ impl RegistryBuilder {
     #[must_use]
     pub fn build(&self) -> (Registry, RegistryReport) {
         let mut report = self.report.clone();
+        report.failed.sort();
         let mut registry = Registry::new();
         for (coin, c) in &self.coins {
             let spec = match classify_coin(coin) {
@@ -412,6 +438,66 @@ mod tests {
         let json = serde_json::to_vec(&reg).unwrap();
         let back: Registry = serde_json::from_slice(&json).unwrap();
         assert_eq!(back, reg);
+    }
+
+    #[test]
+    fn merging_per_object_builders_equals_one_serial_builder() {
+        let objects = [
+            (
+                "2025-07-28",
+                block_line(11, "2025-07-28T00:00:01.000", pair("BTC", "99000", "1", 5)),
+            ),
+            (
+                "2025-07-27",
+                block_line(
+                    10,
+                    "2025-07-27T00:00:01.000",
+                    [
+                        pair("BTC", "100000", "0.00012", 1),
+                        pair("#90", "0.5123", "3", 2),
+                    ]
+                    .concat(),
+                ),
+            ),
+            (
+                "2025-07-29",
+                block_line(
+                    12,
+                    "2025-07-29T00:00:01.000",
+                    pair("ETH", "3000.1", "0.01", 3),
+                ),
+            ),
+        ];
+        let mut serial = RegistryBuilder::new(adm());
+        for (d, line) in &objects {
+            serial.observe(
+                Dataset::NodeFillsByBlock,
+                day(d),
+                &filtered(std::slice::from_ref(line)),
+            );
+        }
+        serial.failed("z", "late");
+        serial.failed("a", "early");
+
+        // Reverse order, one builder per object, as the parallel run does.
+        let mut merged = RegistryBuilder::new(adm());
+        let mut late = RegistryBuilder::new(adm());
+        late.failed("a", "early");
+        merged.merge(late);
+        for (d, line) in objects.iter().rev() {
+            let mut one = RegistryBuilder::new(adm());
+            one.observe(
+                Dataset::NodeFillsByBlock,
+                day(d),
+                &filtered(std::slice::from_ref(line)),
+            );
+            merged.merge(one);
+        }
+        let mut z = RegistryBuilder::new(adm());
+        z.failed("z", "late");
+        merged.merge(z);
+
+        assert_eq!(serial.build(), merged.build());
     }
 
     #[test]
