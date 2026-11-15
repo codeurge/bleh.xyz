@@ -484,7 +484,31 @@ async fn run(cli: Cli) -> Result<bool> {
                     .with_context(|| format!("reading {}", registry.display()))?,
             )?;
             let views = raw_views(&raw_url, &raw_store);
-            let objects = list_selection(&views, &datasets, &sel.selection()?, |_, _| {}).await?;
+            let selection = sel.selection()?;
+            let mut objects = list_selection(&views, &datasets, &selection, |_, _| {}).await?;
+            // This run owns the days of its objects and writes only their
+            // partitions. A day's last records can arrive in the next day's
+            // first hourly file, so that file is read too when another run
+            // owns its day (ParquetWriter::set_owned_days).
+            let owned_days: std::collections::BTreeSet<_> =
+                objects.iter().filter_map(|o| o.info.day).collect();
+            let spill_days: std::collections::BTreeSet<_> = owned_days
+                .iter()
+                .map(|d| d.succ())
+                .filter(|d| !owned_days.contains(d))
+                .collect();
+            if let (Some(first), Some(last)) = (spill_days.first(), spill_days.last()) {
+                let wider = Selection {
+                    from: Some(*first),
+                    to: Some(*last),
+                    shard: None,
+                    ..selection.clone()
+                };
+                let extra = list_selection(&views, &datasets, &wider, |_, _| {}).await?;
+                objects.extend(extra.into_iter().filter(|o| {
+                    o.info.hour == Some(0) && o.info.day.is_some_and(|d| spill_days.contains(&d))
+                }));
+            }
             let external = match clock_lines {
                 Some(p) => {
                     let text = std::fs::read_to_string(&p)
@@ -501,6 +525,7 @@ async fn run(cli: Cli) -> Result<bool> {
                 ..ProcessConfig::default()
             };
             let archive_root = out_dir.join(&archive);
+            let mut outside_owned_days = 0u64;
             let (report, partitions) = match format {
                 OutputFormat::Parquet => {
                     let mut pipeline = Pipeline::wired(
@@ -510,10 +535,12 @@ async fn run(cli: Cli) -> Result<bool> {
                         registry,
                         &archive_root,
                     );
+                    pipeline.writer.set_owned_days(owned_days.clone());
                     if let Some(c) = &external {
                         pipeline = pipeline.with_external_clock(c);
                     }
                     let report = pipeline.run(&objects).await?;
+                    outside_owned_days = pipeline.writer.outside_owned_days;
                     (report, Some(pipeline.writer.files))
                 }
                 OutputFormat::Jsonl => {
@@ -533,6 +560,13 @@ async fn run(cli: Cli) -> Result<bool> {
             };
             let complete = report.hours.iter().all(|h| h.complete());
             let mut json = serde_json::to_value(&report)?;
+            if let Some(obj) = json.as_object_mut() {
+                obj.insert(
+                    "owned_days".into(),
+                    serde_json::to_value(owned_days.iter().map(|d| d.iso()).collect::<Vec<_>>())?,
+                );
+                obj.insert("outside_owned_days".into(), outside_owned_days.into());
+            }
             if let (Some(files), Some(obj)) = (partitions, json.as_object_mut()) {
                 obj.insert("partitions".into(), serde_json::to_value(files)?);
             }

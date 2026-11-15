@@ -210,6 +210,15 @@ hl-backfill process --raw s3://<raw-bucket>/hl-archive \
   --datasets node_fills_by_block,market_data --from 2025-07-27 --to 2025-07-27
 ```
 
+**Splitting a period across runs** (date ranges or `--shard i/n`, whole
+days each): each run owns the days of its selected objects and writes
+partitions only for those days. Because a day's last records can arrive in
+the next day's first hourly file, a run also reads hour 00 of each day
+after an owned day that another run owns, and drops records of days it does
+not own (`outside_owned_days` in the report). Every day is then written
+whole by exactly one run, and the files are byte-identical to a single
+serial run. Runs may share one archive root at the same time.
+
 Hour by hour (fills before `market_data` within an hour), each object is
 decompressed, filtered, written as filtered raw
 (`stream=<dataset>/date=<YYYY-MM-DD>/<HH>.jsonl.zst`; `market_data` adds

@@ -175,8 +175,12 @@ pub struct ParquetWriter {
     opts: PartitionOptions,
     pending: BTreeMap<PartitionKey, Vec<Record>>,
     written_keys: BTreeSet<PartitionKey>,
+    owned_days: Option<BTreeSet<Day>>,
     /// Files written so far, in write order.
     pub files: Vec<PartitionFile>,
+    /// Records not written because their day is owned by another run
+    /// ([`ParquetWriter::set_owned_days`]).
+    pub outside_owned_days: u64,
 }
 
 impl ParquetWriter {
@@ -190,8 +194,19 @@ impl ParquetWriter {
             opts: PartitionOptions::default(),
             pending: BTreeMap::new(),
             written_keys: BTreeSet::new(),
+            owned_days: None,
             files: Vec::new(),
+            outside_owned_days: 0,
         }
+    }
+
+    /// Writes only partitions of `days` and counts records of other days
+    /// in [`ParquetWriter::outside_owned_days`]. Runs that split a period
+    /// (date ranges, `--shard`) each own their days and also read the first
+    /// hourly file after each owned day, whose earliest records belong to
+    /// it; every day is then written whole, by exactly one run.
+    pub fn set_owned_days(&mut self, days: BTreeSet<Day>) {
+        self.owned_days = Some(days);
     }
 
     /// The archive root.
@@ -238,6 +253,14 @@ impl PartitionWriter for ParquetWriter {
         key: &PartitionKey,
         records: &[Record],
     ) -> Result<(), WriteError> {
+        if self
+            .owned_days
+            .as_ref()
+            .is_some_and(|days| !days.contains(&key.date))
+        {
+            self.outside_owned_days += records.len() as u64;
+            return Ok(());
+        }
         if self.written_keys.contains(key) {
             return Err(WriteError::Closed(key.hive_dir("")));
         }
@@ -441,5 +464,69 @@ pub(crate) mod tests {
             runs.push(f.clone());
         }
         assert_eq!(runs[0], runs[1], "byte-identical across runs");
+    }
+
+    #[test]
+    fn owned_days_split_a_period_into_runs_that_match_one_serial_run() {
+        // Day 1 = 2025-07-27, day 2 = 2025-07-28. `late` belongs to day 1
+        // but arrives in day 2's first hourly file.
+        let (d1, d2) = (1_753_574_401_000, 1_753_660_801_000);
+        let early = trade("hyperliquid:perp:BTC", 1, 0, d1);
+        let late = trade("hyperliquid:perp:BTC", 2, 0, d2 - 2_000);
+        let next = trade("hyperliquid:perp:BTC", 3, 0, d2);
+        let (k1, k2) = (PartitionKey::of(&early), PartitionKey::of(&next));
+        assert_eq!(k1, PartitionKey::of(&late));
+
+        let serial_dir = crate::testutil::tempdir().join(BACKFILL_ARCHIVE);
+        let mut serial = ParquetWriter::new(&serial_dir);
+        serial
+            .write_partition(&k1, std::slice::from_ref(&early))
+            .unwrap();
+        serial
+            .write_partition(&k1, std::slice::from_ref(&late))
+            .unwrap();
+        serial
+            .write_partition(&k2, std::slice::from_ref(&next))
+            .unwrap();
+        serial.flush().unwrap();
+
+        // Two runs into one archive root: the first owns day 1 and also
+        // reads day 2's first file; the second owns day 2.
+        let dir = crate::testutil::tempdir().join(BACKFILL_ARCHIVE);
+        let mut first = ParquetWriter::new(&dir);
+        first.set_owned_days([k1.date].into());
+        first
+            .write_partition(&k1, std::slice::from_ref(&early))
+            .unwrap();
+        first
+            .write_partition(&k1, std::slice::from_ref(&late))
+            .unwrap();
+        first
+            .write_partition(&k2, std::slice::from_ref(&next))
+            .unwrap();
+        first.flush().unwrap();
+        assert_eq!(first.outside_owned_days, 1);
+        let mut second = ParquetWriter::new(&dir);
+        second.set_owned_days([k2.date].into());
+        second
+            .write_partition(&k1, std::slice::from_ref(&late))
+            .unwrap();
+        second
+            .write_partition(&k2, std::slice::from_ref(&next))
+            .unwrap();
+        second.flush().unwrap();
+        assert_eq!(second.outside_owned_days, 1);
+
+        let mut split: Vec<_> = first.files.into_iter().chain(second.files).collect();
+        let mut whole = serial.files;
+        split.sort_by(|a, b| a.path.cmp(&b.path));
+        whole.sort_by(|a, b| a.path.cmp(&b.path));
+        assert_eq!(split.len(), 2);
+        for (a, b) in split.iter().zip(&whole) {
+            assert_eq!(
+                (&a.path, &a.sha256, a.record_count),
+                (&b.path, &b.sha256, b.record_count)
+            );
+        }
     }
 }

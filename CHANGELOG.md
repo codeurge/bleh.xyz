@@ -14,6 +14,14 @@ versions (see [AGENTS.md](AGENTS.md)).
   energy statistics) and ADM-0022 (BLS consumer price indexes), admitted by
   the repository owner on 2026-11-15.
 
+### Fixed
+
+- `hl-backfill process` split across runs (`--shard`, date ranges) wrote a
+  day's partition twice: the owning run without the records that arrive in
+  the next day's first hourly file, and a second run with only those, which
+  the write-once check refused. Each run now owns its days, reads the next
+  day's hour 00 when another run owns it, and writes only owned days.
+
 ### Changed
 
 - Site data panel: tiles for US and Cushing crude stocks, natural gas storage,
