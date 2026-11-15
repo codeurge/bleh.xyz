@@ -16,6 +16,12 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- Hyperliquid decimal strings with more than 15 significant digits
+  (floating-point noise, such as `"2946657.1000000001"` in liquidation fills)
+  are rounded to 15 significant digits in the reader, the backfill parsers
+  and the derived registry (ADR 0022, assumption 10). Registry method
+  `hl-backfill-registry/v3` brings back 29 perpetuals that v2 left out.
+
 - HIP-4 outcome markets use the spot price rule, price scale
   `8 - szDecimals`, instead of a fixed 4 (ADR 0021). Archived fills show
   five-decimal outcome prices, which left every outcome coin out of the

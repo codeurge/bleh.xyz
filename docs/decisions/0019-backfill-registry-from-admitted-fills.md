@@ -65,7 +65,8 @@ venue no longer lists.
   out of the backfill until that assumption is corrected in the reader and
   the registry method together. [ADR 0021](0021-outcome-market-price-scale.md)
   does that: outcome markets take the spot rule (`8 - szDecimals`), method
-  `hl-backfill-registry/v2`.
+  `hl-backfill-registry/v2`. [ADR 0022](0022-venue-float-noise.md) (v3)
+  rounds decimal strings with floating-point noise to 15 significant digits.
 
 ## Alternatives considered
 

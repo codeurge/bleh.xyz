@@ -293,6 +293,87 @@ pub fn l4_snapshot_request(out_path: &str) -> serde_json::Value {
     })
 }
 
+// ---------------------------------------------------------------------------
+// 10. Floating-point artifacts in venue decimal strings.
+// ---------------------------------------------------------------------------
+
+/// Assumption 10: significant digits a venue decimal string can carry
+/// faithfully. The venue computes some values (liquidation and
+/// auto-deleveraging fills, for example) in binary floating point and can
+/// print more digits than a 64-bit float holds, such as
+/// `"2946657.1000000001"` for `2946657.1`. A double holds 15 significant
+/// decimal digits exactly (ADR 0022).
+pub const VENUE_SIGNIFICANT_DIGITS: usize = 15;
+
+/// Assumption 10: a venue decimal string with float noise removed. A string
+/// with more than [`VENUE_SIGNIFICANT_DIGITS`] significant digits is rounded
+/// (half up, in decimal, without floating point) to that many and written
+/// without trailing fractional zeros; every other string, including
+/// malformed ones, is returned unchanged for the caller to parse or reject.
+/// After this, a value that still has more decimals than the instrument's
+/// scale is a real violation.
+#[must_use]
+pub fn venue_decimal(s: &str) -> std::borrow::Cow<'_, str> {
+    use std::borrow::Cow;
+    let (neg, body) = match s.strip_prefix('-') {
+        Some(b) => (true, b),
+        None => (false, s),
+    };
+    let (int, frac) = body.split_once('.').unwrap_or((body, ""));
+    let digits_ok = |p: &str| p.bytes().all(|b| b.is_ascii_digit());
+    if int.is_empty() || !digits_ok(int) || !digits_ok(frac) {
+        return Cow::Borrowed(s);
+    }
+    let frac = frac.trim_end_matches('0');
+    let mut d: Vec<u8> = int.bytes().chain(frac.bytes()).map(|b| b - b'0').collect();
+    let Some(first) = d.iter().position(|&x| x != 0) else {
+        return Cow::Borrowed(s);
+    };
+    if d.len() - first <= VENUE_SIGNIFICANT_DIGITS {
+        return Cow::Borrowed(s);
+    }
+    let mut int_len = int.len();
+    let keep = first + VENUE_SIGNIFICANT_DIGITS;
+    let round_up = d[keep] >= 5;
+    d.truncate(keep);
+    if round_up {
+        let mut i = keep;
+        loop {
+            if i == 0 {
+                d.insert(0, 1);
+                int_len += 1;
+                break;
+            }
+            i -= 1;
+            if d[i] == 9 {
+                d[i] = 0;
+            } else {
+                d[i] += 1;
+                break;
+            }
+        }
+    }
+    // Integer digits dropped by the rounding become zeros.
+    while d.len() < int_len {
+        d.push(0);
+    }
+    let to_str = |x: &[u8]| x.iter().map(|&v| char::from(b'0' + v)).collect::<String>();
+    let int_s = to_str(&d[..int_len]);
+    let int_s = int_s.trim_start_matches('0');
+    let frac_s = to_str(&d[int_len..]);
+    let frac_s = frac_s.trim_end_matches('0');
+    let mut out = String::with_capacity(s.len());
+    if neg {
+        out.push('-');
+    }
+    out.push_str(if int_s.is_empty() { "0" } else { int_s });
+    if !frac_s.is_empty() {
+        out.push('.');
+        out.push_str(frac_s);
+    }
+    Cow::Owned(out)
+}
+
 #[cfg(test)]
 mod tests {
     #![allow(clippy::unwrap_used)]
@@ -347,5 +428,39 @@ mod tests {
         assert!(!is_admitted_coin("@1"));
         assert!(is_admitted_coin("#10"));
         assert_eq!(outcome_coins(900), ["#9000".to_owned(), "#9001".to_owned()]);
+    }
+
+    #[test]
+    fn venue_decimal_removes_float_noise_only() {
+        // Archived liquidation fill, 2025-10-10: 17 significant digits.
+        assert_eq!(venue_decimal("2946657.1000000001"), "2946657.1");
+        assert_eq!(venue_decimal("0.30000000000000004"), "0.3");
+        assert_eq!(venue_decimal("-1945471.4171330004"), "-1945471.417133");
+        assert_eq!(venue_decimal("99.9999999999999999"), "100");
+        assert_eq!(
+            venue_decimal("0.000012345678901234567"),
+            "0.0000123456789012346"
+        );
+        assert_eq!(venue_decimal("123456789012345678"), "123456789012346000");
+        // Fifteen or fewer significant digits: unchanged, borrowed.
+        for s in [
+            "1.99203",
+            "100000",
+            "0.00012",
+            "123456789012345",
+            "1.50",
+            "0",
+            "0.000",
+            "-3",
+        ] {
+            assert!(
+                matches!(venue_decimal(s), std::borrow::Cow::Borrowed(_)),
+                "{s}"
+            );
+        }
+        // Malformed input is left for the parser to reject.
+        for s in ["", ".5", "1e5", "abc", "1.2.3"] {
+            assert_eq!(venue_decimal(s), s);
+        }
     }
 }

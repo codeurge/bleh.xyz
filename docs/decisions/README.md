@@ -29,3 +29,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0019](0019-backfill-registry-from-admitted-fills.md) | Backfill instrument registry derived from the admitted fills (`hl-backfill-registry/v1`) | Accepted |
 | [0020](0020-hyperliquid-backfill-archive-start.md) | The `hyperliquid-backfill` archive starts at 2025-07-27; the early period becomes its own archive later | Accepted |
 | [0021](0021-outcome-market-price-scale.md) | Outcome markets use the spot price rule (`8 - szDecimals`); registry method v2 | Accepted |
+| [0022](0022-venue-float-noise.md) | Hyperliquid decimals with floating-point noise are rounded to 15 significant digits; registry method v3 | Accepted |

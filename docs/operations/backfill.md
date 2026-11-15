@@ -173,7 +173,7 @@ hl-backfill copy --raw s3://<raw-bucket>/hl-archive \
 
 `process` needs an instrument registry. Without a node, it is derived from
 the admitted fills themselves ([ADR 0019](../decisions/0019-backfill-registry-from-admitted-fills.md),
-method `hl-backfill-registry/v2` since [ADR 0021](../decisions/0021-outcome-market-price-scale.md)):
+method `hl-backfill-registry/v3` since [ADR 0022](../decisions/0022-venue-float-noise.md)):
 
 ```bash
 hl-backfill registry --raw s3://<raw-bucket>/hl-archive \
@@ -194,6 +194,12 @@ First run on samples (2026-11-14): 378 perpetuals registered (159 HIP-3);
 all 289 outcome coins left out, because their prices have five decimals
 and the reader assumed four. ADR 0021 (method v2) gives outcome markets the
 spot rule, `8 - szDecimals`, which brings them in.
+Full run with v2 (2026-11-15, 11,416 objects, 3.73 billion fill objects,
+about 30 minutes at `--concurrency 16` with 16 CPUs): 442 perpetuals and
+49,616 outcome coins registered, 0 failed objects; 29 perpetuals left out
+because sizes in liquidation fills carried floating-point noise
+(`"2946657.1000000001"`). ADR 0022 (v3) rounds such strings to 15
+significant digits, here and in the reader.
 
 ### 5.1 Run
 

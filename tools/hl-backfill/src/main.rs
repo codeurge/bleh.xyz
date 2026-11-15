@@ -121,7 +121,7 @@ enum Command {
         clock_lines: Option<PathBuf>,
     },
     /// Derive an instrument registry from the admitted fills in the raw
-    /// tier (ADR 0019 and 0021, method hl-backfill-registry/v2). Writes the registry
+    /// tier (ADR 0019, 0021, 0022; method hl-backfill-registry/v3). Writes the registry
     /// document `process --registry` reads; the report goes to stdout.
     Registry {
         #[command(flatten)]

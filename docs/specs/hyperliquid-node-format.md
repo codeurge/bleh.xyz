@@ -357,6 +357,9 @@ update this spec, the generator and the reader together.
 8. L4 snapshot top-level shape with `includeHeightInOutput`.
 9. Price-scale rule for HIP-3 and outcome markets; coin used for merged
    HIP-4 books; spot coin syntax (`@index`, `A/B`).
+10. Decimal strings with more than 15 significant digits are floating-point
+    noise and are rounded to 15 (archived liquidation fills show values such
+    as `"2946657.1000000001"`; [ADR 0022](../decisions/0022-venue-float-noise.md)).
 
 ## 12. Filtered raw
 

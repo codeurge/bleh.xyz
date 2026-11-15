@@ -23,6 +23,10 @@
 //!    ([`InstrumentSpec::hyperliquid`]: `6 - size scale` for perpetuals;
 //!    `8 - size scale` for outcome markets, the spot rule, since method v2
 //!    and ADR 0021; v1 used a fixed 4 and left every outcome coin out).
+//!    Since v3, price and size strings with floating-point noise (more
+//!    than 15 significant digits, such as `"2946657.1000000001"`) are
+//!    rounded to 15 first, as the reader does
+//!    ([`hl_node_reader::assumptions::venue_decimal`], ADR 0022).
 //! 5. Every observed price must fit the price scale. A coin where one does
 //!    not (for example after a change of `szDecimals` within the period) is
 //!    reported as a violation and **not** registered, so its events are
@@ -39,7 +43,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use hl_node_reader::assumptions::{CoinClass, classify_coin, outcome_price_scale};
+use hl_node_reader::assumptions::{CoinClass, classify_coin, outcome_price_scale, venue_decimal};
 use hl_node_reader::markets::default_flags;
 use mesh_types::{AdmissionId, InstrumentSpec, MarketClass, Registry};
 use serde::Serialize;
@@ -49,7 +53,7 @@ use crate::buckets::{Dataset, Day};
 
 /// Method name and version, recorded in every report (rule 5: a change to
 /// the method gets a new version).
-pub const METHOD: &str = "hl-backfill-registry/v2";
+pub const METHOD: &str = "hl-backfill-registry/v3";
 
 /// Largest perpetual size scale the venue's price rule allows.
 const PERP_MAX_DECIMALS: u8 = 6;
@@ -113,6 +117,9 @@ pub struct RegistryReport {
     pub trades_observed: u64,
     /// Price or size strings that are not plain decimals (not observed).
     pub malformed_values: u64,
+    /// Price or size strings with floating-point noise (more than 15
+    /// significant digits), observed after rounding to 15 (ADR 0022).
+    pub float_noise_rounded: u64,
     /// Spot coins seen and dropped (outside ADM-0001's scope). Normally
     /// empty: the filter removes spot events first.
     pub spot_dropped: Vec<String>,
@@ -197,6 +204,7 @@ impl RegistryBuilder {
         self.report.objects += other.report.objects;
         self.report.trades_observed += other.report.trades_observed;
         self.report.malformed_values += other.report.malformed_values;
+        self.report.float_noise_rounded += other.report.float_noise_rounded;
         self.report.failed.extend(other.report.failed);
         for (coin, o) in other.coins {
             let c = self.coins.entry(coin).or_default();
@@ -241,7 +249,13 @@ impl RegistryBuilder {
     }
 
     fn trade(&mut self, coin: &str, px: &str, sz: &str, dataset: Dataset, day: Option<Day>) {
-        let (Some(pd), Some(sd)) = (decimals(px), decimals(sz)) else {
+        let (px, sz) = (venue_decimal(px), venue_decimal(sz));
+        for v in [&px, &sz] {
+            if matches!(v, std::borrow::Cow::Owned(_)) {
+                self.report.float_noise_rounded += 1;
+            }
+        }
+        let (Some(pd), Some(sd)) = (decimals(&px), decimals(&sz)) else {
             self.report.malformed_values += 1;
             return;
         };
@@ -446,6 +460,27 @@ mod tests {
         let json = serde_json::to_vec(&reg).unwrap();
         let back: Registry = serde_json::from_slice(&json).unwrap();
         assert_eq!(back, reg);
+    }
+
+    #[test]
+    fn float_noise_does_not_inflate_the_size_scale() {
+        let mut events = pair("SUI", "1.99203", "2946657.1000000001", 1);
+        events.extend(pair("SUI", "2.1", "10.5", 2));
+        let raw = vec![block_line(10, "2025-10-10T21:17:40.819", events)];
+        let mut b = RegistryBuilder::new(adm());
+        b.observe(
+            Dataset::NodeFillsByBlock,
+            day("2025-10-10"),
+            &filtered(&raw),
+        );
+        let (reg, rep) = b.build();
+        assert!(rep.clean(), "{rep:?}");
+        assert_eq!(rep.method, METHOD);
+        // Two fill objects carry the noisy size.
+        assert_eq!(rep.float_noise_rounded, 2);
+        let hl = VenueId::new("hyperliquid").unwrap();
+        let sui = reg.by_venue_symbol(&hl, "SUI").unwrap();
+        assert_eq!((sui.size_scale, sui.price_scale), (1, 5));
     }
 
     #[test]

@@ -26,6 +26,7 @@
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
+use hl_node_reader::assumptions::venue_decimal;
 use mesh_types::{AggressorSide, BookSide, InstrumentId, Price, Size};
 use serde::Serialize;
 
@@ -308,8 +309,8 @@ impl Matcher {
     /// Parses price and size at the asset's scales.
     fn scaled(&self, o: &OrderWire) -> Option<(i64, i64)> {
         let spec = self.assets.get(&o.a)?;
-        let px = Price::parse_with_scale(&o.p, spec.price_scale).ok()?;
-        let sz = Size::parse_with_scale(&o.s, spec.size_scale).ok()?;
+        let px = Price::parse_with_scale(&venue_decimal(&o.p), spec.price_scale).ok()?;
+        let sz = Size::parse_with_scale(&venue_decimal(&o.s), spec.size_scale).ok()?;
         (px.mantissa() > 0 && sz.mantissa() > 0).then_some((px.mantissa(), sz.mantissa()))
     }
 

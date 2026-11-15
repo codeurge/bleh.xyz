@@ -8,7 +8,9 @@ use mesh_types::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::assumptions::{L4_HEIGHT_KEY, L4_SNAPSHOT_KEY, is_admitted_coin, order_side};
+use crate::assumptions::{
+    L4_HEIGHT_KEY, L4_SNAPSHOT_KEY, is_admitted_coin, order_side, venue_decimal,
+};
 use crate::http::{HttpError, InfoClient};
 use crate::normalize::venue;
 use crate::raw::Order;
@@ -113,28 +115,29 @@ pub fn parse_l4_snapshot(
             coin: coin.clone(),
             reason,
         };
-        let mut side =
-            |orders: &[Order], want: BookSide| -> Result<Vec<RestingOrder>, SnapshotError> {
-                let mut v = Vec::with_capacity(orders.len());
-                for o in orders {
-                    if o.is_trigger() {
-                        out.dropped_triggers += 1;
-                        continue;
-                    }
-                    if order_side(&o.side) != Some(want) {
-                        return Err(invalid(format!("order {} has side {:?}", o.oid, o.side)));
-                    }
-                    v.push(RestingOrder {
-                        order_id: mesh_types::OrderId(o.oid),
-                        price: Price::parse_with_scale(&o.limit_px, spec.price_scale)
-                            .map_err(|e| invalid(format!("limitPx {:?}: {e}", o.limit_px)))?,
-                        size: Size::parse_with_scale(&o.sz, spec.size_scale)
-                            .map_err(|e| invalid(format!("sz {:?}: {e}", o.sz)))?,
-                        ts_order_ms: UnixMillis(o.timestamp),
-                    });
+        let mut side = |orders: &[Order],
+                        want: BookSide|
+         -> Result<Vec<RestingOrder>, SnapshotError> {
+            let mut v = Vec::with_capacity(orders.len());
+            for o in orders {
+                if o.is_trigger() {
+                    out.dropped_triggers += 1;
+                    continue;
                 }
-                Ok(v)
-            };
+                if order_side(&o.side) != Some(want) {
+                    return Err(invalid(format!("order {} has side {:?}", o.oid, o.side)));
+                }
+                v.push(RestingOrder {
+                    order_id: mesh_types::OrderId(o.oid),
+                    price: Price::parse_with_scale(&venue_decimal(&o.limit_px), spec.price_scale)
+                        .map_err(|e| invalid(format!("limitPx {:?}: {e}", o.limit_px)))?,
+                    size: Size::parse_with_scale(&venue_decimal(&o.sz), spec.size_scale)
+                        .map_err(|e| invalid(format!("sz {:?}: {e}", o.sz)))?,
+                    ts_order_ms: UnixMillis(o.timestamp),
+                });
+            }
+            Ok(v)
+        };
         let bids = side(bids, BookSide::Bid)?;
         let asks = side(asks, BookSide::Ask)?;
         let prov = Provenance::new(

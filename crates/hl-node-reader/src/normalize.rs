@@ -17,7 +17,7 @@ use mesh_types::{
 
 use crate::assumptions::{
     FILLED_STATUS, diff_side, fill_side_aggressor, is_admitted_coin, parse_block_time,
-    parse_local_time,
+    parse_local_time, venue_decimal,
 };
 use crate::checkpoint::ReaderPositions;
 use crate::fills::{Anomaly, DropReason, GroupClass, group_fills};
@@ -176,7 +176,7 @@ fn parse_price(
     s: &str,
     scale: u8,
 ) -> Result<Price, NormalizeError> {
-    Price::parse_with_scale(s, scale).map_err(|e| NormalizeError::Decimal {
+    Price::parse_with_scale(&venue_decimal(s), scale).map_err(|e| NormalizeError::Decimal {
         coin: coin.to_owned(),
         field,
         value: s.to_owned(),
@@ -185,7 +185,7 @@ fn parse_price(
 }
 
 fn parse_size(coin: &str, field: &'static str, s: &str, scale: u8) -> Result<Size, NormalizeError> {
-    Size::parse_with_scale(s, scale).map_err(|e| NormalizeError::Decimal {
+    Size::parse_with_scale(&venue_decimal(s), scale).map_err(|e| NormalizeError::Decimal {
         coin: coin.to_owned(),
         field,
         value: s.to_owned(),

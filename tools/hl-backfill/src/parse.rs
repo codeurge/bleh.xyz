@@ -27,6 +27,7 @@
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 
+use hl_node_reader::assumptions::venue_decimal;
 use hl_node_reader::normalize::JoinedBlock;
 use hl_node_reader::raw::{ParsedLine, Stream};
 use hl_node_reader::sequence::{Sequencer, SequencerState};
@@ -267,9 +268,9 @@ impl LocalParser {
                 out.stats.unresolved += 1;
                 continue;
             };
-            let price = Price::parse_with_scale(&taker.px, spec.price_scale)
+            let price = Price::parse_with_scale(&venue_decimal(&taker.px), spec.price_scale)
                 .map_err(|e| shape(n, e.to_string()))?;
-            let size = Size::parse_with_scale(&taker.sz, spec.size_scale)
+            let size = Size::parse_with_scale(&venue_decimal(&taker.sz), spec.size_scale)
                 .map_err(|e| shape(n, e.to_string()))?;
             let seq = Seq::new(block_number, idx.next(&spec.id, block_number));
             let flags = spec.flags.with(Flag::Backfill);
@@ -341,10 +342,12 @@ impl LocalParser {
                 out.stats.unresolved += 1;
                 continue;
             };
-            let price = Price::parse_with_scale(str_field(n, &v, "px")?, spec.price_scale)
-                .map_err(|e| shape(n, e.to_string()))?;
-            let size = Size::parse_with_scale(str_field(n, &v, "sz")?, spec.size_scale)
-                .map_err(|e| shape(n, e.to_string()))?;
+            let price =
+                Price::parse_with_scale(&venue_decimal(str_field(n, &v, "px")?), spec.price_scale)
+                    .map_err(|e| shape(n, e.to_string()))?;
+            let size =
+                Size::parse_with_scale(&venue_decimal(str_field(n, &v, "sz")?), spec.size_scale)
+                    .map_err(|e| shape(n, e.to_string()))?;
             let seq = Seq::new(block, idx.next(&spec.id, block));
             out.records.push(Record::from(Trade {
                 prov: self.prov(&spec.id, seq, time, ingest, spec.flags.with(Flag::Backfill)),
@@ -363,9 +366,9 @@ impl LocalParser {
             .iter()
             .map(|l| {
                 Ok(Level {
-                    price: Price::parse_with_scale(str_field(n, l, "px")?, ps)
+                    price: Price::parse_with_scale(&venue_decimal(str_field(n, l, "px")?), ps)
                         .map_err(|e| shape(n, e.to_string()))?,
-                    size: Size::parse_with_scale(str_field(n, l, "sz")?, ss)
+                    size: Size::parse_with_scale(&venue_decimal(str_field(n, l, "sz")?), ss)
                         .map_err(|e| shape(n, e.to_string()))?,
                     order_count: u32::try_from(u64_field(n, l, "n")?)
                         .map_err(|_| shape(n, "n out of range"))?,
