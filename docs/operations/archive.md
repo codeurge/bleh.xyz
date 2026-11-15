@@ -185,6 +185,13 @@ arrive. A day signed but not published (a failed run) is published first
 on the next run; published days are marked under
 `$STATE_DIR/published/<archive>/`. `RECORDS_NOTICES` names the pollers' `_notices.json`, copied to the
 archive root before signing so the notices are signed into every manifest.
+Set it only for the archive whose pollers wrote it.
+
+A day, once signed, is sealed: files added later are not in its manifest.
+An archive that a batch job is still filling, such as
+`hyperliquid-backfill` while `tools/hl-backfill process` runs in monthly
+waves ([backfill](backfill.md)), sets `RECORDS_THROUGH` to the last day
+the job has finished cleanly, and the pipeline signs nothing after it.
 
 On a host without `deploy/up.sh`, `ARCHIVE_RUN` gives the command that runs
 the archive CLI in the archive-job container, for example

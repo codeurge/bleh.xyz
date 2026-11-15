@@ -41,6 +41,9 @@
 #                        record file that can hold it is partitioned [14]
 #   RECORDS_NOTICES      host path of the pollers' _notices.json, copied to the
 #                        archive root before signing (empty: none) []
+#   RECORDS_THROUGH      last day that may be signed (YYYY-MM-DD), for an archive
+#                        a batch job is still filling: a signed day is sealed,
+#                        so a day still being written must wait (empty: no cap) []
 set -uo pipefail
 
 mode=${1:?usage: archive-pipeline.sh daily [DATE] | anchors [DAYS]}
@@ -194,6 +197,12 @@ case "$mode" in
     last=$(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
       | sed 's#.*/##' | sort | tail -n 1)
     cutoff=$(date -u -d "${RECORDS_LAG_DAYS:-14} days ago" +%F)
+    if [[ -n "${RECORDS_THROUGH:-}" ]]; then
+      [[ "$RECORDS_THROUGH" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+        || { log "RECORDS_THROUGH is not a date: $RECORDS_THROUGH"; exit 1; }
+      [[ "$RECORDS_THROUGH" < "$cutoff" ]] && cutoff=$RECORDS_THROUGH
+      log "$a: signing through $cutoff"
+    fi
     mapfile -t days < <(find "$host_root" -path "$host_root/_*" -prune -o -type d -name 'date=*' -print \
       | sed 's#.*/date=##' | sort -u)
     # publish_day DAY: upload, verify and mark a signed day. A day signed

@@ -41,6 +41,8 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Added
 
+- `archive-pipeline.sh records` takes `RECORDS_THROUGH`, the last day it
+  may sign, for an archive a batch job is still filling.
 - Reference pollers read EIA (ADM-0021) and BLS (ADM-0022) from their bulk
   files, as sources `eia` and `bls`, into `reference_value` records and
   `reference-normalized`:

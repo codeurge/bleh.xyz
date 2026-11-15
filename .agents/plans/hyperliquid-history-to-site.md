@@ -229,24 +229,26 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
      one day and confirm `already_present` for every partition.
 
 7. **ipfs-datastore-off-docker-img**
-   - Status: Ready
+   - Status: Done (2026-11-15)
    - Owner: Home-archive server operator
    - Dependencies: None
-   - PR: Not opened
-   - Next action: Move the IPFS datastore from the `ipfs-data` named volume
-     to a bind mount on an array or mediacache share, with a size check,
-     before any backfill day is pinned. Until then, publish with IPFS
-     disabled for this archive.
+   - PR: None (server configuration)
+   - Done: the datastore is a bind mount on a mediacache share, and
+     `Datastore.StorageMax` is 40 GB, room for the projected 22 GB of
+     backfill Parquet.
 
 8. **sign-and-publish-backfill**
-   - Status: Blocked (process-from-2025-07-27, ipfs-datastore-off-docker-img)
+   - Status: In progress (signs as monthly waves finish)
    - Owner: Unassigned
    - Dependencies: 4, 6, 7; [static-catalog](phase-2-historical-data.md)
    - PR: Not opened
-   - Next action: Add `hyperliquid-backfill` to the archive loop in the
-     server's `archive-records.sh`. Sign from 2025-07-27, oldest first, and
-     publish to `data.bleh.xyz/hyperliquid-backfill/`. Verify each day with
-     `archive verify --url`, and record coverage in the buckets spec § 5.
+   - Done: the server's `archive-records.sh` signs `hyperliquid-backfill`
+     daily, oldest first from 2025-07-27, with `RECORDS_THROUGH` set to the
+     last day of the unbroken run of months whose every shard exited 0 with
+     no skipped objects, so no day is sealed while a wave writes it.
+   - Next action: Check the first published days with `archive verify
+     --url`, then record coverage in the buckets spec § 5 when the last
+     month is signed.
 
 9. **site-multi-archive**
    - Status: Built (2026-11-14); to confirm on the first published
