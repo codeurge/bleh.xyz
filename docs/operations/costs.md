@@ -56,6 +56,17 @@ month 1.
 | Home-archive server | Existing hardware | electricity: $20–46 (US) or €30–71 (EU) | A6, A7 |
 | **Total** | | **$230–300** (incl. electricity) | $210–255 without electricity |
 
+### Measured: Hyperliquid backfill output (2026-11-15)
+
+One processed week of `node_fills_by_block` (2025-07-27 08h to 2025-08-02,
+4.58 GB of LZ4) produced 291 MB of Parquet (0.064× the raw size, 1,029
+partitions) and 617 MB of filtered raw (0.135×), in 33 seconds of one core
+per hour of data with about 2 GB of memory. Scaled to all 345 GB of
+by-block fills (2025-07-27 to 2026-11-14): about 22 GB of Parquet and
+46 GB of filtered raw. On R2 at $0.015/GB-month, after the free 10 GB,
+that is about $0.90 a month for both, under decision D3's $3 threshold, so
+both are published. Final sizes are recorded here when the run completes.
+
 One-off: backfill transfer from Hyperliquid's buckets. Requester-pays means
 we pay AWS internet egress, about $0.09–0.114/GB, so A4 is roughly
 **$90–350 once**. Measured so far: the trade history (about 392 GB from

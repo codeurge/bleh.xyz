@@ -117,6 +117,7 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
 | By-block 2026-11-13 00–01h | 102.9 MB | 492,247 | 8.7 MB (0.085×), 404 files | 14.4 MB (0.140×) | 49 s | 1.6 GB |
 | `node_fills` 2025-06-01 00h | 10.9 MB | 0 (61,239 unresolved: no clock) | — | — | 6 s | 0.5 GB |
 | `node_trades` 2025-03-22 10h | 1.1 MB | 0 (9,098 unresolved: no clock) | — | — | 0.2 s | 0.07 GB |
+| By-block 2025-07-27 08h to 2025-08-02 (160 h, 1 core) | 4.58 GB | 47.6 M fill events kept (1.2 M unknown coin under registry v2) | 291 MB, 1,029 files | 617 MB | 5,259 s (33 s/h) | about 2 GB |
 
 - Projection for the 345 GB by-block period: about 29–32 GB of Parquet and
   48–50 GB of filtered raw, about 80 GB in all: roughly $1 a month on R2
@@ -193,7 +194,8 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
      `_registry/`.
 
 4. **process-from-2025-07-27**
-   - Status: Ready once the copy completes (registry from task 3)
+   - Status: In progress (2026-11-15: one week measured; all months queued
+     on the home-archive server in 10-shard monthly waves, about 10 hours)
    - Owner: Unassigned
    - Dependencies: backfill-registry,
      [backfill-fills](phase-2-historical-data.md)
