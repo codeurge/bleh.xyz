@@ -1,12 +1,11 @@
 # ADM-0020: Ethereum mainnet — Uniswap v3 and hookless Uniswap v4 pool swaps (ETH, wrapped BTC, tokenized gold)
 
-- Status: Requested. Proposed by the research lane; admission is the owner's
-  decision.
+- Status: Admitted
 - Requested: 2026-11-14 by the research lane
   (open sources survey,
   `docs/research/open-sources-survey-2026-11.md`, rank 1)
 - Reviewers: Repository owner (engineering review of field lineage)
-- Decided:
+- Decided: 2026-11-15 by the repository owner (owner decision, 2026-11-15)
 
 ## Source
 
@@ -174,5 +173,7 @@ Read 2026-11-14:
 
 ## Decision
 
-Pending. Requested on 2026-11-14 for the fields and pools above. The
-repository owner decides.
+Admitted on 2026-11-15 by the repository owner for the fields and pools above,
+read only from the project's own Ethereum node as described in "How we
+read it". No public RPC endpoint or data provider is used. Ingestion
+starts when the node has its dedicated SSD (see "Where").

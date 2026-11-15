@@ -7,6 +7,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ## Unreleased
 
+### Admitted
+
+- ADM-0020 (Ethereum Uniswap v3 and hookless v4 pools, read from the
+  project's own node; ingestion waits for the node's SSD), ADM-0021 (EIA
+  energy statistics) and ADM-0022 (BLS consumer price indexes), admitted by
+  the repository owner on 2026-11-15.
+
 ### Changed
 
 - HIP-4 outcome markets use the spot price rule, price scale

@@ -1,12 +1,11 @@
 # ADM-0021: EIA — energy statistics from EIA's own surveys (petroleum and natural gas supply, storage, retail and survey prices)
 
-- Status: Requested. Proposed by the research lane; admission is the owner's
-  decision.
+- Status: Admitted
 - Requested: 2026-11-14 by the research lane
   (open sources survey,
   `docs/research/open-sources-survey-2026-11.md`, rank 2)
 - Reviewers: Repository owner (engineering review of field lineage)
-- Decided:
+- Decided: 2026-11-15 by the repository owner (owner decision, 2026-11-15)
 
 ## Source
 
@@ -147,6 +146,6 @@ Read 2026-11-14:
 
 ## Decision
 
-Pending. Requested on 2026-11-14 for the admitted families above, read from
-EIA bulk files (API v2 for checks), with every listed republished family
-excluded. The repository owner decides.
+Admitted on 2026-11-15 by the repository owner for the admitted families above,
+read from EIA bulk files (API v2 for checks), with every listed republished
+family excluded.

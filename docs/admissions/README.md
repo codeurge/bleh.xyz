@@ -30,9 +30,9 @@ Every observation carries its admission ID.
 | [ADM-0017](ADM-0017-nyiso-prices.md) | NYISO public LBMP and AS price files | Pending: legal notice reserves rights and grants no redistribution | Under review |
 | [ADM-0018](ADM-0018-iso-ne-prices.md) | ISO New England LMPs and reserve prices | None: terms warn duplication or non-personal use may infringe | Rejected |
 | [ADM-0019](ADM-0019-spp-prices.md) | SPP Marketplace LMPs and market clearing prices | None: commercial use needs written authorization | Rejected |
-| [ADM-0020](ADM-0020-ethereum-uniswap-pools.md) | Ethereum mainnet Uniswap v3 and hookless v4 pools (ETH, wrapped BTC, tokenized gold), own node | Swap amounts, post-swap price, liquidity and tick; liquidity events; addresses, hooked pools and off-pool fills excluded | Requested |
-| [ADM-0021](ADM-0021-eia-energy-statistics.md) | EIA petroleum and natural gas supply, storage, retail and survey prices | EIA's own survey series; monthly survey prices flagged `exchange_referenced`; vendor and exchange series (Refinitiv, NYMEX, Bloomberg, OPIS, ICE) excluded | Requested |
-| [ADM-0022](ADM-0022-bls-consumer-price-indexes.md) | BLS consumer price indexes (CPI-U, CPI-W, C-CPI-U, average prices) | Index values, average prices, metadata, revisions; PPI and import/export indexes not requested | Requested |
+| [ADM-0020](ADM-0020-ethereum-uniswap-pools.md) | Ethereum mainnet Uniswap v3 and hookless v4 pools (ETH, wrapped BTC, tokenized gold), own node | Swap amounts, post-swap price, liquidity and tick; liquidity events; addresses, hooked pools and off-pool fills excluded | Admitted |
+| [ADM-0021](ADM-0021-eia-energy-statistics.md) | EIA petroleum and natural gas supply, storage, retail and survey prices | EIA's own survey series; monthly survey prices flagged `exchange_referenced`; vendor and exchange series (Refinitiv, NYMEX, Bloomberg, OPIS, ICE) excluded | Admitted |
+| [ADM-0022](ADM-0022-bls-consumer-price-indexes.md) | BLS consumer price indexes (CPI-U, CPI-W, C-CPI-U, average prices) | Index values, average prices, metadata, revisions; PPI and import/export indexes not requested | Admitted |
 
 Admission is a maintainer's engineering decision about field lineage. The
 remaining candidates are listed in [docs/sources.md](../sources.md), with

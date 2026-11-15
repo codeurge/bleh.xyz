@@ -1,12 +1,11 @@
 # ADM-0022: BLS — consumer price indexes (CPI-U, CPI-W, C-CPI-U, average prices)
 
-- Status: Requested. Proposed by the research lane; admission is the owner's
-  decision.
+- Status: Admitted
 - Requested: 2026-11-14 by the research lane
   (open sources survey,
   `docs/research/open-sources-survey-2026-11.md`, rank 3)
 - Reviewers: Repository owner (engineering review of field lineage)
-- Decided:
+- Decided: 2026-11-15 by the repository owner (owner decision, 2026-11-15)
 
 ## Source
 
@@ -118,5 +117,5 @@ not by this record. The endpoint paths need checking when it is wired up.
 
 ## Decision
 
-Pending. Requested on 2026-11-14 for the fields above, read from BLS bulk
-files (API for checks). The repository owner decides.
+Admitted on 2026-11-15 by the repository owner for the fields above, read from BLS
+bulk files (API for checks).
