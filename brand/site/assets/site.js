@@ -65,11 +65,21 @@
       ['Treasury 30-year', 'frb-h15', 'frb-h15:ref:RIFLGFCY30_N.B', '%', 2],
       ['US dollars per euro', 'frb-h10', 'frb-h10:ref:RXI@US_N.B.EU', '', 4],
       ['Yen per US dollar', 'frb-h10', 'frb-h10:ref:RXI_N.B.JA', '', 2],
-      ['Class III milk', 'usda-dairy', 'usda-dairy:ref:FMMO.class_3_Price', '$/cwt', 2]
+      ['Class III milk', 'usda-dairy', 'usda-dairy:ref:FMMO.class_3_Price', '$/cwt', 2],
+      // Quantities (ADR 0023): the unit comes from the series when it has one.
+      ['US crude stocks', 'eia', 'eia:ref:PET.WCESTUS1.W', '', 0],
+      ['Cushing crude stocks', 'eia', 'eia:ref:PET.W_EPC0_SAX_YCUOK_MBBL.W', '', 0],
+      ['Natural gas storage', 'eia', 'eia:ref:NG.NW2_EPG0_SWO_R48_BCF.W', '', 0],
+      ['Regular gasoline, retail', 'eia', 'eia:ref:PET.EMM_EPMR_PTE_NUS_DPG.W', '$/gal', 3],
+      ['Diesel, retail', 'eia', 'eia:ref:PET.EMD_EPD2D_PTE_NUS_DPG.W', '$/gal', 3],
+      ['CPI-U, all items', 'bls', 'bls:ref:CUUR0000SA0', 'index', 3]
     ];
+    var UNITS = { 'thousand_barrels': 'kbbl', 'thousand_barrels_per_day': 'kb/d', 'barrels': 'bbl', 'bcf': 'Bcf', 'billion_cubic_feet': 'Bcf',
+      'mmcf': 'MMcf', 'million_cubic_feet': 'MMcf', 'percent': '%', 'pounds': 'lb', 'metric_tons': 't', 'head': 'head',
+      'usd': 'USD', 'million_usd': '$M', 'billion_usd': '$B' };
     var NAMES = { 'nyfed': 'Federal Reserve Bank of New York', 'frb-h15': 'Federal Reserve H.15', 'frb-h10': 'Federal Reserve H.10',
       'us-treasury': 'U.S. Treasury', 'usda-dairy': 'USDA dairy', 'usda-lmr': 'USDA livestock', 'cftc-cot': 'CFTC Commitments of Traders', 'ercot': 'ERCOT',
-      'cftc-part43': 'CFTC Part 43 swaps', 'sec-sbsr': 'SEC security-based swaps' };
+      'cftc-part43': 'CFTC Part 43 swaps', 'sec-sbsr': 'SEC security-based swaps', 'eia': 'EIA', 'bls': 'BLS' };
     function get(path) {
       return fetch(base + path, { mode: 'cors', credentials: 'omit' }).then(function (r) {
         if (!r.ok) throw new Error(path + ' ' + r.status); return r.json();
@@ -103,7 +113,8 @@
         var t = el('div', 'tile');
         t.appendChild(el('span', 'tl', p[0]));
         var v = el('span', 'tv', num(s.latest.value, p[4]));
-        if (p[3]) v.appendChild(el('small', null, ' ' + p[3]));
+        var u = s.unit ? (UNITS[s.unit] || s.unit.replace(/_/g, ' ')) : p[3];
+        if (u) v.appendChild(el('small', null, ' ' + u));
         t.appendChild(v);
         var pts = s.points || [];
         if (pts.length > 1) {

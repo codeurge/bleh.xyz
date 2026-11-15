@@ -16,6 +16,9 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Changed
 
+- Site data panel: tiles for US and Cushing crude stocks, natural gas storage,
+  retail gasoline and diesel (EIA) and CPI-U (BLS); quantity tiles show the
+  series unit (ADR 0023). Tiles appear once the sources publish.
 - Hyperliquid decimal strings with more than 15 significant digits
   (floating-point noise, such as `"2946657.1000000001"` in liquidation fills)
   are rounded to 15 significant digits in the reader, the backfill parsers
