@@ -92,6 +92,34 @@ content hash. Byte-identical files are additionally guaranteed for a fixed
 version of the archive crate and its Parquet library, and CI checks this on
 a fixture day.
 
+**Schema changes are additive only.** A kind's schema may gain nullable
+columns, appended after the existing ones, so every existing column keeps
+its position and Parquet field ID and the new column takes the next ID.
+Partitions are write-once and are not rewritten when a column is added:
+
+- The archive's reader takes a nullable column that is absent from a file
+  as null, so an older file decodes to the same records and the same
+  `bleh.content_hash`.
+- The Iceberg metadata (§ 3.3) is rebuilt with the current schema; a field
+  ID absent from a data file reads as null, Iceberg's rule for added
+  columns.
+- DuckDB reads older and newer files of a kind together with
+  `read_parquet([...], union_by_name = true)`, or through `iceberg_scan`.
+
+Added so far: `reference_value.unit` (field ID 20), the unit of a quantity
+([ADR 0023](../decisions/0023-reference-quantities.md)). `reference-normalized`
+files written before it have no `unit` column; every record in them is a
+rate, yield, price or index level, for which `unit` is null. Quantity rows
+are told apart by `measure` (`stock`, `flow`, `capacity`, `ratio`) and
+`unit`, so a query needs no lookup:
+
+```sql
+SELECT instrument, as_of_date, value, unit
+FROM read_parquet('reference-normalized/kind=reference_value/venue=eia/**/*.parquet',
+                  hive_partitioning = true, union_by_name = true)
+WHERE measure = 'stock' AND unit = 'thousand_barrels';
+```
+
 ### 3.3 Catalog: Apache Iceberg, static metadata
 
 **Recommendation: Apache Iceberg (table format v2), with metadata files

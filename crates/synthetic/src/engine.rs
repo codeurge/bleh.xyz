@@ -401,7 +401,12 @@ impl Engine {
                         par.entry(f).or_default().push((t, rate));
                     }
                 }
-                ReferenceMeasure::Price | ReferenceMeasure::IndexLevel => {}
+                ReferenceMeasure::Price
+                | ReferenceMeasure::IndexLevel
+                | ReferenceMeasure::Stock
+                | ReferenceMeasure::Flow
+                | ReferenceMeasure::Capacity
+                | ReferenceMeasure::Ratio => {}
             }
         }
         for (f, mut pts) in par {

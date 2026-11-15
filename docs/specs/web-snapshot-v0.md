@@ -51,7 +51,7 @@ key:
 
 | Field | Meaning |
 |---|---|
-| `instrument`, `measure`, `tenor`, `maturity_date`, `day_count`, `compounding`, `currency` | From the latest record |
+| `instrument`, `measure`, `tenor`, `maturity_date`, `day_count`, `compounding`, `currency`, `unit` | From the latest record. `unit` is set on quantities (`measure` `stock`, `flow`, `capacity`, `ratio`; [ADR 0023](../decisions/0023-reference-quantities.md)) and absent otherwise; show it instead of `currency` |
 | `flags` | The latest record's `prov.flags` (for example `exchange_referenced`) |
 | `intraday` | True for series with delivery intervals |
 | `latest` | `as_of_date`, `period_start_ms`, `period_end_ms`, `value`, `revision` |

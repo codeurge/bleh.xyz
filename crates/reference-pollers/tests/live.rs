@@ -357,7 +357,7 @@ async fn stale_feeder_file_is_flagged() {
     .await;
     let later = Date::new(2026, 3, 12).unwrap().start_ms() + 20 * 3_600_000;
     let r = rig.poller.cycle(later).await.unwrap();
-    assert_eq!(r.records, 12);
+    assert_eq!(r.records, 16, "12 prices and 4 head counts");
     let much_later = Date::new(2026, 4, 1).unwrap().start_ms();
     server.reset().await;
     mount(

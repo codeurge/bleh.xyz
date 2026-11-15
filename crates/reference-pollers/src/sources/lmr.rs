@@ -10,14 +10,23 @@
 //! | 2511, same section | `Prod. Sold Negotiated Formula`, `Prod. Sold Swine or Pork Market Formula`, `Prod. Sold Combined` | the same | `exchange_referenced` |
 //! | 2466 LM_CT100, section `Detail` (negotiated cattle) | every row | `price_range_low`, `price_range_high`, `weighted_avg_price` | none |
 //!
-//! Rows of `Prod. Sold Other Market Formula`, `Prod. Sold Other Purchase
-//! Arrangement`, `Packer Owned` and the all-purchase-type aggregates are
-//! dropped as excluded, as are other sections of those reports (Carcass
-//! Measurements mixes purchase types in its price averages). Unknown
-//! purchase types are reported and dropped. Volumes and carcass data are
-//! admitted but are not prices; they are not emitted. Other LMR reports
-//! are not read until their layouts are documented in the access
-//! specification. Values are carried exactly as published.
+//! The prices of `Prod. Sold Other Market Formula`, `Prod. Sold Other
+//! Purchase Arrangement`, `Packer Owned` and the all-purchase-type
+//! aggregates are dropped as excluded, as are other sections of those
+//! reports (Carcass Measurements mixes purchase types in its price
+//! averages). Unknown purchase types are reported and dropped whole.
+//!
+//! Volumes are admitted for every purchase type (ADM-0010) and are emitted
+//! as quantities (ADR 0023), without a flag (they are not prices):
+//!
+//! | Report | Rows read | Field | Record |
+//! |---|---|---|---|
+//! | 2511, section `Barrows/Gilts` | every known purchase type, excluded-price types and aggregates included | `head_count` | `flow` in `head` |
+//! | 2466, section `Detail` | every row | `head_count` | `flow` in `head` |
+//!
+//! Weights and carcass measurements are admitted but not yet emitted.
+//! Other LMR reports are not read until their layouts are documented in
+//! the access specification. Values are carried exactly as published.
 //!
 //! Series: `LM_HG201.<PURCHASE_TYPE>.<field>` and
 //! `LM_CT100.<CLASS>.<BASIS>.<GRADE>.<LOW>_<HIGH>.<field>` under
@@ -26,6 +35,7 @@
 
 use std::time::Duration;
 
+use mesh_types::{QuantityUnit, ReferenceMeasure};
 use serde_json::{Map, Value};
 
 use super::{Bases, ParseError, Parsed, Reader, Schedule, Target, WEEKDAYS};
@@ -139,8 +149,9 @@ pub fn year_chunks(year: i32, first: Date) -> Vec<(Date, Date)> {
     out
 }
 
-/// Swine purchase types and how ADM-0010 treats their prices: `Some(flag)`
-/// admitted (with `exchange_referenced` when true), `None` excluded.
+/// Swine purchase types, their series code and how ADM-0010 treats their
+/// prices: `Some(flag)` admitted (with `exchange_referenced` when true),
+/// `None` excluded. Volumes are admitted for every type.
 pub const SWINE_PURCHASE_TYPES: [(&str, &str, Option<bool>); 9] = [
     ("Prod. Sold Negotiated", "NEGOTIATED", Some(false)),
     (
@@ -154,11 +165,19 @@ pub const SWINE_PURCHASE_TYPES: [(&str, &str, Option<bool>); 9] = [
         Some(true),
     ),
     ("Prod. Sold Combined", "COMBINED", Some(true)),
-    ("Prod. Sold Other Market Formula", "", None),
-    ("Prod. Sold Other Purchase Arrangement", "", None),
-    ("Prod. Sold (All Purchase Types)", "", None),
-    ("Pack. Sold (All Purchase Types)", "", None),
-    ("Packer Owned", "", None),
+    (
+        "Prod. Sold Other Market Formula",
+        "OTHER_MARKET_FORMULA",
+        None,
+    ),
+    (
+        "Prod. Sold Other Purchase Arrangement",
+        "OTHER_PURCHASE_ARRANGEMENT",
+        None,
+    ),
+    ("Prod. Sold (All Purchase Types)", "PRODUCER_SOLD_ALL", None),
+    ("Pack. Sold (All Purchase Types)", "PACKER_SOLD_ALL", None),
+    ("Packer Owned", "PACKER_OWNED", None),
 ];
 
 const SWINE_PRICES: [&str; 4] = [
@@ -182,6 +201,24 @@ fn push_price(
         Ok(Some(v)) => {
             let mut r = RefObs::usd_price(series, v, as_of);
             r.exchange_referenced = flag;
+            r.published_ms = published_ms(row);
+            out.obs.push(Obs::Ref(r));
+        }
+        Ok(None) => out.skip("missing"),
+        Err(_) => out.skip("malformed"),
+    }
+}
+
+/// Emits a row's `head_count` as a flow in head under `series`, if the row
+/// has one (ADR 0023; admitted for every type, never flagged).
+fn push_head_count(out: &mut Parsed, row: &Map<String, Value>, series: String, as_of: Date) {
+    let Some(t) = text(row, "head_count") else {
+        return;
+    };
+    match num::decimal(&t) {
+        Ok(Some(v)) => {
+            let mut r =
+                RefObs::quantity(series, ReferenceMeasure::Flow, v, QuantityUnit::Head, as_of);
             r.published_ms = published_ms(row);
             out.obs.push(Obs::Ref(r));
         }
@@ -223,8 +260,13 @@ pub fn parse_swine(body: &[u8]) -> Result<Parsed, ParseError> {
                             *flag,
                         );
                     }
+                    push_head_count(&mut out, row, format!("LM_HG201.{code}.head_count"), as_of);
                 }
-                Some((_, _, None)) => out.skip("excluded"),
+                Some((_, code, None)) => {
+                    // The prices are excluded; the volume is admitted.
+                    out.skip("excluded");
+                    push_head_count(&mut out, row, format!("LM_HG201.{code}.head_count"), as_of);
+                }
                 None => {
                     out.unknown.insert(format!("purchase_type:{pt}"));
                     out.skip("excluded");
@@ -264,6 +306,7 @@ pub fn parse_cattle(body: &[u8]) -> Result<Parsed, ParseError> {
             for f in CATTLE_PRICES {
                 push_price(&mut out, row, f, format!("{key}.{f}"), as_of, false);
             }
+            push_head_count(&mut out, row, format!("{key}.head_count"), as_of);
         }
     }
     Ok(out)

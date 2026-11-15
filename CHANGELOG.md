@@ -34,7 +34,7 @@ versions (see [AGENTS.md](AGENTS.md)).
     allowlist decides; spot, futures, Henry Hub and wholesale heating oil
     and propane series are dropped whatever their metadata says, and an
     allowlisted series that gains a vendor credit is dropped and alerted.
-    Stocks, storage and supply are admitted but not emitted yet.
+    Stocks, storage and supply are emitted as quantities (next entry).
   - `bls:ref:<series_id>`: CPI-U, CPI-W and C-CPI-U index levels and
     average prices, monthly, with seasonal and C-CPI-U revisions as
     revisions. U.S. city average by default (`--bls-areas`).
@@ -43,6 +43,30 @@ versions (see [AGENTS.md](AGENTS.md)).
   - New options `--contact` (default `data@bleh.xyz`, appended to the
     User-Agent, as BLS asks) and `--bls-areas`; compose variables
     `REFERENCE_CONTACT` and `REFERENCE_BLS_AREAS`.
+
+- Reference values carry quantities (ADR 0023). `reference_value` gains
+  the measures `stock`, `flow`, `capacity` and `ratio` and an optional
+  `unit` (`thousand_barrels`, `thousand_barrels_per_day`,
+  `billion_cubic_feet`, `million_cubic_feet`, `pounds`, `head`,
+  `billion_usd`, `percent`, and a few more), omitted on every other
+  measure, so existing records, hashes and signatures are unchanged.
+  Values are the published numbers in the published unit. The Parquet
+  schema gains a nullable `unit` column after the existing ones (field ID
+  20); older `reference-normalized` files decode unchanged and read
+  `unit` as null (`union_by_name = true` in DuckDB). Web snapshots add
+  `unit` to quantity series. The pollers now emit the admitted volumes
+  they used to drop:
+  - `eia`: weekly petroleum stocks (Cushing included), refinery inputs,
+    production, imports, exports and product supplied, operable capacity
+    and utilisation, weekly natural gas storage, and monthly crude oil and
+    natural gas supply; unflagged. A volume series whose unit text is
+    unknown or does not fit its measure is dropped and alerted
+    (`units:<series>`). The `eia` backfill now starts in 1920.
+  - `nyfed`: `<RATE>.VOLUME` from `volumeInBillions`.
+  - `usda-dairy`: NDPSR sales volumes (pounds) and barrel cheese moisture
+    (percent), revised like the prices.
+  - `usda-lmr`: head counts of LM_HG201 for every purchase type and of
+    LM_CT100 rows. `usda-feeder`: head counts of kept sale rows.
 
 - Site, "Open archive": an archive picker (published archives, with
   `hyperliquid-backfill`, `swaps-normalized` and `hyperliquid-backfill-early`

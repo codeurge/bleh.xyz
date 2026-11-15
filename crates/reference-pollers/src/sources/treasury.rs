@@ -508,6 +508,7 @@ pub fn parse_auctions(body: &[u8]) -> Result<(Parsed, bool), ParseError> {
                 exchange_referenced: false,
                 slot,
                 published_ms: None,
+                unit: None,
             }));
         }
         for k in [

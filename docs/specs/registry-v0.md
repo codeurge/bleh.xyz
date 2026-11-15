@@ -249,7 +249,7 @@ entry per series family the pollers emit.
 | `kind` | Record kind (`reference_value`, `positioning`) |
 | `source` | Source name |
 | `admission` | Admission record |
-| `description`, `unit` | What the series is and the unit of its values |
+| `description`, `unit` | What the series is and the unit of its values. For quantity families the unit is named with the record's `unit` value (`thousand_barrels`, `head`; [ADR 0023](../decisions/0023-reference-quantities.md)), and the description names the measure; the record wins if they differ |
 | `flags` | Flags every record carries (for example `exchange_referenced`) |
 | `notice` | Notice that travels with the series ([ADR 0012](../decisions/0012-open-terms-route-for-public-bodies-and-market-operators.md), decision 5) |
 | `methods` | Method periods where the admission asks for them: `from`, `to` (`null` while current), `method` |

@@ -47,20 +47,26 @@ fn one<'a>(recs: &'a [Record], symbol: &str, as_of: &str) -> &'a Record {
 fn eia_reads_only_admitted_prices_and_flags_monthly_surveys() {
     let p = eia::parse_bulk(Dataset::Pet, &fixture("eia/PET.txt"), eia::Scope::all()).unwrap();
     // Excluded families (wholesale heating oil, WTI spot, a spot series
-    // credited to a vendor, NYMEX futures) and the allowlisted series that
-    // now credits a vendor.
-    assert_eq!(p.skipped.get("excluded"), Some(&5), "{:?}", p.skipped);
+    // credited to a vendor, NYMEX futures) and the two allowlisted series
+    // (a price and a volume) that now credit a vendor.
+    assert_eq!(p.skipped.get("excluded"), Some(&6), "{:?}", p.skipped);
     assert_eq!(p.skipped.get("out_of_scope"), Some(&1));
-    assert_eq!(p.skipped.get("unsupported_volume"), Some(&2));
-    // A null and an NA value; a malformed value and unexpected units.
-    assert_eq!(p.skipped.get("missing"), Some(&2));
-    assert_eq!(p.skipped.get("malformed"), Some(&2));
+    assert_eq!(p.skipped.get("unsupported_volume"), None);
+    // A null, an NA and a withheld (W) value; a malformed value, a price
+    // in unexpected units and a stock stated per day.
+    assert_eq!(p.skipped.get("missing"), Some(&3));
+    assert_eq!(p.skipped.get("malformed"), Some(&3));
     assert!(
         p.unknown
             .contains("vendor_credit:PET.EMM_EPMRR_PTE_NUS_DPG.W")
     );
+    assert!(p.unknown.contains("vendor_credit:PET.WGTSTUS1.W"));
     assert!(p.unknown.contains("units:PET.EMM_EPM0_PTE_NUS_DPG.W"));
-    let recs = records(SourceId::Eia, p, live());
+    assert!(p.unknown.contains("units:PET.WTTSTUS1.W"));
+    let recs: Vec<Record> = records(SourceId::Eia, p, live())
+        .into_iter()
+        .filter(|r| rv(r).unit.is_none())
+        .collect();
     assert_eq!(
         symbols(&recs),
         [
@@ -105,6 +111,139 @@ fn eia_reads_only_admitted_prices_and_flags_monthly_surveys() {
 }
 
 #[test]
+fn eia_volumes_are_quantities_with_units() {
+    use mesh_types::QuantityUnit as U;
+    use mesh_types::ReferenceMeasure as M;
+    let p = eia::parse_bulk(Dataset::Pet, &fixture("eia/PET.txt"), eia::Scope::all()).unwrap();
+    let recs: Vec<Record> = records(SourceId::Eia, p, live())
+        .into_iter()
+        .filter(|r| rv(r).unit.is_some())
+        .collect();
+    // Exactly the allowlisted volume series with a fitting unit; the stock
+    // stated per day and the vendor-credited stock are not among them.
+    assert_eq!(
+        symbols(&recs),
+        [
+            "PET.MCRFPUS1.M",
+            "PET.WCESTUS1.W",
+            "PET.WCRFPUS2.W",
+            "PET.WOCLEUS2.W",
+            "PET.WPULEUS3.W",
+            "PET.W_EPC0_SAX_YCUOK_MBBL.W",
+        ]
+    );
+    let expect = |sym: &str, date: &str, m: M, u: U, value: &str| {
+        let r = one(&recs, sym, date);
+        let v = rv(r);
+        assert_eq!((v.measure, v.unit), (m, Some(u)), "{sym}");
+        assert_eq!(value_of(r), value, "{sym}: carried as published");
+        assert_eq!(v.currency, None, "{sym}");
+        assert_eq!((v.tenor.as_deref(), v.compounding), (None, None), "{sym}");
+        // Volumes are not prices: never exchange_referenced.
+        assert!(!flagged(r), "{sym}");
+        assert!(eia::family(sym).is_some_and(|f| !f.is_price()), "{sym}");
+    };
+    expect(
+        "PET.WCESTUS1.W",
+        "2026-11-06",
+        M::Stock,
+        U::ThousandBarrels,
+        "400001",
+    );
+    expect(
+        "PET.WCESTUS1.W",
+        "2026-10-30",
+        M::Stock,
+        U::ThousandBarrels,
+        "400002",
+    );
+    // Cushing.
+    expect(
+        "PET.W_EPC0_SAX_YCUOK_MBBL.W",
+        "2026-11-06",
+        M::Stock,
+        U::ThousandBarrels,
+        "20001",
+    );
+    expect(
+        "PET.WCRFPUS2.W",
+        "2026-11-06",
+        M::Flow,
+        U::ThousandBarrelsPerDay,
+        "13501",
+    );
+    expect(
+        "PET.WOCLEUS2.W",
+        "2026-11-06",
+        M::Capacity,
+        U::ThousandBarrelsPerDay,
+        "18401",
+    );
+    expect("PET.WPULEUS3.W", "2026-11-06", M::Ratio, U::Percent, "91.2");
+    expect(
+        "PET.MCRFPUS1.M",
+        "2026-08-01",
+        M::Flow,
+        U::ThousandBarrels,
+        "412345",
+    );
+    // The withheld utilisation week is not filled.
+    assert_eq!(
+        recs.iter()
+            .filter(|r| r.prov().instrument.symbol() == "PET.WPULEUS3.W")
+            .count(),
+        1
+    );
+    // A JSON record round trip keeps the unit; canonical bytes name it.
+    let r = one(&recs, "PET.WCESTUS1.W", "2026-11-06");
+    let json = serde_json::to_string(r).unwrap();
+    assert!(json.contains(r#""unit":"thousand_barrels""#), "{json}");
+    assert!(json.contains(r#""measure":"stock""#), "{json}");
+    assert_eq!(&serde_json::from_str::<Record>(&json).unwrap(), r);
+    // Backfill: the weekly supply estimate (Wednesday after the week).
+    let p = eia::parse_bulk(
+        Dataset::Pet,
+        &fixture("eia/PET.txt"),
+        eia::Scope {
+            from_year: 2026,
+            to_year: 2026,
+            live: false,
+        },
+    )
+    .unwrap();
+    let back = records(SourceId::Eia, p, Stamp::Backfill);
+    let stock = one(&back, "PET.WCESTUS1.W", "2026-11-06");
+    assert!(stock.prov().flags.contains(Flag::Backfill));
+    assert_eq!(
+        stock.prov().ts_source_ms.0,
+        Date::new(2026, 11, 11).unwrap().start_ms() + 15 * 3_600_000 + 30 * 60_000
+    );
+}
+
+#[test]
+fn eia_every_allowlisted_volume_has_a_quantity_measure() {
+    let mut volumes = 0;
+    for (id, fam, measure) in eia::ALLOWLIST {
+        if fam.is_price() {
+            assert_eq!(*measure, ReferenceMeasure::Price, "{id}");
+        } else {
+            assert!(measure.is_quantity(), "{id}");
+            volumes += 1;
+        }
+    }
+    // Weekly supply (stocks, flows, capacity, utilisation), storage and
+    // monthly supply: every admitted volume family is emitted.
+    assert!(volumes > 80, "{volumes}");
+    for id in ["PET.WCESTUS1.W", "PET.W_EPC0_SAX_YCUOK_MBBL.W"] {
+        assert_eq!(
+            eia::entry(id),
+            Some((eia::Family::WeeklySupply, ReferenceMeasure::Stock)),
+            "{id}"
+        );
+    }
+}
+
+#[test]
 fn eia_natural_gas_from_the_zip_through_the_reader() {
     let r = reader(SourceId::Eia, &Bases::default());
     let live_targets = r.live_targets(Date::new(2026, 11, 14).unwrap());
@@ -119,13 +258,34 @@ fn eia_natural_gas_from_the_zip_through_the_reader() {
     // Henry Hub spot, and a petroleum series in the gas file.
     assert_eq!(p.skipped.get("excluded"), Some(&2), "{:?}", p.skipped);
     assert_eq!(p.skipped.get("out_of_scope"), Some(&1));
-    assert_eq!(p.skipped.get("unsupported_volume"), Some(&1));
+    assert_eq!(p.skipped.get("unsupported_volume"), None);
     assert_eq!(p.skipped.get("missing"), Some(&1));
-    let recs = records(SourceId::Eia, p, live());
+    // Withdrawals in an undocumented unit text.
+    assert_eq!(p.skipped.get("malformed"), Some(&1));
+    assert!(p.unknown.contains("units:NG.N5060US2.M"));
+    let all = records(SourceId::Eia, p, live());
+    let (quantities, recs): (Vec<Record>, Vec<Record>) =
+        all.into_iter().partition(|r| rv(r).unit.is_some());
     assert_eq!(symbols(&recs), ["NG.N3010US3.M", "NG.N3050US3.M"]);
     assert_eq!(value_of(one(&recs, "NG.N3050US3.M", "2026-08-01")), "4.1");
     assert_eq!(value_of(one(&recs, "NG.N3010US3.M", "2026-07-01")), "15.01");
     assert!(recs.iter().all(flagged));
+    // Storage (stock, Bcf) and dry production (flow, MMcf), unflagged.
+    assert_eq!(
+        symbols(&quantities),
+        ["NG.N9070US2.M", "NG.NW2_EPG0_SWO_R48_BCF.W"]
+    );
+    let storage = rv(one(&quantities, "NG.NW2_EPG0_SWO_R48_BCF.W", "2026-11-06"));
+    assert_eq!(storage.measure, ReferenceMeasure::Stock);
+    assert_eq!(
+        storage.unit,
+        Some(mesh_types::QuantityUnit::BillionCubicFeet)
+    );
+    assert_eq!(storage.value.to_string(), "3801");
+    let dry = rv(one(&quantities, "NG.N9070US2.M", "2026-08-01"));
+    assert_eq!(dry.measure, ReferenceMeasure::Flow);
+    assert_eq!(dry.unit, Some(mesh_types::QuantityUnit::MillionCubicFeet));
+    assert!(quantities.iter().all(|r| !flagged(r)));
 }
 
 #[test]
@@ -566,8 +726,16 @@ mod live_poll {
         }
         // Within the 400-day window: regular gasoline 2, diesel 1,
         // residential heating oil 2, refiner gasoline 2, crude first
-        // purchase 1, city gate 2, residential gas 1.
-        assert_eq!(recs.len(), 11);
+        // purchase 1, city gate 2, residential gas 1; and 9 quantities:
+        // commercial crude stocks 2, Cushing 1, crude production 1,
+        // capacity 1, utilisation 1, monthly crude production 1, gas
+        // storage 1, dry gas production 1.
+        assert_eq!(recs.len(), 20);
         assert_eq!(recs.iter().filter(|r| flagged(r)).count(), 6);
+        let quantities = recs
+            .iter()
+            .filter(|r| matches!(r, mesh_types::Record::ReferenceValue(v) if v.unit.is_some()))
+            .count();
+        assert_eq!(quantities, 9);
     }
 }

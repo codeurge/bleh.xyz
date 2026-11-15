@@ -31,7 +31,7 @@ use mesh_types::positioning::POSITIONING_CLASS;
 use mesh_types::reference::REFERENCE_CLASS;
 use mesh_types::{
     Compounding, DayCount, Flag, Flags, Positioning, PositioningCategory, PositioningReport, Price,
-    Provenance, Record, ReferenceMeasure, ReferenceValue, Seq, UnixMillis, UnixNanos,
+    Provenance, QuantityUnit, Record, ReferenceMeasure, ReferenceValue, Seq, UnixMillis, UnixNanos,
 };
 
 use crate::num;
@@ -70,9 +70,40 @@ pub struct RefObs {
     pub slot: u32,
     /// Publication time the source states, Unix milliseconds.
     pub published_ms: Option<i64>,
+    /// Unit of a quantity (ADR 0023); `None` for rates, prices and index
+    /// levels.
+    pub unit: Option<QuantityUnit>,
 }
 
 impl RefObs {
+    /// A quantity (`stock`, `flow`, `capacity` or `ratio`) in `unit` for
+    /// `as_of`, carried as published (never rescaled).
+    #[must_use]
+    pub fn quantity(
+        series: String,
+        measure: ReferenceMeasure,
+        value: Price,
+        unit: QuantityUnit,
+        as_of: Date,
+    ) -> Self {
+        Self {
+            series,
+            measure,
+            value,
+            tenor: None,
+            maturity_date: None,
+            day_count: None,
+            compounding: None,
+            currency: None,
+            as_of,
+            period: None,
+            exchange_referenced: false,
+            slot: 0,
+            published_ms: None,
+            unit: Some(unit),
+        }
+    }
+
     /// A price in US dollars for `as_of`.
     #[must_use]
     pub fn usd_price(series: String, value: Price, as_of: Date) -> Self {
@@ -90,6 +121,7 @@ impl RefObs {
             exchange_referenced: false,
             slot: 0,
             published_ms: None,
+            unit: None,
         }
     }
 
@@ -118,6 +150,7 @@ impl RefObs {
             exchange_referenced: false,
             slot: tenor_slot(tenor),
             published_ms: None,
+            unit: None,
         }
     }
 }
@@ -387,6 +420,7 @@ impl Builder {
                         revision,
                         period_start_ms: r.period.map(|p| UnixMillis(p.0)),
                         period_end_ms: r.period.map(|p| UnixMillis(p.1)),
+                        unit: r.unit,
                     })
                 }
                 Obs::Pos(p) => {
@@ -442,17 +476,8 @@ fn sort_key(o: &Obs) -> (String, i64, u32) {
 #[must_use]
 pub fn revision_key(o: &Obs) -> (String, String) {
     match o {
-        Obs::Ref(r) => (
-            format!(
-                "ref|{}|{}|{}|{}|{}|{}",
-                r.series,
-                r.tenor.as_deref().unwrap_or(""),
-                r.maturity_date.map(|d| d.to_string()).unwrap_or_default(),
-                r.period.map(|p| p.0.to_string()).unwrap_or_default(),
-                r.as_of,
-                r.slot
-            ),
-            format!(
+        Obs::Ref(r) => {
+            let mut fingerprint = format!(
                 "{:?}|{}|{:?}|{:?}|{}|{}",
                 r.measure,
                 num::normalized(r.value),
@@ -460,8 +485,27 @@ pub fn revision_key(o: &Obs) -> (String, String) {
                 r.compounding,
                 r.currency.as_deref().unwrap_or(""),
                 r.period.map(|p| p.1.to_string()).unwrap_or_default()
-            ),
-        ),
+            );
+            // Appended only for quantities, so the fingerprints of values
+            // stored before units existed are unchanged (no spurious
+            // revisions).
+            if let Some(u) = r.unit {
+                fingerprint.push('|');
+                fingerprint.push_str(u.as_str());
+            }
+            (
+                format!(
+                    "ref|{}|{}|{}|{}|{}|{}",
+                    r.series,
+                    r.tenor.as_deref().unwrap_or(""),
+                    r.maturity_date.map(|d| d.to_string()).unwrap_or_default(),
+                    r.period.map(|p| p.0.to_string()).unwrap_or_default(),
+                    r.as_of,
+                    r.slot
+                ),
+                fingerprint,
+            )
+        }
         Obs::Pos(p) => (
             format!(
                 "pos|{}|{:?}|{}|{:?}|{}",

@@ -1,5 +1,5 @@
-//! Public reference values: rates, yields, prices and index levels that a
-//! public-data source publishes (observation-v0 § 2.12).
+//! Public reference values: rates, yields, prices, index levels and
+//! quantities that a public-data source publishes (observation-v0 § 2.12).
 //!
 //! A [`ReferenceValue`] is not derived: it is one published value, read by
 //! a poller from a source admitted for that field (for example a
@@ -23,6 +23,10 @@
 //!   `period_start_ms` and `period_end_ms`. Both are omitted (not `null`)
 //!   when absent, so records without a period keep their canonical
 //!   encoding.
+//! - Quantities (ADR 0023) use the measures `stock`, `flow`, `capacity` and
+//!   `ratio` and carry a [`QuantityUnit`] in `unit`; the value is the
+//!   number as published, in that unit. `unit` is omitted (not `null`) on
+//!   every other measure, so their canonical encoding is unchanged.
 
 use serde::{Deserialize, Serialize};
 
@@ -48,6 +52,18 @@ pub enum ReferenceMeasure {
     Price,
     /// A dimensionless index level (for example a compounded-rate index).
     IndexLevel,
+    /// A level at the end of the period `as_of_date` stands for (for
+    /// example crude oil stocks or gas in storage). Needs a `unit`.
+    Stock,
+    /// An amount over the period, or its average rate when the unit is per
+    /// day (for example production, imports, sales, head counts, funding
+    /// volume). Needs a `unit`.
+    Flow,
+    /// The most a facility can process or hold. Needs a `unit`.
+    Capacity,
+    /// A part of a whole, in percent (for example utilisation or moisture
+    /// content). Needs the unit `percent`.
+    Ratio,
 }
 
 impl ReferenceMeasure {
@@ -55,6 +71,115 @@ impl ReferenceMeasure {
     #[must_use]
     pub const fn is_rate(self) -> bool {
         matches!(self, Self::Rate | Self::ParYield | Self::ZeroYield)
+    }
+
+    /// True for the quantity measures, which need a `unit` (ADR 0023).
+    #[must_use]
+    pub const fn is_quantity(self) -> bool {
+        matches!(
+            self,
+            Self::Stock | Self::Flow | Self::Capacity | Self::Ratio
+        )
+    }
+}
+
+/// Unit of a quantity (ADR 0023): a closed vocabulary. The value is the
+/// number the source published, in this unit; it is never rescaled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QuantityUnit {
+    /// Barrels of 42 US gallons.
+    Barrels,
+    /// Thousands of barrels.
+    ThousandBarrels,
+    /// Thousands of barrels per day.
+    ThousandBarrelsPerDay,
+    /// Millions of cubic feet (MMcf).
+    MillionCubicFeet,
+    /// Billions of cubic feet (Bcf).
+    BillionCubicFeet,
+    /// Pounds.
+    Pounds,
+    /// Metric tons.
+    MetricTons,
+    /// Animals.
+    Head,
+    /// US dollars.
+    Usd,
+    /// Millions of US dollars.
+    MillionUsd,
+    /// Billions of US dollars.
+    BillionUsd,
+    /// Percent.
+    Percent,
+}
+
+impl QuantityUnit {
+    /// Every unit, in declaration order.
+    pub const ALL: [QuantityUnit; 12] = [
+        Self::Barrels,
+        Self::ThousandBarrels,
+        Self::ThousandBarrelsPerDay,
+        Self::MillionCubicFeet,
+        Self::BillionCubicFeet,
+        Self::Pounds,
+        Self::MetricTons,
+        Self::Head,
+        Self::Usd,
+        Self::MillionUsd,
+        Self::BillionUsd,
+        Self::Percent,
+    ];
+
+    /// The unit's name, as written in records.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Barrels => "barrels",
+            Self::ThousandBarrels => "thousand_barrels",
+            Self::ThousandBarrelsPerDay => "thousand_barrels_per_day",
+            Self::MillionCubicFeet => "million_cubic_feet",
+            Self::BillionCubicFeet => "billion_cubic_feet",
+            Self::Pounds => "pounds",
+            Self::MetricTons => "metric_tons",
+            Self::Head => "head",
+            Self::Usd => "usd",
+            Self::MillionUsd => "million_usd",
+            Self::BillionUsd => "billion_usd",
+            Self::Percent => "percent",
+        }
+    }
+
+    /// The base unit and the power of ten that converts a value in this
+    /// unit to it (ADR 0023 § 2): `thousand_barrels` is `("barrels", 3)`.
+    #[must_use]
+    pub const fn base(self) -> (&'static str, u8) {
+        match self {
+            Self::Barrels => ("barrels", 0),
+            Self::ThousandBarrels => ("barrels", 3),
+            Self::ThousandBarrelsPerDay => ("barrels_per_day", 3),
+            Self::MillionCubicFeet => ("cubic_feet", 6),
+            Self::BillionCubicFeet => ("cubic_feet", 9),
+            Self::Pounds => ("pounds", 0),
+            Self::MetricTons => ("metric_tons", 0),
+            Self::Head => ("head", 0),
+            Self::Usd => ("usd", 0),
+            Self::MillionUsd => ("usd", 6),
+            Self::BillionUsd => ("usd", 9),
+            Self::Percent => ("percent", 0),
+        }
+    }
+
+    /// True for rates per day, which a stock cannot have.
+    #[must_use]
+    pub const fn is_per_day(self) -> bool {
+        matches!(self, Self::ThousandBarrelsPerDay)
+    }
+}
+
+impl std::fmt::Display for QuantityUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -99,7 +224,8 @@ pub struct ReferenceValue {
     pub prov: Provenance,
     /// What the value measures.
     pub measure: ReferenceMeasure,
-    /// The value: percent for rates and yields, currency units for prices.
+    /// The value: percent for rates and yields, currency units for prices,
+    /// `unit` for quantities.
     pub value: Price,
     /// Tenor: `ON` (overnight), `TN` (tomorrow-next) or a count and unit
     /// (`D`, `W`, `M`, `Y`), such as `3M`.
@@ -124,6 +250,10 @@ pub struct ReferenceValue {
     /// `period_start_ms` is.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub period_end_ms: Option<UnixMillis>,
+    /// Unit of a quantity: present exactly on the quantity measures
+    /// (ADR 0023). Omitted when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<QuantityUnit>,
 }
 
 /// True for a real proleptic Gregorian date written `YYYY-MM-DD`.
@@ -189,10 +319,32 @@ impl ReferenceValue {
     /// malformed, a rate has no compounding or no tenor or maturity, a
     /// simple or discount rate has no day count, rate conventions are set
     /// on a price or index level, or a currency is set on anything but a
-    /// price or is not three uppercase letters, or a period has only one
-    /// end or does not end after it starts.
+    /// price or is not three uppercase letters, a period has only one
+    /// end or does not end after it starts, or a unit is missing on a
+    /// quantity, set on anything else, or does not fit the measure
+    /// (`ratio` takes `percent` and only it does; a `stock` is never per
+    /// day).
     pub fn validate(&self) -> Result<(), ValidationError> {
         let k = RecordKind::ReferenceValue;
+        match (self.measure.is_quantity(), self.unit) {
+            (true, None) => return Err(ValidationError::new(k, "a quantity needs a unit")),
+            (false, Some(_)) => {
+                return Err(ValidationError::new(k, "unit applies to quantities only"));
+            }
+            (false, None) => {}
+            (true, Some(u)) => {
+                ensure(
+                    (self.measure == ReferenceMeasure::Ratio) == (u == QuantityUnit::Percent),
+                    k,
+                    || "a ratio is in percent, and only a ratio is".into(),
+                )?;
+                ensure(
+                    !(self.measure == ReferenceMeasure::Stock && u.is_per_day()),
+                    k,
+                    || format!("a stock cannot be in {u}"),
+                )?;
+            }
+        }
         match (self.period_start_ms, self.period_end_ms) {
             (None, None) => {}
             (Some(s), Some(e)) => ensure(s.0 < e.0, k, || {
@@ -281,6 +433,7 @@ pub(crate) mod tests {
             revision: 0,
             period_start_ms: None,
             period_end_ms: None,
+            unit: None,
         }
     }
 
@@ -312,8 +465,28 @@ pub(crate) mod tests {
         r
     }
 
+    /// A synthetic weekly stock in thousand barrels (invented source and
+    /// value).
+    pub(crate) fn stock() -> ReferenceValue {
+        let mut r = overnight();
+        r.prov.instrument = crate::InstrumentId::new("example-rates:ref:STOCKS.W").unwrap();
+        r.measure = ReferenceMeasure::Stock;
+        r.value = px("421234");
+        r.tenor = None;
+        r.day_count = None;
+        r.compounding = None;
+        r.as_of_date = "2025-12-26".into();
+        r.unit = Some(QuantityUnit::ThousandBarrels);
+        r
+    }
+
     pub(crate) fn samples() -> Vec<Record> {
-        vec![overnight().into(), price().into(), interval_price().into()]
+        vec![
+            overnight().into(),
+            price().into(),
+            interval_price().into(),
+            stock().into(),
+        ]
     }
 
     #[test]
@@ -351,6 +524,75 @@ pub(crate) mod tests {
                 r#""tenor":"ON","value":"4.31"}"#
             )
         );
+    }
+
+    #[test]
+    fn canonical_encoding_of_a_quantity() {
+        let c = crate::hash::canonical_record(&Record::from(stock())).unwrap();
+        assert_eq!(
+            String::from_utf8(c).unwrap(),
+            concat!(
+                r#"{"as_of_date":"2025-12-26","compounding":null,"currency":null,"#,
+                r#""day_count":null,"kind":"reference_value","maturity_date":null,"#,
+                r#""measure":"stock","prov":{"admission":"ADM-9001","flags":[],"#,
+                r#""instrument":"example-rates:ref:STOCKS.W","seq":{"block_number":40,"#,
+                r#""event_index":0},"ts_ingest_ns":"1767225600004000000","#,
+                r#""ts_source_ms":1767225600000,"venue":"example-rates"},"revision":0,"#,
+                r#""tenor":null,"unit":"thousand_barrels","value":"421234"}"#
+            )
+        );
+    }
+
+    #[test]
+    fn units_are_checked() {
+        stock().validate().unwrap();
+        let mut r = stock();
+        r.unit = None;
+        assert!(r.validate().is_err(), "a quantity needs a unit");
+        let mut r = price();
+        r.unit = Some(QuantityUnit::Usd);
+        assert!(r.validate().is_err(), "no unit on a price");
+        let mut r = stock();
+        r.unit = Some(QuantityUnit::ThousandBarrelsPerDay);
+        assert!(r.validate().is_err(), "a stock is not per day");
+        r.measure = ReferenceMeasure::Flow;
+        r.validate().unwrap();
+        r.measure = ReferenceMeasure::Capacity;
+        r.validate().unwrap();
+        r.measure = ReferenceMeasure::Ratio;
+        assert!(r.validate().is_err(), "a ratio is in percent");
+        r.unit = Some(QuantityUnit::Percent);
+        r.validate().unwrap();
+        r.measure = ReferenceMeasure::Flow;
+        assert!(r.validate().is_err(), "percent is only for ratios");
+        let mut r = stock();
+        r.currency = Some("USD".into());
+        assert!(r.validate().is_err(), "no currency on a quantity");
+        let mut r = stock();
+        r.compounding = Some(Compounding::Annual);
+        assert!(r.validate().is_err(), "no compounding on a quantity");
+    }
+
+    #[test]
+    fn unit_vocabulary() {
+        let mut names = std::collections::BTreeSet::new();
+        for u in QuantityUnit::ALL {
+            let json = serde_json::to_value(u).unwrap();
+            assert_eq!(json, u.as_str(), "{u:?}");
+            assert_eq!(serde_json::from_value::<QuantityUnit>(json).unwrap(), u);
+            assert!(names.insert(u.as_str()));
+            let (base, pow) = u.base();
+            assert!(!base.is_empty() && pow <= 9);
+        }
+        assert_eq!(QuantityUnit::ThousandBarrels.base(), ("barrels", 3));
+        assert_eq!(QuantityUnit::BillionCubicFeet.base(), ("cubic_feet", 9));
+        assert_eq!(QuantityUnit::BillionUsd.base(), ("usd", 9));
+        assert!(serde_json::from_str::<QuantityUnit>("\"Mbbl\"").is_err());
+        for m in ["stock", "flow", "capacity", "ratio"] {
+            let m: ReferenceMeasure = serde_json::from_value(m.into()).unwrap();
+            assert!(m.is_quantity() && !m.is_rate());
+        }
+        assert!(!ReferenceMeasure::Price.is_quantity());
     }
 
     #[test]

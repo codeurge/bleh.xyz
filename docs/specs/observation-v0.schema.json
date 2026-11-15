@@ -601,7 +601,12 @@
       "properties": {
         "kind": { "const": "reference_value" },
         "prov": { "$ref": "#/$defs/prov" },
-        "measure": { "enum": ["rate", "par_yield", "zero_yield", "price", "index_level"] },
+        "measure": {
+          "enum": [
+            "rate", "par_yield", "zero_yield", "price", "index_level", "stock", "flow",
+            "capacity", "ratio"
+          ]
+        },
         "value": { "$ref": "#/$defs/decimal" },
         "tenor": {
           "oneOf": [
@@ -626,12 +631,36 @@
         "as_of_date": { "$ref": "#/$defs/date" },
         "revision": { "$ref": "#/$defs/u32" },
         "period_start_ms": { "$ref": "#/$defs/ms" },
-        "period_end_ms": { "$ref": "#/$defs/ms" }
+        "period_end_ms": { "$ref": "#/$defs/ms" },
+        "unit": {
+          "description": "Unit of a quantity (ADR 0023); omitted on every other measure.",
+          "enum": [
+            "barrels", "thousand_barrels", "thousand_barrels_per_day", "million_cubic_feet",
+            "billion_cubic_feet", "pounds", "metric_tons", "head", "usd", "million_usd",
+            "billion_usd", "percent"
+          ]
+        }
       },
       "dependentRequired": {
         "period_start_ms": ["period_end_ms"],
         "period_end_ms": ["period_start_ms"]
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "measure": { "enum": ["stock", "flow", "capacity", "ratio"] } } },
+          "then": { "required": ["unit"] },
+          "else": { "not": { "required": ["unit"] } }
+        },
+        {
+          "if": { "properties": { "measure": { "const": "ratio" } } },
+          "then": { "properties": { "unit": { "const": "percent" } } },
+          "else": { "properties": { "unit": { "not": { "const": "percent" } } } }
+        },
+        {
+          "if": { "properties": { "measure": { "const": "stock" } } },
+          "then": { "properties": { "unit": { "not": { "const": "thousand_barrels_per_day" } } } }
+        }
+      ]
     },
     "positioning": {
       "type": "object",

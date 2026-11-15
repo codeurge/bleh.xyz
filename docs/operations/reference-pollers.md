@@ -23,7 +23,7 @@ written clean-room from it.
 | `usda-dairy` | [ADM-0011](../admissions/ADM-0011-usda-dairy-ndpsr-and-class-prices.md) | LMPR DataMart API | Weekdays, hourly 15:00 to 23:00 UTC | first date the DataMart returns (requests start 2000) | NDPSR prices and announced class and component prices, all `exchange_referenced` |
 | `usda-feeder` | [ADM-0012](../admissions/ADM-0012-usda-market-news-feeder-cattle-and-grain.md) | `ams.usda.gov/mnreports/sj_ls850.txt` | Weekdays, every few hours | none: the files hold only the latest issue and the archive channel (MyMarketNews) is not admitted | weekly summary sale prices |
 | `ercot` | [ADM-0013](../admissions/ADM-0013-ercot-prices.md) | www.ercot.com listings and downloads (never the API) | Every 5 minutes | 2010 (hub and load-zone workbooks, NP4-180-ER and NP6-785-ER) | day-ahead and real-time SPPs and AS clearing prices per interval |
-| `eia` | [ADM-0021](../admissions/ADM-0021-eia-energy-statistics.md) | Bulk files `PET.zip` and `NG.zip` (never the API) | Wednesday and Thursday 19:30 to 23:30 UTC every 30 minutes (the 3 p.m. ET bulk build after the Weekly Petroleum Status Report and the storage report); otherwise daily | 1974 (crude first purchase prices; other series later) | allowlisted EIA survey prices: weekly retail gasoline and diesel, residential heating oil and propane; monthly refiner, first purchase, imported crude and natural gas prices, `exchange_referenced` |
+| `eia` | [ADM-0021](../admissions/ADM-0021-eia-energy-statistics.md) | Bulk files `PET.zip` and `NG.zip` (never the API) | Wednesday and Thursday 19:30 to 23:30 UTC every 30 minutes (the 3 p.m. ET bulk build after the Weekly Petroleum Status Report and the storage report); otherwise daily | 1920 (monthly crude oil production; prices from 1974) | allowlisted EIA survey prices: weekly retail gasoline and diesel, residential heating oil and propane; monthly refiner, first purchase, imported crude and natural gas prices, `exchange_referenced`; volumes as quantities (stocks, flows, capacity, utilisation, gas storage; ADR 0023) |
 | `bls` | [ADM-0022](../admissions/ADM-0022-bls-consumer-price-indexes.md) | `download.bls.gov/pub/time.series` `cu`, `cw`, `su`, `ap` (never the API) | Weekdays 12:15 to 16:00 UTC every 30 minutes (the 8:30 a.m. ET CPI release); otherwise every 12 hours | 1913 (CPI-U and CPI-W all items), 1999 (C-CPI-U), 1980 (average prices) | CPI-U, CPI-W and C-CPI-U index levels and average prices, monthly, for the areas in `--bls-areas` |
 
 Never used: the ERCOT API, MyMarketNews, treasurydirect.gov, FRED, the COT
@@ -154,15 +154,32 @@ Every option has an environment variable `REFERENCE_POLLERS_<NAME>`.
   converted from Central prevailing time; the hour repeated when daylight
   time ends is the one flagged `Y`.
 - Values are carried exactly as published (decimal text, no floats).
+- Quantities ([ADR 0023](../decisions/0023-reference-quantities.md)) are
+  `reference_value` records with measure `stock`, `flow`, `capacity` or
+  `ratio` and a `unit`; prices, rates and index levels have no `unit`.
+  They carry no `exchange_referenced` (they are not prices):
 
-What is admitted but not emitted, because the record kinds have no place
-for it: volumes (head counts, NDPSR sales, NY Fed volumes, auction amounts
-and bid-to-cover, and the EIA weekly and monthly supply, stocks, Cushing
-stocks, refinery utilisation and natural gas storage series, which are
-allowlisted and counted as `unsupported_volume`), BLS footnote codes,
+  | Source | Series | Measure and unit |
+  |---|---|---|
+  | `eia` | Weekly petroleum stocks, Cushing included | `stock`, `thousand_barrels` |
+  | `eia` | Weekly inputs, production, imports, exports, product supplied | `flow`, `thousand_barrels_per_day` |
+  | `eia` | `PET.WOCLEUS2.W` operable capacity; `PET.WPULEUS3.W` utilisation | `capacity`, `thousand_barrels_per_day`; `ratio`, `percent` |
+  | `eia` | Weekly gas storage by region | `stock`, `billion_cubic_feet` |
+  | `eia` | Monthly crude production; gas dry production, consumption, injections, withdrawals | `flow`, `thousand_barrels` or `million_cubic_feet` |
+  | `nyfed` | `<RATE>.VOLUME` (`volumeInBillions`) | `flow`, `billion_usd` |
+  | `usda-dairy` | `NDPSR.<product>_Sales`; `NDPSR.cheese_500_Wtd_Mst` | `flow`, `pounds`; `ratio`, `percent` |
+  | `usda-lmr` | `LM_HG201.<TYPE>.head_count` (every known purchase type), `LM_CT100.<...>.head_count` | `flow`, `head` |
+  | `usda-feeder` | `LS850.<...>.head_count` (kept sale rows only) | `flow`, `head` |
+
+What is admitted but not emitted: Treasury auction amounts and
+bid-to-cover (counted as `unsupported_amount`; they fit the quantity
+measures and need only a reader change), LMR weights and carcass
+measurements, dairy utilization and receipts reports (3346 to 3350, 3361,
+3462), BLS footnote codes,
 BLS annual averages (`M13`) and semiannual values (`S01` to `S03`), rates without a tenor (bank prime, long-term composites
 and averages, the extrapolation factor), CUSIPs, and the COT changes,
-percentages, trader counts and concentration ratios. Announced dairy
+percentages, trader counts and concentration ratios. BLS areas default to
+the U.S. city average (`--bls-areas 0000`), the owner's choice. Announced dairy
 reports 2989, 3345, 3351, 3354, 3355 and 3357, LMR reports other than 2511
 and 2466, and PDF issues of the feeder cattle summary are not read until
 their layouts are in the access specification.
@@ -212,7 +229,7 @@ carries the BLS.gov disclaimer verbatim (terms read 2026-11-14).
 | `field` | Meaning | Action |
 |---|---|---|
 | `vendor_credit:<series>` | An allowlisted EIA series now credits a vendor or exchange (ADM-0021 review trigger). It is no longer emitted | Tell the owner; remove the series from the allowlist and review ADM-0021 |
-| `units:<series>` | An allowlisted EIA price is no longer in dollars | Check the table; fix or remove the entry |
+| `units:<series>` | An allowlisted EIA price is no longer in dollars, or a volume series' unit text is not in the vocabulary or does not fit its measure (a stock per day, a ratio not in percent) | Check the table; fix the entry's measure, add the unit text to `eia::quantity_unit` (a new unit needs a decision record, ADR 0023), or remove the entry |
 | `frequency:<series>`, `series_shape:<series>`, `bulk_line_shape` | The bulk file layout changed | Read the raw file with `parse`, update the reader and the specification |
 | `column:<name>` | A BLS data file has an undocumented column | Check the layout file (`cu.txt`); the documented columns are still read |
 
@@ -220,9 +237,11 @@ A bulk file with no series lines at all is a parse error
 (`BlehReferenceParseErrors`).
 
 **Volumes.** EIA's weekly and monthly supply, stocks (Cushing included)
-and storage series are admitted and allowlisted but not emitted: no
-record kind holds a quantity yet (counted as `unsupported_volume`). Raw
-files keep them, so emitting them later is a replay with `parse`.
+and storage series are emitted as quantities (ADR 0023); each allowlist
+entry names its measure, and adding a volume series means giving it one.
+Volumes before the release that started emitting them are not in the
+records yet: raw files keep them, so filling the gap is a replay of
+`raw/eia/` with `parse`, or a fresh `eia` backfill.
 
 **User-Agent.** BLS refuses generic clients. The pollers append
 `--contact` (`data@bleh.xyz`, a project role address) to the User-Agent.

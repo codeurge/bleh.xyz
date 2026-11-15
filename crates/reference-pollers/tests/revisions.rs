@@ -122,21 +122,53 @@ fn ndpsr_four_week_revision_via_final_section() {
         live(),
         &mut store,
     );
-    assert_eq!(w1.len(), 1);
+    assert_eq!(w1.len(), 2, "price and sales volume");
     let w2 = records_with(
         SourceId::UsdaDairy,
         dairy::parse_ndpsr(&fixture("dairy/2993.json")).unwrap(),
         live(),
         &mut store,
     );
-    let butter_0228: Vec<&Record> = w2
-        .iter()
-        .filter(|r| matches!(r, Record::ReferenceValue(v) if v.as_of_date == "2026-02-28"))
-        .collect();
+    let at = |sym: &str| -> Vec<&Record> {
+        w2.iter()
+            .filter(|r| {
+                matches!(r, Record::ReferenceValue(v) if v.as_of_date == "2026-02-28")
+                    && r.prov().instrument.symbol() == sym
+            })
+            .collect()
+    };
+    let butter_0228 = at("NDPSR.Butter_Price");
     assert_eq!(butter_0228.len(), 1);
     assert_eq!(revision(butter_0228[0]), 1);
     assert_eq!(common::value_of(butter_0228[0]), "2.5401");
     assert!(common::flagged(butter_0228[0]));
+    // The sales volume is revised the same way, and carries no flag.
+    let sales_0228 = at("NDPSR.Butter_Sales");
+    assert_eq!(sales_0228.len(), 1);
+    assert_eq!(revision(sales_0228[0]), 1);
+    assert_eq!(common::value_of(sales_0228[0]), "4000001");
+    assert!(!common::flagged(sales_0228[0]));
+}
+
+#[test]
+fn quantities_do_not_disturb_stored_price_fingerprints() {
+    // The revision fingerprint gains the unit only for quantities, so a
+    // price or rate stored before ADR 0023 is still a duplicate, not a new
+    // revision.
+    use reference_pollers::obs::{Obs, RefObs, revision_key};
+    let d = reference_pollers::time::Date::new(2026, 3, 10).unwrap();
+    let px = mesh_types::Price::parse_exact("2.5401").unwrap();
+    let (_, fp) = revision_key(&Obs::Ref(RefObs::usd_price("X".into(), px, d)));
+    assert_eq!(fp, "Price|2.5401|None|None|USD|");
+    let q = RefObs::quantity(
+        "Y".into(),
+        mesh_types::ReferenceMeasure::Stock,
+        mesh_types::Price::parse_exact("421234").unwrap(),
+        mesh_types::QuantityUnit::ThousandBarrels,
+        d,
+    );
+    let (_, fp) = revision_key(&Obs::Ref(q));
+    assert_eq!(fp, "Stock|421234|None|None|||thousand_barrels");
 }
 
 #[test]

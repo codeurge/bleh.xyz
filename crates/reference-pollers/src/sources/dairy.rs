@@ -7,10 +7,14 @@
 //! | 2993 NDPSR, every section (and the `Final` sections) | `Butter_Price`, `cheese_40_Price`, `cheese_500_Price`, `cheese_500_Wtd_Price`, `whey_Price`, `nonfat_milk_Price` | `NDPSR.<field>`, dated by `week_ending_date` |
 //! | 2991, section `Detail` | the 18 class, component and monthly-average price fields of ADM-0011 | `FMMO.<field>`, dated the first of `report_year`/`report_month` |
 //!
+//! | 2993 NDPSR, same sections | `Butter_Sales`, `cheese_40_Sales`, `cheese_500_Sales`, `whey_Sales`, `nonfat_milk_Sales` | `NDPSR.<field>`: `flow` in `pounds` (the week's sales), no flag |
+//! | 2993 NDPSR, barrel cheese | `cheese_500_Wtd_Mst`, `cheese_500_Mst` | `NDPSR.<field>`: `ratio` in `percent` (moisture content), no flag |
+//!
 //! NDPSR is revised for up to four weeks: live polls re-read five weeks,
 //! and `Final` sections are read after the others, so a changed value
-//! becomes the next revision. Sales volumes and moisture are admitted but
-//! are not prices and are not emitted. Any field quoting an exchange's
+//! becomes the next revision. Sales volumes and moisture are admitted
+//! (ADM-0011) and emitted as quantities (ADR 0023); they are not prices,
+//! so they carry no `exchange_referenced`. Any field quoting an exchange's
 //! spot cash or futures price (`CME` or `futures` in its name) is dropped
 //! as excluded; other undocumented price fields are reported and dropped.
 //! Announced prices of reports 2989, 3345, 3351, 3354, 3355 and 3357 are
@@ -19,6 +23,7 @@
 
 use std::time::Duration;
 
+use mesh_types::{QuantityUnit, ReferenceMeasure};
 use serde_json::{Map, Value};
 
 use super::lmr::{published_ms, range_url, sections, text, year_chunks};
@@ -37,15 +42,36 @@ pub const NDPSR_PRICES: [&str; 6] = [
     "whey_Price",
     "nonfat_milk_Price",
 ];
-/// Admitted NDPSR volume fields (not emitted).
-pub const NDPSR_VOLUMES: [&str; 7] = [
-    "Butter_Sales",
-    "cheese_40_Sales",
-    "cheese_500_Sales",
-    "cheese_500_Wtd_Mst",
-    "whey_Sales",
-    "nonfat_milk_Sales",
-    "cheese_500_Mst",
+/// Admitted NDPSR volume fields, with their measure and unit: weekly sales
+/// in pounds, and the moisture content of barrel cheese in percent.
+pub const NDPSR_VOLUMES: [(&str, ReferenceMeasure, QuantityUnit); 7] = [
+    ("Butter_Sales", ReferenceMeasure::Flow, QuantityUnit::Pounds),
+    (
+        "cheese_40_Sales",
+        ReferenceMeasure::Flow,
+        QuantityUnit::Pounds,
+    ),
+    (
+        "cheese_500_Sales",
+        ReferenceMeasure::Flow,
+        QuantityUnit::Pounds,
+    ),
+    (
+        "cheese_500_Wtd_Mst",
+        ReferenceMeasure::Ratio,
+        QuantityUnit::Percent,
+    ),
+    ("whey_Sales", ReferenceMeasure::Flow, QuantityUnit::Pounds),
+    (
+        "nonfat_milk_Sales",
+        ReferenceMeasure::Flow,
+        QuantityUnit::Pounds,
+    ),
+    (
+        "cheese_500_Mst",
+        ReferenceMeasure::Ratio,
+        QuantityUnit::Percent,
+    ),
 ];
 /// Admitted announced class and component price fields.
 pub const CLASS_PRICES: [&str; 18] = [
@@ -82,7 +108,7 @@ fn read_fields(
     out: &mut Parsed,
     row: &Map<String, Value>,
     admitted: &[&str],
-    volumes: &[&str],
+    volumes: &[(&str, ReferenceMeasure, QuantityUnit)],
     prefix: &str,
     as_of: Date,
     dest: &mut Vec<Obs>,
@@ -104,8 +130,18 @@ fn read_fields(
                 Ok(None) => out.skip("missing"),
                 Err(_) => out.skip("malformed"),
             }
-        } else if volumes.contains(&key.as_str()) {
-            out.skip("unsupported_volume");
+        } else if let Some(&(_, measure, unit)) = volumes.iter().find(|v| v.0 == key) {
+            let Some(t) = text(row, key) else { continue };
+            match num::decimal(&t) {
+                Ok(Some(v)) => {
+                    let mut r =
+                        RefObs::quantity(format!("{prefix}.{key}"), measure, v, unit, as_of);
+                    r.published_ms = published_ms(row);
+                    dest.push(Obs::Ref(r));
+                }
+                Ok(None) => out.skip("missing"),
+                Err(_) => out.skip("malformed"),
+            }
         } else if price_like(key) {
             out.unknown.insert(key.clone());
         }

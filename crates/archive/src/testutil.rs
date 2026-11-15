@@ -292,6 +292,10 @@ pub(crate) fn analytics() -> Vec<Record> {
     rv_prov2["instrument"] = serde_json::json!("example-rates:ref:BILL");
     let mut rv_prov3 = rv_prov.clone();
     rv_prov3["instrument"] = serde_json::json!("example-rates:ref:HOURLY.NODE");
+    let mut rv_prov4 = rv_prov.clone();
+    rv_prov4["instrument"] = serde_json::json!("example-rates:ref:STOCKS.W");
+    let mut rv_prov5 = rv_prov.clone();
+    rv_prov5["instrument"] = serde_json::json!("example-rates:ref:UTILIZATION.W");
     let mut pos = self::prov(
         "example-cot:positioning:000001",
         20_260_101,
@@ -389,6 +393,18 @@ pub(crate) fn analytics() -> Vec<Record> {
             "tenor": null, "maturity_date": null, "day_count": null, "compounding": null,
             "currency": "USD", "as_of_date": "2026-01-01", "revision": 0,
             "period_start_ms": DAY_MS, "period_end_ms": DAY_MS + 3_600_000
+        }),
+        // Quantities (ADR 0023): a stock and a ratio, with a unit.
+        serde_json::json!({
+            "kind": "reference_value", "prov": rv_prov4, "measure": "stock", "value": "421234",
+            "tenor": null, "maturity_date": null, "day_count": null, "compounding": null,
+            "currency": null, "as_of_date": "2025-12-26", "revision": 0,
+            "unit": "thousand_barrels"
+        }),
+        serde_json::json!({
+            "kind": "reference_value", "prov": rv_prov5, "measure": "ratio", "value": "91.2",
+            "tenor": null, "maturity_date": null, "day_count": null, "compounding": null,
+            "currency": null, "as_of_date": "2025-12-26", "revision": 0, "unit": "percent"
         }),
         serde_json::json!({
             "kind": "positioning", "prov": pos_prov, "report": "disaggregated", "combined": false,

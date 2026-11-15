@@ -191,7 +191,18 @@ pub fn entries() -> Vec<Entry> {
                 },
             ];
         }
+        let mut vol = entry(
+            S::NyFed,
+            "",
+            rv,
+            "Volume underlying the rate (volumeInBillions), as published; measure flow",
+            "billion_usd",
+            &[],
+        );
+        vol.instrument = format!("{}.VOLUME", e.instrument);
+        vol.notice.clone_from(&e.notice);
         v.push(e);
+        v.push(vol);
     }
     let mut avg = entry(
         S::NyFed,
@@ -209,15 +220,25 @@ pub fn entries() -> Vec<Entry> {
         entry(S::UsdaLmr, "LM_HG201.NEGOTIATED.<field>", rv, "Negotiated barrow and gilt prices (LM_HG201)", "US dollars per hundredweight", &[]),
         entry(S::UsdaLmr, "LM_HG201.<NEGOTIATED_FORMULA|SWINE_PORK_MARKET_FORMULA|COMBINED>.<field>", rv, "Swine formula and combined prices (LM_HG201)", "US dollars per hundredweight", XR),
         entry(S::UsdaLmr, "LM_CT100.<CLASS>.<BASIS>.<GRADE>.<LOW>_<HIGH>.<field>", rv, "Negotiated fed cattle prices (LM_CT100 Detail)", "US dollars per hundredweight", &[]),
-        entry(S::UsdaDairy, "NDPSR.<field>", rv, "National Dairy Products Sales Report weighted average prices, revised up to four weeks", "US dollars per pound", XR),
+        entry(S::UsdaLmr, "LM_HG201.<PURCHASE_TYPE>.head_count", rv, "Barrows and gilts slaughtered, by purchase type (every type, including those whose prices are excluded, and the aggregates); measure flow", "head", &[]),
+        entry(S::UsdaLmr, "LM_CT100.<CLASS>.<BASIS>.<GRADE>.<LOW>_<HIGH>.head_count", rv, "Negotiated fed cattle purchased (LM_CT100 Detail); measure flow", "head", &[]),
+        entry(S::UsdaDairy, "NDPSR.<field>_Price", rv, "National Dairy Products Sales Report weighted average prices, revised up to four weeks", "US dollars per pound", XR),
+        entry(S::UsdaDairy, "NDPSR.<product>_Sales", rv, "National Dairy Products Sales Report weekly sales volumes, revised up to four weeks; measure flow", "pounds", &[]),
+        entry(S::UsdaDairy, "NDPSR.<cheese_500_Wtd_Mst|cheese_500_Mst>", rv, "National Dairy Products Sales Report moisture content of 500-pound barrel cheese; measure ratio", "percent", &[]),
         entry(S::UsdaDairy, "FMMO.<field>", rv, "Announced class and component prices, dated the first of the month", "US dollars per hundredweight (classes) or per pound (components)", XR),
         entry(S::UsdaFeeder, "LS850.<CLASS>.<GRADE>.<LOW>_<HIGH>[.<NOTE>].<field>", rv, "National feeder and stocker cattle summary sale prices", "US dollars per hundredweight", &[]),
+        entry(S::UsdaFeeder, "LS850.<CLASS>.<GRADE>.<LOW>_<HIGH>[.<NOTE>].head_count", rv, "National feeder and stocker cattle summary head counts of the sale rows; measure flow", "head", &[]),
         entry(S::Ercot, "<DAM_SPP|DAM_LMP|DAM_MCPC|RT_SPP|RT_LMP|RT_MCPC|RT_MCPC_SCED>.<name>", rv, "ERCOT day-ahead and real-time settlement point prices, LMPs and ancillary service clearing prices, per delivery interval", "US dollars per MWh", &[]),
         entry(S::Eia, "PET.<EMM_*|EMD_*>_PTE_<area>_DPG.W", rv, "EIA weekly retail gasoline (EIA-878) and on-highway diesel (EIA-888) prices by grade and area, dated the survey Monday; bulk series ID", "US dollars per gallon", &[]),
         entry(S::Eia, "PET.W_<EPD2F|EPLLPA>_PRS_NUS_DPG.W", rv, "EIA weekly residential heating oil and propane prices (State Heating Oil and Propane Program, heating season), dated the survey Monday", "US dollars per gallon", &[]),
         entry(S::Eia, "PET.EMA_<product>_<sales type>_NUS_DPG.M", rv, "EIA monthly refiner motor gasoline, No. 2 distillate, diesel and propane prices by sales type, dated the first of the month", "US dollars per gallon", XR),
         entry(S::Eia, "PET.<F<area>__3|R1300____3>.M", rv, "EIA monthly domestic crude oil first purchase prices by area, and the refiner acquisition cost of imported crude oil, dated the first of the month", "US dollars per barrel", XR),
         entry(S::Eia, "NG.<N3050US3|N3010US3|N3020US3|N3035US3|N3045US3>.M", rv, "EIA monthly natural gas city-gate, residential, commercial, industrial and electric power prices, dated the first of the month", "US dollars per thousand cubic feet", XR),
+        entry(S::Eia, "PET.<weekly stock series>.W", rv, "EIA weekly petroleum stocks (crude oil including the strategic reserve and Cushing, gasoline, distillate, jet fuel, propane, other), dated the week-ending Friday; measure stock", "thousand_barrels", &[]),
+        entry(S::Eia, "PET.<weekly supply series>.W", rv, "EIA weekly refinery inputs, production, imports, exports, net imports and product supplied, the week's daily average; measure flow", "thousand_barrels_per_day", &[]),
+        entry(S::Eia, "PET.<WOCLEUS2|WPULEUS3>.W", rv, "EIA weekly operable crude distillation capacity (measure capacity) and refinery utilisation (measure ratio)", "thousand_barrels_per_day (capacity); percent (utilisation)", &[]),
+        entry(S::Eia, "NG.NW2_EPG0_S<W|S|N>O_R<region>_BCF.W", rv, "EIA weekly working gas in underground storage by region (EIA-912), dated the week-ending Friday; measure stock", "billion_cubic_feet", &[]),
+        entry(S::Eia, "<PET.MCRFP<area>1|NG.N9070US2|NG.N9140US2|NG.N5050US2|NG.N5060US2>.M", rv, "EIA monthly crude oil field production by area, and US natural gas dry production, consumption, storage injections and withdrawals, the month's total, dated the first of the month; measure flow", "thousand_barrels (crude oil); million_cubic_feet (natural gas)", &[]),
         entry(S::Bls, "CU<S|U><R|S><area><item>", rv, "CPI for All Urban Consumers (CPI-U), seasonally adjusted (S) and not (U), by item and area, monthly, dated the first of the month; CUUR0000SA0 is the all-items U.S. city average index that TIPS accrue against", "index level (base period in the BLS series metadata, mostly 1982-84=100)", &[]),
         entry(S::Bls, "CW<S|U><R|S><area><item>", rv, "CPI for Urban Wage Earners and Clerical Workers (CPI-W), by item and area, monthly", "index level (base period in the BLS series metadata, mostly 1982-84=100)", &[]),
         entry(S::Bls, "SUUR<area><item>", rv, "Chained CPI for All Urban Consumers (C-CPI-U), not seasonally adjusted, monthly; initial and interim values are revised to final, as later revisions", "index level (December 1999=100)", &[]),

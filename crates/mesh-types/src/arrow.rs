@@ -237,6 +237,9 @@ fn analytics_fields(kind: RecordKind) -> Vec<Field> {
             req("revision", DataType::UInt32),
             opt_ms_col("period_start_ms"),
             opt_ms_col("period_end_ms"),
+            // Appended (ADR 0023): files written before it have no such
+            // column, and readers take it as null.
+            opt("unit", DataType::Utf8),
         ],
         RecordKind::Positioning => vec![
             req("report", DataType::Utf8),

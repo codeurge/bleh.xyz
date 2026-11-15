@@ -466,9 +466,23 @@ pet = [
     series("PET.EER_EPMRU_PF4_Y35NY_DPG.D", "Dollars per Gallon", "D", [["20261109", 2.01]],
            copyright="Thomson-Reuters", source="Thomson Reuters"),
     series("PET.RCLC1.D", "Dollars per Barrel", "D", [["20240405", 60.01]]),
-    # Admitted volumes: not emitted.
+    # Admitted volumes, emitted as quantities (ADR 0023): commercial crude
+    # stocks and Cushing stocks (stock, thousand barrels).
     series("PET.WCESTUS1.W", "Thousand Barrels", "W", [["20261106", 400001], ["20261030", 400002]]),
     series("PET.W_EPC0_SAX_YCUOK_MBBL.W", "Thousand Barrels", "W", [["20261106", 20001]]),
+    # Weekly crude production (flow, thousand barrels per day), operable
+    # capacity (capacity, per calendar day) and utilisation (ratio, percent,
+    # with a withheld week).
+    series("PET.WCRFPUS2.W", "Thousand Barrels per Day", "W", [["20261106", 13501]]),
+    series("PET.WOCLEUS2.W", "Thousand Barrels per Calendar Day", "W", [["20261106", 18401]]),
+    series("PET.WPULEUS3.W", "Percent", "W", [["20261106", 91.2], ["20261030", "W"]]),
+    # Monthly crude production (flow, the month's total in thousand barrels).
+    series("PET.MCRFPUS1.M", "Thousand Barrels", "M", [["202608", 412345]]),
+    # A stock stated per day does not fit its measure: dropped and reported.
+    series("PET.WTTSTUS1.W", "Thousand Barrels per Day", "W", [["20261106", 1600001]]),
+    # An allowlisted volume series that credits a vendor: dropped and reported.
+    series("PET.WGTSTUS1.W", "Thousand Barrels", "W", [["20261106", 210001]],
+           source="Example Vendor via Platts"),
     # Monthly refiner sales price and crude first purchase price: exchange_referenced.
     series("PET.EMA_EPMR_PTR_NUS_DPG.M", "Dollars per Gallon", "M", [["202609", 2.801], ["202608", 2.790]],
            updated="2026-11-02T10:00:00-05:00"),
@@ -486,7 +500,12 @@ w('eia/PET.txt', '\n'.join(pet) + '\n')
 ng = [
     json.dumps({"category_id": "900101", "parent_category_id": "900100", "name": "Synthetic natural gas",
                 "notes": "", "childseries": []}, separators=(',', ':')),
+    # Working gas in storage (stock, billion cubic feet).
     series("NG.NW2_EPG0_SWO_R48_BCF.W", "Billion Cubic Feet", "W", [["20261106", 3801]]),
+    # Monthly dry production (flow, million cubic feet), and withdrawals in
+    # an undocumented unit text: dropped and reported.
+    series("NG.N9070US2.M", "Million Cubic Feet", "M", [["202608", 3101234]]),
+    series("NG.N5060US2.M", "MMcf", "M", [["202608", 401234]]),
     series("NG.N3050US3.M", "Dollars per Thousand Cubic Feet", "M", [["202608", 4.10], ["202607", 4.05]]),
     series("NG.N3010US3.M", "Dollars per Thousand Cubic Feet", "M", [["202608", "W"], ["202607", 15.01]]),
     # Henry Hub spot, labelled as EIA's own: excluded.
