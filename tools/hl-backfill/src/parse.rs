@@ -73,6 +73,9 @@ pub struct ParseStats {
     pub invalid: u64,
     /// Snapshots replaced by a later one that resolved to the same block.
     pub superseded: u64,
+    /// By-block fills lines skipped because they repeat an already
+    /// sequenced block number and carry no fills (ADR 0024).
+    pub repeated_empty_blocks: u64,
     /// Intervals (ms) between consecutive snapshots, to measure the
     /// snapshot frequency of `market_data` files.
     pub snapshot_intervals_ms: Vec<i64>,
@@ -498,6 +501,9 @@ impl RecordParser for LocalParser {
 /// - A rejected block (bad time, a pair whose fills disagree, ...) fails
 ///   the object, as any parse error does in this pipeline, instead of
 ///   being skipped with a gap.
+/// - A line repeating an already sequenced block number with no fills is
+///   skipped and counted (`repeated_empty_blocks`, ADR 0024); a repeated
+///   block with fills fails the object.
 ///
 /// Sequencer state is kept per dataset across objects (the pipeline
 /// processes objects in hour order) and committed only when an object
@@ -555,6 +561,17 @@ impl RecordParser for NodeReaderParser {
             else {
                 return Err(shape(n, "not a fills line"));
             };
+            // A node that restarts can write an already sequenced block
+            // again; with no fills it carries nothing, so it is skipped
+            // (ADR 0024). A repeated block with fills still fails.
+            if fills.events.is_empty()
+                && sequencer
+                    .last_block()
+                    .is_some_and(|l| fills.block_number <= l)
+            {
+                out.stats.repeated_empty_blocks += 1;
+                continue;
+            }
             let joined = JoinedBlock {
                 block_number: fills.block_number,
                 fills: Some(fills),
@@ -952,18 +969,41 @@ pub(crate) mod tests {
                 "events": [], "local_time": "2025-07-27T00:00:01.000000001"})
             .to_string()
         };
+        let with_fills = |b: u64| {
+            let t = 1_753_574_401_000;
+            crate::filter::tests::block_line(
+                b,
+                "2025-07-27T00:00:01.000",
+                vec![
+                    fill("SOL", "20.5", "1", "B", true, 7, 1, t),
+                    fill("SOL", "20.5", "1", "A", false, 7, 2, t),
+                ],
+            )
+        };
         let clock = TableClock::default();
         p.parse(Dataset::NodeFillsByBlock, &[line(5)], &clock)
             .unwrap();
-        // A block at or below the last one sequenced fails the object and
-        // leaves the state unchanged.
+        // A repeated block with no fills (a restarted node writing it
+        // again) carries nothing and is skipped (ADR 0024).
+        let again = p
+            .parse(Dataset::NodeFillsByBlock, &[line(5), line(4)], &clock)
+            .unwrap();
+        assert!(again.records.is_empty());
+        assert_eq!(again.stats.repeated_empty_blocks, 2);
+        let six = p
+            .parse(Dataset::NodeFillsByBlock, &[with_fills(6)], &clock)
+            .unwrap();
+        assert_eq!(six.records.len(), 1);
+        assert!(!six.records[0].prov().flags.contains(Flag::GapBefore));
+        // A repeated block with fills fails the object and leaves the
+        // state unchanged.
         assert!(
-            p.parse(Dataset::NodeFillsByBlock, &[line(5)], &clock)
+            p.parse(Dataset::NodeFillsByBlock, &[with_fills(6)], &clock)
                 .is_err()
         );
         // State is per dataset.
-        p.parse(Dataset::NodeFills, &[line(5)], &clock).unwrap();
-        p.parse(Dataset::NodeFillsByBlock, &[line(6)], &clock)
+        p.parse(Dataset::NodeFills, &[line(6)], &clock).unwrap();
+        p.parse(Dataset::NodeFillsByBlock, &[line(7)], &clock)
             .unwrap();
     }
 }

@@ -92,6 +92,8 @@ pub struct HourReport {
     pub invalid: u64,
     /// Snapshots superseded within one block.
     pub superseded: u64,
+    /// By-block lines skipped as repeated empty blocks (ADR 0024).
+    pub repeated_empty_blocks: u64,
     /// L2 snapshots read.
     pub snapshots_read: u64,
     /// Median interval between consecutive snapshots in one file (ms).
@@ -331,6 +333,7 @@ impl<'a, F: RawLineFilter, P: RecordParser, W: PartitionWriter> Pipeline<'a, F, 
         rep.unknown_coin += parsed.stats.unknown_coin;
         rep.invalid += parsed.stats.invalid;
         rep.superseded += parsed.stats.superseded;
+        rep.repeated_empty_blocks += parsed.stats.repeated_empty_blocks;
         if obj.dataset == Dataset::MarketData {
             rep.snapshots_read += filtered.stats.events_kept;
         }

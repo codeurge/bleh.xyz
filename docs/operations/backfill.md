@@ -238,7 +238,11 @@ canonical order.
   consecutive hourly files of a dataset, or a malformed fill group). The
   buckets carry only the fills stream, so the missing order-status and
   book-diff lines do not count as a gap; a block the node reader rejects
-  fails its file. `node_trades`, `market_data` L2 snapshots and bare
+  fails its file. A line that repeats an already sequenced block number
+  with no fills, as a restarted node can write, is skipped and counted
+  (`repeated_empty_blocks` in the report); a repeated block with fills
+  fails its file ([ADR 0024](../decisions/0024-repeated-empty-blocks.md)).
+  `node_trades`, `market_data` L2 snapshots and bare
   `node_fills` lines, which the node reader cannot read, use this crate's
   own filter and parser.
 - **Field rules.** Fills keep `coin`, `px`, `sz`, `side`, `time`,

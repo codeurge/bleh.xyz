@@ -31,3 +31,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0021](0021-outcome-market-price-scale.md) | Outcome markets use the spot price rule (`8 - szDecimals`); registry method v2 | Accepted |
 | [0022](0022-venue-float-noise.md) | Hyperliquid decimals with floating-point noise are rounded to 15 significant digits; registry method v3 | Accepted |
 | [0023](0023-reference-quantities.md) | Reference values carry quantities: `stock`, `flow`, `capacity` and `ratio` measures with a `unit` | Accepted |
+| [0024](0024-repeated-empty-blocks.md) | The backfill skips a repeated Hyperliquid block that has no fills | Accepted |

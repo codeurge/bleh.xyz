@@ -16,6 +16,10 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- `hl-backfill process` failed a whole hourly object when the node had
+  written an empty block twice (2025-08-23 08:00 UTC). A repeated block
+  with no fills is now skipped and counted as `repeated_empty_blocks`
+  (ADR 0024).
 - `hl-backfill process` split across runs (`--shard`, date ranges) wrote a
   day's partition twice: the owning run without the records that arrive in
   the next day's first hourly file, and a second run with only those, which
