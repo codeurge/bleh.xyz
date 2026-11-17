@@ -7,7 +7,8 @@
 #   archive-pipeline.sh anchors [DAYS]         (upgrade anchors for the last DAYS days, default 3)
 #   archive-pipeline.sh records ARCHIVE        (sign and publish settled days of a
 #                                               records archive, ADR 0017)
-#   archive-pipeline.sh records-anchors ARCHIVE [DAYS]  (upgrade its anchors, default 3)
+#   archive-pipeline.sh records-anchors ARCHIVE  (upgrade every pending Bitcoin
+#                                               proof and republish those days)
 #
 # Timers: bleh-archive-daily.timer (01:15 UTC, after hour 00 of the next day
 # is sealed) and bleh-archive-anchors.timer (hourly). Results go to the
@@ -242,23 +243,39 @@ case "$mode" in
     ;;
 
   records-anchors)
-    a=${2:?usage: archive-pipeline.sh records-anchors ARCHIVE [DAYS]}
-    days=${3:-3}
+    # Upgrade every signed day whose Bitcoin proof is not confirmed yet,
+    # oldest first, and republish the days that became confirmed. Picking
+    # only the most recent days left most of a catch-up (many days signed in
+    # one run) pending for good, and verify fails a day still pending 48
+    # hours after signing (manifest-v0 § 6.3). A third argument (the old DAYS
+    # window) is accepted and ignored.
+    a=${2:?usage: archive-pipeline.sh records-anchors ARCHIVE}
     host_root="$normalized_dir/$a"
     root="/srv/normalized/$a"
-    mapfile -t recent < <(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
-      | sed 's#.*/##' | sort | tail -n "$days")
-    for day in "${recent[@]}"; do
+    command -v jq >/dev/null || { log "records-anchors needs jq"; exit 1; }
+    ots_status() { # ots_status DAY: the day's OpenTimestamps status ("" if none)
+      jq -r '.opentimestamps.status // ""' "$host_root/_manifests/$1/manifest.anchors.json" 2>/dev/null
+    }
+    upgraded=0 still=0
+    while read -r day; do
+      [[ -z "$day" || "$(ots_status "$day")" == confirmed ]] && continue
       if step ots-upgrade "$a" archive anchor ots-upgrade --root "$root" --date "$day" --bitcoin-api "$btc_api"; then
         remember "bleh_archive_anchor_last_success_timestamp_seconds{archive=\"$a\",anchor=\"ots\"}" "$now"
       fi
+      if [[ "$(ots_status "$day")" != confirmed ]]; then
+        still=$((still + 1))
+        continue
+      fi
+      # Republish so the upgraded proof reaches every channel (idempotent).
       step republish "$a" archive publish --root "$root" --archive "$a" --date "$day" --upload \
-        "${kubo_args[@]+"${kubo_args[@]}"}"
-    done
+        "${kubo_args[@]+"${kubo_args[@]}"}" && upgraded=$((upgraded + 1))
+    done < <(find "$host_root/_manifests" -mindepth 1 -maxdepth 1 -type d -name '????-??-??' 2>/dev/null \
+      | sed 's#.*/##' | sort)
+    log "$a: $upgraded day(s) confirmed and republished, $still still pending"
     write_metrics "bleh_archive_records_anchors_${a//-/_}.prom"
     ;;
 
-  *) echo "usage: archive-pipeline.sh daily [DATE] | anchors [DAYS] | records ARCHIVE | records-anchors ARCHIVE [DAYS]" >&2; exit 64 ;;
+  *) echo "usage: archive-pipeline.sh daily [DATE] | anchors [DAYS] | records ARCHIVE | records-anchors ARCHIVE" >&2; exit 64 ;;
 esac
 
 ((ok_all)) || exit 1

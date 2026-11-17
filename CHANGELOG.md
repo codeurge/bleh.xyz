@@ -16,6 +16,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- `archive-pipeline.sh records-anchors` upgraded the OpenTimestamps
+  proofs of only the most recent days. When a catch-up signed many days in
+  one run, the rest stayed `pending` and failed `archive verify` 48 hours
+  after signing. For example, `hyperliquid-backfill` 2025-07-27 to
+  2025-10-10 were still pending on 2026-11-17. It now upgrades every day
+  whose Bitcoin proof is not yet confirmed, and republishes only the days
+  that became confirmed.
 - `archive verify` failed every day 24 hours after signing because it had
   no L2 anchor, though no L2 has been chosen. This stalled
   `reference-normalized` and `hyperliquid-backfill` on 2026-11-16. A

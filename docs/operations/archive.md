@@ -180,8 +180,11 @@ the archive's last manifest that is at least `RECORDS_LAG_DAYS` (14) days
 old, oldest first: manifest (signed), OpenTimestamps, publish (upload,
 Iceberg metadata, IPFS pinning through the `ipfs` service) and, with
 `ARCHIVE_TRUSTED_SIGNER`, verification over HTTPS. Run it daily, and
-`records-anchors ARCHIVE` a few times a day until the Bitcoin attestations
-arrive. A day signed but not published (a failed run) is published first
+`records-anchors ARCHIVE` a few times a day. That upgrades every signed day
+whose Bitcoin proof is not yet confirmed, however old, and republishes the
+days that became confirmed. After a catch-up that signs many days in one run,
+every one of them still needs its attestation within 48 hours, or `archive
+verify` fails it. It needs `jq` on the host. A day signed but not published (a failed run) is published first
 on the next run; published days are marked under
 `$STATE_DIR/published/<archive>/`. `RECORDS_NOTICES` names the pollers' `_notices.json`, copied to the
 archive root before signing so the notices are signed into every manifest.
