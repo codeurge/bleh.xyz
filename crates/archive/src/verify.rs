@@ -653,12 +653,7 @@ async fn verify_anchors(
             window(OTS_WINDOW_NS),
             "no anchors file",
         );
-        report.push(
-            Step::Anchors,
-            "ethereum_l2",
-            Status::Warn,
-            L2_ABSENT,
-        );
+        report.push(Step::Anchors, "ethereum_l2", Status::Warn, L2_ABSENT);
         return Ok(());
     };
     if let Err(e) = anchors.check(signed) {
@@ -909,7 +904,11 @@ mod tests {
                 .map(|c| c.status)
         };
         assert_eq!(status_of(&late, "bitcoin"), Some(Status::Fail), "{late}");
-        assert_eq!(status_of(&late, "ethereum_l2"), Some(Status::Warn), "{late}");
+        assert_eq!(
+            status_of(&late, "ethereum_l2"),
+            Some(Status::Warn),
+            "{late}"
+        );
         // Untrusted signer fails.
         let mut o = opts(1);
         o.trusted = vec![key(9).address()];
