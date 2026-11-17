@@ -95,10 +95,11 @@ impl Source for DirSource {
 /// archive root URL (a web seed followed by the archive name).
 ///
 /// A request that fails in transport (connection refused or reset, timeout,
-/// a body cut short) is retried with doubling delays, a few times, and each
-/// retry is logged. Only transport failures are retried: any HTTP status is
-/// final, and the size, hash and content checks run on what a read returns,
-/// so a mismatch is never retried.
+/// a body cut short), or that a CDN edge answers with a gateway error (502,
+/// 503, 504, or Cloudflare's 520 to 524), is retried with doubling delays,
+/// a few times, and each retry is logged. Every other status is final (500,
+/// 403, 404 and 410 included). The size, hash and content checks run on
+/// what a read returns, so a mismatch is never retried.
 #[derive(Debug, Clone)]
 pub struct HttpSource {
     http: Arc<dyn HttpClient>,
@@ -110,6 +111,10 @@ pub struct HttpSource {
 impl HttpSource {
     /// Tries per request, the first included.
     pub const DEFAULT_ATTEMPTS: u32 = 4;
+    /// Gateway statuses retried like transport errors: a CDN edge (such as
+    /// Cloudflare in front of data.bleh.xyz) failing to reach the origin,
+    /// not an answer from it.
+    pub const EDGE_RETRY: [u16; 8] = [502, 503, 504, 520, 521, 522, 523, 524];
     /// Delay before the first retry; it doubles after each one (1, 2, 4 s).
     pub const DEFAULT_FIRST_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
 
@@ -140,19 +145,24 @@ impl Source for HttpSource {
             let mut delay = self.first_delay;
             let mut attempt = 1;
             let r = loop {
-                match self.http.get(&url, &[]).await {
-                    Ok(r) => break r,
-                    Err(e) if attempt < self.attempts => {
+                let res = self.http.get(&url, &[]).await;
+                let why = match &res {
+                    Ok(r) if !Self::EDGE_RETRY.contains(&r.status) => None,
+                    Ok(r) => Some(format!("status {}", r.status)),
+                    Err(e) => Some(e.to_string()),
+                };
+                match why {
+                    Some(why) if attempt < self.attempts => {
                         tracing::warn!(
-                            %url, attempt, of = self.attempts, error = %e,
+                            %url, attempt, of = self.attempts, error = %why,
                             retry_in_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
-                            "transport error; retrying"
+                            "request failed in transport or at the edge; retrying"
                         );
                         tokio::time::sleep(delay).await;
                         delay = delay.saturating_mul(2);
                         attempt += 1;
                     }
-                    Err(e) => return Err(e),
+                    _ => break res?,
                 }
             };
             match r.status {
@@ -1192,6 +1202,8 @@ mod tests {
     struct FlakyHttp {
         inner: MockHttp,
         fail: std::sync::atomic::AtomicU32,
+        /// What a failure is: `None` a transport error, `Some(s)` status `s`.
+        fail_with: Option<u16>,
         gets: std::sync::atomic::AtomicU32,
     }
 
@@ -1200,6 +1212,7 @@ mod tests {
             Self {
                 inner,
                 fail: fail.into(),
+                fail_with: None,
                 gets: 0.into(),
             }
         }
@@ -1219,7 +1232,14 @@ mod tests {
             let fail_now = self.fail.load(SeqCst) > 0;
             if fail_now {
                 self.fail.fetch_sub(1, SeqCst);
-                return Box::pin(async { Err(Error::Http("error sending request".into())) });
+                let r = match self.fail_with {
+                    None => Err(Error::Http("error sending request".into())),
+                    Some(status) => Ok(Response {
+                        status,
+                        body: Bytes::from_static(b"edge error"),
+                    }),
+                };
+                return Box::pin(async move { r });
             }
             self.inner.get(url, headers)
         }
@@ -1258,9 +1278,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn http_source_never_retries_a_status() {
-        // A server answer is final, whatever its status: one request each.
-        for (status, absent) in [(500, false), (503, false), (403, false), (404, true)] {
+    async fn http_source_retries_edge_gateway_errors() {
+        for edge in HttpSource::EDGE_RETRY {
+            // Three gateway errors, then the answer.
+            let m = MockHttp::new();
+            m.route("GET", "https://seed.example/a/f.parquet", 200, "data");
+            let mut flaky = FlakyHttp::new(m, 3);
+            flaky.fail_with = Some(edge);
+            let http = Arc::new(flaky);
+            let src = HttpSource::new(http.clone(), "https://seed.example/a")
+                .with_retries(4, std::time::Duration::ZERO);
+            let got = src.read("f.parquet").await.unwrap();
+            assert_eq!(got.as_deref(), Some(&b"data"[..]), "{edge}");
+            assert_eq!(http.gets(), 4, "{edge}");
+
+            // A gateway error on every try is reported after four.
+            let (http, src) = flaky_source(0, edge);
+            let err = src.read("f.parquet").await.unwrap_err();
+            assert!(err.to_string().contains(&format!("status {edge}")), "{err}");
+            assert_eq!(http.gets(), 4, "{edge}");
+        }
+    }
+
+    #[tokio::test]
+    async fn http_source_never_retries_an_origin_status() {
+        // Any other answer is final: one request each.
+        for (status, absent) in [(500, false), (403, false), (404, true), (410, true)] {
             let (http, src) = flaky_source(0, status);
             let r = src.read("f.parquet").await;
             if absent {
