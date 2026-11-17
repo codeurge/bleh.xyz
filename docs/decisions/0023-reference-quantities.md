@@ -127,8 +127,10 @@ position and Parquet field ID; the new column takes the next ID.
   decoder reads a nullable column that is absent from a file as null, so
   old partitions still decode to the same records and the same content
   hash.
-- The Iceberg metadata is rebuilt from scratch with the current schema
-  (archive-layout § 3.3). Readers resolve by field ID, and a field ID
+- The Iceberg metadata is rebuilt from scratch with a new schema version
+  for snapshots committed after this change; earlier snapshots keep
+  schema 0 (amended by [ADR 0025](0025-iceberg-schema-history.md), which
+  replaced "with the current schema"). Readers resolve by field ID, and a field ID
   absent from a data file reads as null, which is Iceberg's rule for
   added columns.
 - DuckDB reads old and new files together with

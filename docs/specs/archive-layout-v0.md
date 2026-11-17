@@ -100,9 +100,11 @@ Partitions are write-once and are not rewritten when a column is added:
 - The archive's reader takes a nullable column that is absent from a file
   as null, so an older file decodes to the same records and the same
   `bleh.content_hash`.
-- The Iceberg metadata (§ 3.3) is rebuilt with the current schema; a field
-  ID absent from a data file reads as null, Iceberg's rule for added
-  columns.
+- The Iceberg metadata (§ 3.3) gains a schema version: snapshots committed
+  before the change keep the schema they were published with, later ones
+  use the new schema ([ADR 0025](../decisions/0025-iceberg-schema-history.md)).
+  A field ID absent from a data file reads as null, Iceberg's rule for
+  added columns.
 - DuckDB reads older and newer files of a kind together with
   `read_parquet([...], union_by_name = true)`, or through `iceberg_scan`.
 
@@ -138,6 +140,10 @@ hyperliquid-normalized/_iceberg/<kind>/metadata/<snapshot manifests>.avro
   `version-hint.text` names the latest metadata file.
 - Readers open the table from `v<N>.metadata.json` directly; no REST catalog
   is needed.
+- Each table keeps a schema history. A snapshot carries the `schema-id` in
+  effect at its manifest's `created_ns`, so the metadata stays a pure
+  function of the manifests and published files never change
+  ([ADR 0025](../decisions/0025-iceberg-schema-history.md)).
 
 Why Iceberg over DuckLake: Iceberg metadata is plain files that DuckDB
 (`iceberg` extension), Polars (`scan_iceberg`), ClickHouse (`icebergS3`

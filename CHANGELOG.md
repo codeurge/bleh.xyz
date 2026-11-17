@@ -16,6 +16,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- `reference-normalized` stopped publishing on 2026-11-15: rebuilding the
+  Iceberg metadata after `reference_value.unit` was added (ADR 0023)
+  changed the bytes of already published, write-once metadata files. Each
+  table now keeps a schema history, and a snapshot uses the schema in
+  effect when it was committed, so published files regenerate unchanged
+  and new snapshots carry `unit` ([ADR 0025](docs/decisions/0025-iceberg-schema-history.md)).
+
 - `hl-backfill process` failed a whole hourly object when the node had
   written an empty block twice (2025-08-23 08:00 UTC). A repeated block
   with no fills is now skipped and counted as `repeated_empty_blocks`

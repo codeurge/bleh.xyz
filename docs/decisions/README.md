@@ -32,3 +32,4 @@ Statuses: `Proposed`, `Accepted`, `Rejected`, `Superseded by NNNN`.
 | [0022](0022-venue-float-noise.md) | Hyperliquid decimals with floating-point noise are rounded to 15 significant digits; registry method v3 | Accepted |
 | [0023](0023-reference-quantities.md) | Reference values carry quantities: `stock`, `flow`, `capacity` and `ratio` measures with a `unit` | Accepted |
 | [0024](0024-repeated-empty-blocks.md) | The backfill skips a repeated Hyperliquid block that has no fills | Accepted |
+| [0025](0025-iceberg-schema-history.md) | Iceberg tables keep a schema history; a snapshot uses the schema in effect when it was committed | Accepted |

@@ -12,7 +12,10 @@
 //! - snapshot IDs are the first 8 bytes of the day manifest's hash (top bit
 //!   cleared); timestamps are the manifest's `created_ns`;
 //! - the table UUID is derived from the archive and kind;
-//! - Avro sync markers are derived from the file's path.
+//! - Avro sync markers are derived from the file's path;
+//! - a snapshot uses the schema version in effect at its timestamp
+//!   ([`SCHEMA_CHANGES`], ADR 0025), so a column appended later does not
+//!   change files already published.
 //!
 //! Partitioning: identity on `venue` and `instrument`, and `day` of the
 //! partition time column (`ts_source_ms`, or `start_ms` for interval
@@ -42,6 +45,43 @@ use crate::layout::{self, Day};
 
 /// First partition field ID (Iceberg convention).
 const PARTITION_FIELD_BASE: i32 = 1000;
+
+/// Columns appended to a kind's writer schema after tables were first
+/// published, with the time (Unix ms) the change took effect: kind, column
+/// name, effective time. Each entry is one schema version of that kind's
+/// table, in order. A snapshot committed before an entry's time keeps the
+/// schema without that column, so metadata files already published are
+/// rebuilt byte for byte and stay write-once (ADR 0023 § 4, amended).
+///
+/// Append only: an entry, once deployed, never changes or moves.
+const SCHEMA_CHANGES: &[(RecordKind, &str, i64)] = &[
+    // ADR 0023: reference_value.unit, commit f8df65c, 2026-11-15T06:15:32Z.
+    (RecordKind::ReferenceValue, "unit", 1_794_723_332_000),
+];
+
+/// The schema versions of `kind`'s table, oldest first: version `k` is the
+/// writer schema without the columns appended by changes `k..`.
+fn schema_versions(kind: RecordKind) -> Vec<(i64, Fields)> {
+    let current = writer_schema(kind);
+    let changes: Vec<(&str, i64)> = SCHEMA_CHANGES
+        .iter()
+        .filter(|(k, _, _)| *k == kind)
+        .map(|&(_, name, at)| (name, at))
+        .collect();
+    (0..=changes.len())
+        .map(|k| {
+            let later: Vec<&str> = changes[k..].iter().map(|(n, _)| *n).collect();
+            let since = if k == 0 { i64::MIN } else { changes[k - 1].1 };
+            let fields: Fields = current
+                .fields()
+                .iter()
+                .filter(|f| !later.contains(&f.name().as_str()))
+                .cloned()
+                .collect();
+            (since, fields)
+        })
+        .collect()
+}
 
 /// One data file in a snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -289,11 +329,20 @@ pub fn build_table(
         {"name": "instrument", "transform": "identity", "source-id": source("instrument")?, "field-id": PARTITION_FIELD_BASE + 1},
         {"name": "date", "transform": "day", "source-id": source(time_column(kind))?, "field-id": PARTITION_FIELD_BASE + 2},
     ]);
-    let mut schema_json = struct_type(schema.fields())?;
-    schema_json["schema-id"] = json!(0);
-    let schema_str = serde_json::to_string(&schema_json)?;
+    // Per schema version: (effective from, schema JSON, its string, name
+    // mapping, last column ID).
+    let versions = schema_versions(kind)
+        .into_iter()
+        .enumerate()
+        .map(|(k, (since, fields))| {
+            let mut j = struct_type(&fields)?;
+            j["schema-id"] = json!(k);
+            let s = serde_json::to_string(&j)?;
+            let mapping = serde_json::to_string(&name_mapping(&fields))?;
+            Ok((since, j, s, mapping, max_field_id(&fields)))
+        })
+        .collect::<Result<Vec<_>>>()?;
     let spec_str = serde_json::to_string(&spec_fields)?;
-    let mapping = serde_json::to_string(&name_mapping(schema.fields()))?;
 
     let mut out = TableFiles::default();
     let mut manifest_list_entries: Vec<Value> = Vec::new();
@@ -308,6 +357,12 @@ pub fn build_table(
         let seq = i64::try_from(i + 1).map_err(|_| Error::invalid("too many snapshots"))?;
         let mut files = snap.files.clone();
         files.sort_by(|a, b| a.path.cmp(&b.path));
+        // Timestamps must not go backwards.
+        let ts = snap.timestamp_ms.max(last_ts);
+        last_ts = ts;
+        // The table schema when this snapshot was committed.
+        let k = versions.iter().rposition(|v| v.0 <= ts).unwrap_or(0);
+        let (_, _, schema_str, mapping, last_column_id) = &versions[k];
 
         // Data manifest for this snapshot.
         let entries = files
@@ -348,7 +403,7 @@ pub fn build_table(
             MANIFEST_ENTRY_SCHEMA,
             &[
                 ("schema", schema_str.clone()),
-                ("schema-id", "0".into()),
+                ("schema-id", k.to_string()),
                 ("partition-spec", spec_str.clone()),
                 ("partition-spec-id", "0".into()),
                 ("format-version", "2".into()),
@@ -430,9 +485,6 @@ pub fn build_table(
         );
         out.immutable.push((list_rel.clone(), list_bytes));
 
-        // Timestamps must not go backwards.
-        let ts = snap.timestamp_ms.max(last_ts);
-        last_ts = ts;
         let mut snapshot = json!({
             "snapshot-id": snap.id,
             "sequence-number": seq,
@@ -450,7 +502,7 @@ pub fn build_table(
                 "total-position-deletes": "0",
                 "total-equality-deletes": "0",
             },
-            "schema-id": 0,
+            "schema-id": k,
         });
         if let Some(p) = parent {
             snapshot["parent-snapshot-id"] = json!(p);
@@ -465,9 +517,9 @@ pub fn build_table(
             "location": abs(&table_rel),
             "last-sequence-number": seq,
             "last-updated-ms": ts,
-            "last-column-id": max_field_id(schema.fields()),
-            "current-schema-id": 0,
-            "schemas": [schema_json.clone()],
+            "last-column-id": last_column_id,
+            "current-schema-id": k,
+            "schemas": versions[..=k].iter().map(|v| v.1.clone()).collect::<Vec<_>>(),
             "default-spec-id": 0,
             "partition-specs": [{"spec-id": 0, "fields": spec_fields.clone()}],
             "last-partition-id": PARTITION_FIELD_BASE + 2,
@@ -646,6 +698,54 @@ mod tests {
             meta["partition-specs"][0]["fields"][2]["source-id"],
             start_id
         );
+    }
+
+    #[test]
+    fn appended_column_starts_a_new_schema_version() {
+        let at = SCHEMA_CHANGES
+            .iter()
+            .find(|c| c.0 == RecordKind::ReferenceValue)
+            .unwrap()
+            .2;
+        let before = vec![snap(1, at - 1, "2026-01-01", 1)];
+        let both = vec![
+            snap(1, at - 1, "2026-01-01", 1),
+            snap(2, at, "2026-01-02", 1),
+        ];
+        let kind = RecordKind::ReferenceValue;
+        let a = build_table("r", "s3://x/r", kind, &before).unwrap();
+        let b = build_table("r", "s3://x/r", kind, &both).unwrap();
+        // Files of snapshots before the change are unchanged by it.
+        assert_eq!(a.immutable[..], b.immutable[..3]);
+        let names = |m: &Json, i: usize| -> Vec<String> {
+            m["schemas"][i]["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|f| f["name"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        let v1: Json = serde_json::from_slice(&b.immutable[2].1).unwrap();
+        assert_eq!(v1["current-schema-id"], 0);
+        assert_eq!(v1["schemas"].as_array().unwrap().len(), 1);
+        assert!(!names(&v1, 0).contains(&"unit".to_owned()));
+        let v2: Json = serde_json::from_slice(&b.immutable[5].1).unwrap();
+        assert_eq!(v2["current-schema-id"], 1);
+        assert_eq!(v2["schemas"][1]["schema-id"], 1);
+        assert_eq!(v2["snapshots"][0]["schema-id"], 0);
+        assert_eq!(v2["snapshots"][1]["schema-id"], 1);
+        let n0 = names(&v2, 0);
+        let n1 = names(&v2, 1);
+        assert_eq!(n1.last().map(String::as_str), Some("unit"));
+        assert_eq!(n0[..], n1[..n1.len() - 1]);
+        assert!(v2["last-column-id"].as_i64() > v1["last-column-id"].as_i64());
+        // The new snapshot's manifest names the new schema.
+        let m = &b.immutable[3].1;
+        let needle = br#""name":"unit""#;
+        assert!(m.windows(needle.len()).any(|w| w == needle));
+        assert!(!a.immutable[0].1.windows(needle.len()).any(|w| w == needle));
+        // Kinds without changes have one version.
+        assert_eq!(schema_versions(RecordKind::Trade).len(), 1);
     }
 
     #[test]
