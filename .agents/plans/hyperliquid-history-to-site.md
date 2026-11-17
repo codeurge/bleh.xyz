@@ -304,6 +304,23 @@ derived registry (2 hours of `node_fills_by_block` on 2025-07-27 and on
       month and per coin. Copy within a later month's $50 of credits, major
       markets first.
 
+13. **incremental-iceberg-metadata**
+    - Status: Ready (not before the publishing catch-up finishes)
+    - Owner: Unassigned
+    - Dependencies: sign-and-publish-backfill
+    - PR: Not opened
+    - Problem: every publish rebuilds each kind's Iceberg metadata from
+      all signed manifests (ADR 0025), so the cost per day grows with the
+      archive. Measured on skullkid on 2026-11-17: at `hyperliquid-backfill`
+      sequence 208, the rebuild took 2 min 19 s (628 files) of a 6.5 min
+      day, about double its share at the start of the catch-up. The normal
+      daily run slows down the same way as the archive grows.
+    - Next action: Draft an ADR to commit incrementally. Write only the
+      newest snapshot's manifest list, data manifest and
+      `v<N>.metadata.json`, and keep earlier files as published. This must
+      still regenerate byte for byte, so mirrors and the write-once check
+      keep working. Measure before and after on a copy of the archive.
+
 ## Timeline (rough, from 2026-11-14)
 
 | When | Milestone |
