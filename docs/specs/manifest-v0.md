@@ -213,9 +213,11 @@ chain choice) that emits `committed_hash`, or carries it as calldata.
 
 A missing or pending anchor is a **warning** while the manifest is younger
 than the confirmation window: 48 hours for OpenTimestamps, 24 hours for the
-L2. After the window, both anchors are **required** and must be
-`confirmed`. An anchor marked `confirmed` whose proof does not verify is
-always an error.
+L2. After the window, the OpenTimestamps anchor is **required** and must be
+`confirmed`, and an L2 anchor that is present must be `confirmed`. Until an
+L2 is chosen, a **missing** L2 anchor stays a warning at any age
+([ADR 0026](../decisions/0026-l2-anchor-optional-until-chosen.md)). An
+anchor marked `confirmed` whose proof does not verify is always an error.
 
 ## 7. Verification
 

@@ -312,6 +312,8 @@ impl fmt::Display for Report {
 
 const OTS_WINDOW_NS: i64 = 48 * 3600 * 1_000_000_000;
 const L2_WINDOW_NS: i64 = 24 * 3600 * 1_000_000_000;
+/// A missing L2 anchor: optional until an L2 is chosen (ADR 0026).
+const L2_ABSENT: &str = "no L2 anchor (optional until an L2 is chosen)";
 
 async fn read_manifest(source: &dyn Source, day: Day) -> Result<Option<SignedManifest>> {
     match source
@@ -654,8 +656,8 @@ async fn verify_anchors(
         report.push(
             Step::Anchors,
             "ethereum_l2",
-            window(L2_WINDOW_NS),
-            "no anchors file",
+            Status::Warn,
+            L2_ABSENT,
         );
         return Ok(());
     };
@@ -751,14 +753,11 @@ async fn verify_anchors(
         }
     }
 
-    // Ethereum L2.
+    // Ethereum L2: optional until an L2 is chosen (ADR 0026). A missing
+    // anchor is a warning at any age; one that is present follows the
+    // confirmation window.
     match &anchors.ethereum_l2 {
-        None => report.push(
-            Step::Anchors,
-            "ethereum_l2",
-            window(L2_WINDOW_NS),
-            "no L2 anchor",
-        ),
+        None => report.push(Step::Anchors, "ethereum_l2", Status::Warn, L2_ABSENT),
         Some(a) => match &opts.evm {
             None => report.push(
                 Step::Anchors,
@@ -897,11 +896,20 @@ mod tests {
             3
         );
         assert!(r.to_string().contains("VERIFIED WITH WARNINGS"));
-        // After the window, missing anchors fail.
+        // After the window, a missing Bitcoin anchor fails; a missing L2
+        // anchor stays a warning at any age (ADR 0026).
         let late = verify_day(&src, "hyperliquid-normalized", day, &opts(72))
             .await
             .unwrap();
         assert!(!late.ok());
+        let status_of = |r: &Report, subject: &str| {
+            r.checks
+                .iter()
+                .find(|c| c.step == Step::Anchors && c.subject == subject)
+                .map(|c| c.status)
+        };
+        assert_eq!(status_of(&late, "bitcoin"), Some(Status::Fail), "{late}");
+        assert_eq!(status_of(&late, "ethereum_l2"), Some(Status::Warn), "{late}");
         // Untrusted signer fails.
         let mut o = opts(1);
         o.trusted = vec![key(9).address()];
@@ -1109,6 +1117,23 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(r.status(), Status::Warn, "{r}");
+        // No L2 anchor at all, long after the window: a warning, not a
+        // failure, while Bitcoin still passes (ADR 0026).
+        let no_l2 = ManifestAnchors {
+            ethereum_l2: None,
+            ..anchors.clone()
+        };
+        let anchors_path = dir
+            .path()
+            .join(format!("_manifests/{day}/manifest.anchors.json"));
+        std::fs::write(&anchors_path, serde_json::to_vec(&no_l2).unwrap()).unwrap();
+        let r = verify_day(&src, "hyperliquid-normalized", day, &o)
+            .await
+            .unwrap();
+        assert!(r.ok(), "{r}");
+        assert_eq!(r.status(), Status::Warn, "{r}");
+        assert_eq!(r.count(Status::Fail), 0, "{r}");
+        std::fs::write(&anchors_path, serde_json::to_vec(&anchors).unwrap()).unwrap();
         // A tampered proof fails even though it is "confirmed".
         std::fs::write(
             dir.path()

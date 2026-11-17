@@ -16,6 +16,13 @@ versions (see [AGENTS.md](AGENTS.md)).
 
 ### Fixed
 
+- `archive verify` failed every day 24 hours after signing because it had
+  no L2 anchor, though no L2 has been chosen. This stalled
+  `reference-normalized` and `hyperliquid-backfill` on 2026-11-16. A
+  missing L2 anchor is now a warning at any age, while a present one still
+  follows the confirmation window
+  ([ADR 0026](docs/decisions/0026-l2-anchor-optional-until-chosen.md)).
+
 - `reference-normalized` stopped publishing on 2026-11-15: rebuilding the
   Iceberg metadata after `reference_value.unit` was added (ADR 0023)
   changed the bytes of already published, write-once metadata files. Each
