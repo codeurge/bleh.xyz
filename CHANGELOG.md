@@ -23,6 +23,12 @@ versions (see [AGENTS.md](AGENTS.md)).
   2025-10-10 were still pending on 2026-11-17. It now upgrades every day
   whose Bitcoin proof is not yet confirmed, and republishes only the days
   that became confirmed.
+- `archive-pipeline.sh` ran the archive containers with the script's
+  stdin, and `docker compose run` reads stdin. Inside a `while read` loop
+  the first container swallowed the rest of the input. `records-anchors`
+  handled one day and stopped, and `records` published only the first of
+  several days that were signed but not published. The containers now get
+  `/dev/null` as stdin.
 - `archive verify` failed every day 24 hours after signing because it had
   no L2 anchor, though no L2 has been chosen. This stalled
   `reference-normalized` and `hyperliquid-backfill` on 2026-11-16. A

@@ -64,13 +64,15 @@ kubo=${ARCHIVE_KUBO-http://ipfs:5001}
 archives=(hyperliquid-raw hyperliquid-normalized)
 
 log() { printf 'archive-pipeline: %s\n' "$*" >&2; }
-# Run the archive CLI in a one-off container (service archive-job).
+# Run the archive CLI in a one-off container (service archive-job). Its
+# stdin is /dev/null: `docker compose run` reads stdin, and inside a
+# `while read` loop it would swallow the rest of the loop's input.
 archive() {
   if [[ -n "${ARCHIVE_RUN:-}" ]]; then
     # shellcheck disable=SC2086 # ARCHIVE_RUN is a command line.
-    $ARCHIVE_RUN "$@" --log-format json
+    $ARCHIVE_RUN "$@" --log-format json < /dev/null
   else
-    "$up" --no-build "$profile" archive "$@" --log-format json
+    "$up" --no-build "$profile" archive "$@" --log-format json < /dev/null
   fi
 }
 kubo_args=()
