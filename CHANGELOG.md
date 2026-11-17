@@ -23,6 +23,11 @@ versions (see [AGENTS.md](AGENTS.md)).
   2025-10-10 were still pending on 2026-11-17. It now upgrades every day
   whose Bitcoin proof is not yet confirmed, and republishes only the days
   that became confirmed.
+- `archive verify --url` gave up on the first dropped request, so a single
+  connection reset stopped a long publishing run twice (2026-11-16 and
+  11-17). It now tries a request that fails in transport up to four
+  times, waiting 1, 2 and 4 seconds and logging each retry. An HTTP status,
+  or a size, hash or content mismatch, is never retried.
 - `archive-pipeline.sh` ran the archive containers with the script's
   stdin, and `docker compose run` reads stdin. Inside a `while read` loop
   the first container swallowed the rest of the input. `records-anchors`

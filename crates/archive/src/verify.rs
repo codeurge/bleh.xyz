@@ -93,29 +93,68 @@ impl Source for DirSource {
 
 /// An archive served over HTTP(S): `<base>/<path>`, where `base` is the
 /// archive root URL (a web seed followed by the archive name).
+///
+/// A request that fails in transport (connection refused or reset, timeout,
+/// a body cut short) is retried with doubling delays, a few times, and each
+/// retry is logged. Only transport failures are retried: any HTTP status is
+/// final, and the size, hash and content checks run on what a read returns,
+/// so a mismatch is never retried.
 #[derive(Debug, Clone)]
 pub struct HttpSource {
     http: Arc<dyn HttpClient>,
     base: String,
+    attempts: u32,
+    first_delay: std::time::Duration,
 }
 
 impl HttpSource {
+    /// Tries per request, the first included.
+    pub const DEFAULT_ATTEMPTS: u32 = 4;
+    /// Delay before the first retry; it doubles after each one (1, 2, 4 s).
+    pub const DEFAULT_FIRST_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+
     /// The archive at `base`.
     pub fn new(http: Arc<dyn HttpClient>, base: impl Into<String>) -> Self {
         Self {
             http,
             base: base.into(),
+            attempts: Self::DEFAULT_ATTEMPTS,
+            first_delay: Self::DEFAULT_FIRST_DELAY,
         }
+    }
+
+    /// Overrides the transport retries: `attempts` tries per request (at
+    /// least one), the first retry after `first_delay`.
+    #[must_use]
+    pub fn with_retries(mut self, attempts: u32, first_delay: std::time::Duration) -> Self {
+        self.attempts = attempts.max(1);
+        self.first_delay = first_delay;
+        self
     }
 }
 
 impl Source for HttpSource {
     fn read<'a>(&'a self, rel: &'a str) -> BoxFuture<'a, Result<Option<Bytes>>> {
         Box::pin(async move {
-            let r = self
-                .http
-                .get(&join_url(&self.base, &encode_path(rel)), &[])
-                .await?;
+            let url = join_url(&self.base, &encode_path(rel));
+            let mut delay = self.first_delay;
+            let mut attempt = 1;
+            let r = loop {
+                match self.http.get(&url, &[]).await {
+                    Ok(r) => break r,
+                    Err(e) if attempt < self.attempts => {
+                        tracing::warn!(
+                            %url, attempt, of = self.attempts, error = %e,
+                            retry_in_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
+                            "transport error; retrying"
+                        );
+                        tokio::time::sleep(delay).await;
+                        delay = delay.saturating_mul(2);
+                        attempt += 1;
+                    }
+                    Err(e) => return Err(e),
+                }
+            };
             match r.status {
                 404 | 410 => Ok(None),
                 _ => r.into_ok(rel).map(Some),
@@ -1146,5 +1185,134 @@ mod tests {
         assert!(!r.ok());
         let json = serde_json::to_string(&r).unwrap();
         assert!(json.contains("\"status\":\"fail\""));
+    }
+
+    /// Fails the first `fail` GETs in transport, then answers from `inner`.
+    #[derive(Debug)]
+    struct FlakyHttp {
+        inner: MockHttp,
+        fail: std::sync::atomic::AtomicU32,
+        gets: std::sync::atomic::AtomicU32,
+    }
+
+    impl FlakyHttp {
+        fn new(inner: MockHttp, fail: u32) -> Self {
+            Self {
+                inner,
+                fail: fail.into(),
+                gets: 0.into(),
+            }
+        }
+        fn gets(&self) -> u32 {
+            self.gets.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    impl HttpClient for FlakyHttp {
+        fn get<'a>(
+            &'a self,
+            url: &'a str,
+            headers: &'a [(&'a str, &'a str)],
+        ) -> BoxFuture<'a, Result<Response>> {
+            use std::sync::atomic::Ordering::SeqCst;
+            self.gets.fetch_add(1, SeqCst);
+            let fail_now = self.fail.load(SeqCst) > 0;
+            if fail_now {
+                self.fail.fetch_sub(1, SeqCst);
+                return Box::pin(async { Err(Error::Http("error sending request".into())) });
+            }
+            self.inner.get(url, headers)
+        }
+        fn post<'a>(
+            &'a self,
+            url: &'a str,
+            headers: &'a [(&'a str, &'a str)],
+            body: Bytes,
+        ) -> BoxFuture<'a, Result<Response>> {
+            self.inner.post(url, headers, body)
+        }
+    }
+
+    fn flaky_source(fail: u32, status: u16) -> (Arc<FlakyHttp>, HttpSource) {
+        let m = MockHttp::new();
+        m.route("GET", "https://seed.example/a/f.parquet", status, "data");
+        let http = Arc::new(FlakyHttp::new(m, fail));
+        let src = HttpSource::new(http.clone(), "https://seed.example/a")
+            .with_retries(4, std::time::Duration::ZERO);
+        (http, src)
+    }
+
+    #[tokio::test]
+    async fn http_source_retries_transport_errors() {
+        // Three transport failures, then the answer: the fourth try succeeds.
+        let (http, src) = flaky_source(3, 200);
+        let got = src.read("f.parquet").await.unwrap();
+        assert_eq!(got.as_deref(), Some(&b"data"[..]));
+        assert_eq!(http.gets(), 4);
+
+        // Four failures exhaust the attempts and return the transport error.
+        let (http, src) = flaky_source(4, 200);
+        let err = src.read("f.parquet").await.unwrap_err();
+        assert!(err.to_string().contains("error sending request"), "{err}");
+        assert_eq!(http.gets(), 4);
+    }
+
+    #[tokio::test]
+    async fn http_source_never_retries_a_status() {
+        // A server answer is final, whatever its status: one request each.
+        for (status, absent) in [(500, false), (503, false), (403, false), (404, true)] {
+            let (http, src) = flaky_source(0, status);
+            let r = src.read("f.parquet").await;
+            if absent {
+                assert!(matches!(r, Ok(None)), "{status}");
+            } else {
+                assert!(r.is_err(), "{status}");
+            }
+            assert_eq!(http.gets(), 1, "status {status}");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_hash_mismatch_is_not_retried() {
+        // A tampered file is fetched once and fails; the retry layer only
+        // sees transport errors.
+        let dir = tempfile::tempdir().unwrap();
+        let ms = chain(dir.path());
+        let day: Day = ms[2].manifest.date.parse().unwrap();
+        let m = MockHttp::new();
+        let base = "https://seed.example/hyperliquid-normalized";
+        let root = dir.path().to_path_buf();
+        let tampered = ms[2].manifest.files[0].path.clone();
+        let t2 = tampered.clone();
+        m.handle(base, move |r| {
+            let rel = r.url[base.len() + 1..].to_owned();
+            if rel == encode_path(&t2) {
+                return Response {
+                    status: 200,
+                    body: Bytes::from_static(b"not the signed bytes"),
+                };
+            }
+            match std::fs::read(root.join(&rel)) {
+                Ok(b) => Response {
+                    status: 200,
+                    body: Bytes::from(b),
+                },
+                Err(_) => Response {
+                    status: 404,
+                    body: Bytes::new(),
+                },
+            }
+        });
+        let http = Arc::new(FlakyHttp::new(m.clone(), 0));
+        let src = HttpSource::new(http, base).with_retries(4, std::time::Duration::ZERO);
+        let mut o = opts(1);
+        o.files = FileCheck::Hashes;
+        let r = verify_day(&src, "hyperliquid-normalized", day, &o)
+            .await
+            .unwrap();
+        assert!(!r.ok());
+        let target = join_url(base, &encode_path(&tampered));
+        let fetched = m.requests().iter().filter(|q| q.url == target).count();
+        assert_eq!(fetched, 1);
     }
 }
