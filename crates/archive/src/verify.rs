@@ -35,7 +35,7 @@ use mesh_types::{EthAddress, Sha256Digest, UnixNanos};
 use crate::anchor::{evm, ots};
 use crate::digest::FileDigester;
 use crate::error::{Error, Result};
-use crate::http::{HttpClient, encode_path, join_url};
+use crate::http::{HttpClient, Response, encode_path, join_url};
 use crate::ipfs::{UnixFsHasher, parse_chunker};
 use crate::layout::{self, Day};
 use crate::manifest::{self, ManifestIndex};
@@ -96,9 +96,10 @@ impl Source for DirSource {
 ///
 /// A request that fails in transport (connection refused or reset, timeout,
 /// a body cut short), or that a CDN edge answers with a gateway error (502,
-/// 503, 504, or Cloudflare's 520 to 524), is retried with doubling delays,
-/// a few times, and each retry is logged. Every other status is final (500,
-/// 403, 404 and 410 included). The size, hash and content checks run on
+/// 503, 504, or Cloudflare's 520 to 524) or with its own error page (a 5xx
+/// whose body is Cloudflare's `error code: NNNN`), is retried with doubling
+/// delays, a few times, and each retry is logged. Every other status is final
+/// (an origin's 500, 403, 404 and 410 included). The size, hash and content checks run on
 /// what a read returns, so a mismatch is never retried.
 #[derive(Debug, Clone)]
 pub struct HttpSource {
@@ -117,6 +118,16 @@ impl HttpSource {
     pub const EDGE_RETRY: [u16; 8] = [502, 503, 504, 520, 521, 522, 523, 524];
     /// Delay before the first retry; it doubles after each one (1, 2, 4 s).
     pub const DEFAULT_FIRST_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+    /// How Cloudflare's own plain-text error pages begin (for example
+    /// `error code: 1104`). A 5xx with this body came from the edge, not
+    /// from the origin, so it is retried like a gateway error.
+    pub const EDGE_ERROR_BODY: &'static [u8] = b"error code: ";
+
+    /// Whether a response is a CDN edge failure rather than an origin answer.
+    fn edge_failure(r: &Response) -> bool {
+        Self::EDGE_RETRY.contains(&r.status)
+            || ((500..600).contains(&r.status) && r.body.starts_with(Self::EDGE_ERROR_BODY))
+    }
 
     /// The archive at `base`.
     pub fn new(http: Arc<dyn HttpClient>, base: impl Into<String>) -> Self {
@@ -147,7 +158,7 @@ impl Source for HttpSource {
             let r = loop {
                 let res = self.http.get(&url, &[]).await;
                 let why = match &res {
-                    Ok(r) if !Self::EDGE_RETRY.contains(&r.status) => None,
+                    Ok(r) if !Self::edge_failure(r) => None,
                     Ok(r) => Some(format!("status {}", r.status)),
                     Err(e) => Some(e.to_string()),
                 };
@@ -1204,6 +1215,8 @@ mod tests {
         fail: std::sync::atomic::AtomicU32,
         /// What a failure is: `None` a transport error, `Some(s)` status `s`.
         fail_with: Option<u16>,
+        /// The body of a failing status.
+        fail_body: &'static [u8],
         gets: std::sync::atomic::AtomicU32,
     }
 
@@ -1213,6 +1226,7 @@ mod tests {
                 inner,
                 fail: fail.into(),
                 fail_with: None,
+                fail_body: b"edge error",
                 gets: 0.into(),
             }
         }
@@ -1236,7 +1250,7 @@ mod tests {
                     None => Err(Error::Http("error sending request".into())),
                     Some(status) => Ok(Response {
                         status,
-                        body: Bytes::from_static(b"edge error"),
+                        body: Bytes::from_static(self.fail_body),
                     }),
                 };
                 return Box::pin(async move { r });
@@ -1298,6 +1312,34 @@ mod tests {
             assert!(err.to_string().contains(&format!("status {edge}")), "{err}");
             assert_eq!(http.gets(), 4, "{edge}");
         }
+    }
+
+    #[tokio::test]
+    async fn http_source_retries_a_cloudflare_error_page() {
+        // A 500 whose body is Cloudflare's own error page came from the edge
+        // (seen on data.bleh.xyz as `error code: 1104`): retried.
+        let m = MockHttp::new();
+        m.route("GET", "https://seed.example/a/f.parquet", 200, "data");
+        let mut flaky = FlakyHttp::new(m, 2);
+        flaky.fail_with = Some(500);
+        flaky.fail_body = b"error code: 1104\n";
+        let http = Arc::new(flaky);
+        let src = HttpSource::new(http.clone(), "https://seed.example/a")
+            .with_retries(4, std::time::Duration::ZERO);
+        let got = src.read("f.parquet").await.unwrap();
+        assert_eq!(got.as_deref(), Some(&b"data"[..]));
+        assert_eq!(http.gets(), 3);
+
+        // The same body on a 4xx is an answer, not an edge failure.
+        let m = MockHttp::new();
+        let mut flaky = FlakyHttp::new(m, 1);
+        flaky.fail_with = Some(403);
+        flaky.fail_body = b"error code: 1020";
+        let http = Arc::new(flaky);
+        let src = HttpSource::new(http.clone(), "https://seed.example/a")
+            .with_retries(4, std::time::Duration::ZERO);
+        assert!(src.read("f.parquet").await.is_err());
+        assert_eq!(http.gets(), 1);
     }
 
     #[tokio::test]

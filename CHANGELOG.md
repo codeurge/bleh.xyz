@@ -28,8 +28,10 @@ versions (see [AGENTS.md](AGENTS.md)).
   11-17). It now tries a request up to four times, waiting 1, 2 and 4
   seconds and logging each retry, when it fails in transport or a CDN edge
   answers 502, 503, 504 or 520 to 524 (Cloudflare fronts data.bleh.xyz).
-  Every other status is final, 500, 403, 404 and 410 included. A size,
-  hash or content mismatch is never retried.
+  A 5xx carrying Cloudflare's own error page (`error code: NNNN`) is
+  retried too; one such 500 (`error code: 1104`) stopped the 2026-11-18
+  run. Every other status is final, an origin's 500, 403, 404 and 410
+  included. A size, hash or content mismatch is never retried.
 - `archive-pipeline.sh` ran the archive containers with the script's
   stdin, and `docker compose run` reads stdin. Inside a `while read` loop
   the first container swallowed the rest of the input. `records-anchors`
