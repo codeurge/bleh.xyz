@@ -39,6 +39,12 @@ versions (see [AGENTS.md](AGENTS.md)).
   waiting 1, 2 and 4 seconds and logging each retry, on a transport error
   or a 502, 503 or 504. A Kubo error status (such as a full repo) is
   final, and a CID that differs from the manifest is never retried.
+- The `data.<domain>` cache rule for immutable archive files kept every
+  answer for a year, a 404 included. One request for a day's
+  `manifest.json` before that day was published hid the file from every
+  reader once it was uploaded (it stopped verification of 2026-11-05 on
+  2026-11-21). Non-2xx answers on those paths are now cached for 30
+  seconds. Needs a `terraform apply` of `envs/edge`.
 - `archive-pipeline.sh` ran the archive containers with the script's
   stdin, and `docker compose run` reads stdin. Inside a `while read` loop
   the first container swallowed the rest of the input. `records-anchors`

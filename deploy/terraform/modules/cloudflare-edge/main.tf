@@ -180,6 +180,15 @@ resource "cloudflare_ruleset" "cache" {
         edge_ttl = {
           mode    = "override_origin"
           default = 31536000
+          # Only a 200 is immutable. A 404 for a day not yet published (a
+          # client polling for tomorrow's manifest) must not stick at the
+          # edge for a year and hide the file once it is uploaded.
+          status_code_ttl = [
+            {
+              status_code_range = { from = 300, to = 599 }
+              value             = 30
+            },
+          ]
         }
         browser_ttl = {
           mode    = "override_origin"
