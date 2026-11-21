@@ -16,7 +16,7 @@ use futures::future::BoxFuture;
 use mesh_types::manifest::SignedManifest;
 
 use crate::error::{Error, IoContext, Result};
-use crate::http::{HttpClient, join_url};
+use crate::http::{HttpClient, Response, join_url};
 use crate::layout::{self, Day};
 use crate::manifest;
 use crate::partition::{self, iceberg};
@@ -38,18 +38,74 @@ pub trait IpfsPinner: Send + Sync + std::fmt::Debug {
 
 /// [`IpfsPinner`] over the Kubo RPC API (`/api/v0/add`, `/api/v0/pin/add`),
 /// such as `http://127.0.0.1:5001`.
+///
+/// A call that fails in transport (connection refused or reset, timeout, a
+/// response body cut short, as when Kubo stalls at its memory limit), or
+/// that a proxy answers 502, 503 or 504, is retried with doubling delays, a
+/// few times, and each retry is logged. Adding and pinning are idempotent:
+/// the same bytes give the same CID. Every other status is final, so a
+/// Kubo error such as a full repo fails at once, and a returned CID that
+/// differs from the manifest is never retried.
 #[derive(Debug, Clone)]
 pub struct KuboClient {
     http: Arc<dyn HttpClient>,
     api: String,
+    attempts: u32,
+    first_delay: std::time::Duration,
 }
 
 impl KuboClient {
+    /// Tries per call, the first included.
+    pub const DEFAULT_ATTEMPTS: u32 = 4;
+    /// Delay before the first retry; it doubles after each one (1, 2, 4 s).
+    pub const DEFAULT_FIRST_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+    /// Gateway statuses retried like transport errors (a proxy in front of
+    /// Kubo failing to reach it, not an answer from Kubo).
+    pub const GATEWAY_RETRY: [u16; 3] = [502, 503, 504];
+
     /// A client for the API at `api`.
     pub fn new(http: Arc<dyn HttpClient>, api: impl Into<String>) -> Self {
         Self {
             http,
             api: api.into(),
+            attempts: Self::DEFAULT_ATTEMPTS,
+            first_delay: Self::DEFAULT_FIRST_DELAY,
+        }
+    }
+
+    /// Overrides the transport retries: `attempts` tries per call (at least
+    /// one), the first retry after `first_delay`.
+    #[must_use]
+    pub fn with_retries(mut self, attempts: u32, first_delay: std::time::Duration) -> Self {
+        self.attempts = attempts.max(1);
+        self.first_delay = first_delay;
+        self
+    }
+
+    /// POSTs `body` to `url`, retrying transport and gateway failures.
+    async fn post(&self, url: &str, headers: &[(&str, &str)], body: Bytes) -> Result<Response> {
+        let mut delay = self.first_delay;
+        let mut attempt = 1;
+        loop {
+            let res = self.http.post(url, headers, body.clone()).await;
+            let why = match &res {
+                Ok(r) if !Self::GATEWAY_RETRY.contains(&r.status) => None,
+                Ok(r) => Some(format!("status {}", r.status)),
+                Err(e) => Some(e.to_string()),
+            };
+            match why {
+                Some(why) if attempt < self.attempts => {
+                    tracing::warn!(
+                        %url, attempt, of = self.attempts, error = %why,
+                        retry_in_ms = u64::try_from(delay.as_millis()).unwrap_or(u64::MAX),
+                        "kubo call failed in transport; retrying"
+                    );
+                    tokio::time::sleep(delay).await;
+                    delay = delay.saturating_mul(2);
+                    attempt += 1;
+                }
+                _ => return res,
+            }
         }
     }
 }
@@ -90,7 +146,6 @@ impl IpfsPinner for KuboClient {
             );
             let ct = format!("multipart/form-data; boundary={BOUNDARY}");
             let body = self
-                .http
                 .post(
                     &url,
                     &[("Content-Type", ct.as_str())],
@@ -115,8 +170,7 @@ impl IpfsPinner for KuboClient {
     fn pin<'a>(&'a self, cid: &'a str) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
             let url = join_url(&self.api, &format!("api/v0/pin/add?arg={cid}"));
-            self.http
-                .post(&url, &[], Bytes::new())
+            self.post(&url, &[], Bytes::new())
                 .await?
                 .into_ok("kubo pin")?;
             Ok(())
@@ -493,5 +547,117 @@ mod tests {
         )
         .unwrap();
         assert_eq!(meta["snapshots"][0]["summary"]["added-data-files"], "2");
+    }
+
+    /// Fails the first `fail` POSTs (transport error, or status `fail_with`),
+    /// then answers from `inner`.
+    #[derive(Debug)]
+    struct FlakyKubo {
+        inner: MockHttp,
+        fail: std::sync::atomic::AtomicU32,
+        fail_with: Option<u16>,
+        posts: std::sync::atomic::AtomicU32,
+    }
+
+    impl FlakyKubo {
+        fn new(fail: u32, fail_with: Option<u16>) -> Arc<Self> {
+            let inner = MockHttp::new();
+            fake_kubo(&inner, false);
+            inner.route(
+                "POST",
+                "http://kubo:5001/api/v0/pin/add?arg=bafyx",
+                200,
+                "{}",
+            );
+            Arc::new(Self {
+                inner,
+                fail: fail.into(),
+                fail_with,
+                posts: 0.into(),
+            })
+        }
+        fn posts(&self) -> u32 {
+            self.posts.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    impl HttpClient for FlakyKubo {
+        fn get<'a>(
+            &'a self,
+            url: &'a str,
+            headers: &'a [(&'a str, &'a str)],
+        ) -> BoxFuture<'a, Result<Response>> {
+            self.inner.get(url, headers)
+        }
+        fn post<'a>(
+            &'a self,
+            url: &'a str,
+            headers: &'a [(&'a str, &'a str)],
+            body: Bytes,
+        ) -> BoxFuture<'a, Result<Response>> {
+            use std::sync::atomic::Ordering::SeqCst;
+            self.posts.fetch_add(1, SeqCst);
+            if self.fail.load(SeqCst) > 0 {
+                self.fail.fetch_sub(1, SeqCst);
+                let r = match self.fail_with {
+                    None => Err(Error::Http("error decoding response body".into())),
+                    Some(status) => Ok(Response {
+                        status,
+                        body: Bytes::from_static(b"kubo error"),
+                    }),
+                };
+                return Box::pin(async move { r });
+            }
+            self.inner.post(url, headers, body)
+        }
+    }
+
+    fn flaky_kubo(fail: u32, fail_with: Option<u16>) -> (Arc<FlakyKubo>, KuboClient) {
+        let http = FlakyKubo::new(fail, fail_with);
+        let kubo = KuboClient::new(http.clone(), "http://kubo:5001")
+            .with_retries(4, std::time::Duration::ZERO);
+        (http, kubo)
+    }
+
+    #[tokio::test]
+    async fn kubo_add_retries_transport_errors() {
+        let want = crate::ipfs::cid_of(b"data").to_string();
+        // Three cut-off responses, then the CID: the fourth try succeeds.
+        let (http, kubo) = flaky_kubo(3, None);
+        let cid = kubo.add("a/f.parquet", Bytes::from_static(b"data"), "size-1048576");
+        assert_eq!(cid.await.unwrap(), want);
+        assert_eq!(http.posts(), 4);
+
+        // Four failures exhaust the attempts and return the transport error.
+        let (http, kubo) = flaky_kubo(4, None);
+        let err = kubo
+            .add("a/f.parquet", Bytes::from_static(b"data"), "size-1048576")
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("error decoding response body"),
+            "{err}"
+        );
+        assert_eq!(http.posts(), 4);
+
+        // Pinning retries the same way.
+        let (http, kubo) = flaky_kubo(2, None);
+        kubo.pin("bafyx").await.unwrap();
+        assert_eq!(http.posts(), 3);
+    }
+
+    #[tokio::test]
+    async fn kubo_retries_gateway_statuses_only() {
+        for status in KuboClient::GATEWAY_RETRY {
+            let (http, kubo) = flaky_kubo(1, Some(status));
+            kubo.pin("bafyx").await.unwrap();
+            assert_eq!(http.posts(), 2, "{status}");
+        }
+        // A Kubo error (a full repo answers 500) is final: one request.
+        for status in [500, 400, 404] {
+            let (http, kubo) = flaky_kubo(1, Some(status));
+            assert!(kubo.pin("bafyx").await.is_err(), "{status}");
+            assert_eq!(http.posts(), 1, "{status}");
+        }
     }
 }

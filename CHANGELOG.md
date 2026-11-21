@@ -32,6 +32,13 @@ versions (see [AGENTS.md](AGENTS.md)).
   retried too; one such 500 (`error code: 1104`) stopped the 2026-11-18
   run. Every other status is final, an origin's 500, 403, 404 and 410
   included. A size, hash or content mismatch is never retried.
+- Publishing gave up on the first failed call to the local IPFS node, so
+  two adds that Kubo cut short ("error decoding response body", Kubo
+  stalled at its memory limit) stopped a publish and an anchor republish
+  on 2026-11-20. Kubo `add` and `pin/add` are now tried up to four times,
+  waiting 1, 2 and 4 seconds and logging each retry, on a transport error
+  or a 502, 503 or 504. A Kubo error status (such as a full repo) is
+  final, and a CID that differs from the manifest is never retried.
 - `archive-pipeline.sh` ran the archive containers with the script's
   stdin, and `docker compose run` reads stdin. Inside a `while read` loop
   the first container swallowed the rest of the input. `records-anchors`
